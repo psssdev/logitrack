@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Search } from 'lucide-react';
 
 export default function ConfiguracoesPage() {
   return (
@@ -38,13 +39,38 @@ export default function ConfiguracoesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-1">
+               <div className="space-y-1">
                 <Label htmlFor="nomeFantasia">Nome Fantasia</Label>
                 <Input id="nomeFantasia" defaultValue="LogiTrack Express" />
               </div>
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="cnpj">CNPJ</Label>
+                  <Input id="cnpj" defaultValue="00.000.000/0001-00" />
+                </div>
+                 <div className="flex items-end">
+                    <Button variant="outline" className="w-full">
+                        <Search className="mr-2 h-4 w-4" />
+                        Buscar
+                    </Button>
+                </div>
+              </div>
               <div className="space-y-1">
-                <Label htmlFor="cnpj">CNPJ</Label>
-                <Input id="cnpj" defaultValue="00.000.000/0001-00" />
+                <Label htmlFor="logoUrl">URL do Logo</Label>
+                <Input id="logoUrl" placeholder="https://exemplo.com/logo.png" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                    <Label htmlFor="codigoPrefixo">Prefixo do Código de Rastreio</Label>
+                    <Input id="codigoPrefixo" defaultValue="TR-" />
+                </div>
+                 <div className="space-y-1">
+                    <Label htmlFor="linkBaseRastreio">Link Base para Rastreio</Label>
+                    <Input id="linkBaseRastreio" placeholder="https://seusite.com/rastreio/" />
+                </div>
+              </div>
+               <div className="flex justify-end pt-2">
+                    <Button>Salvar Alterações</Button>
               </div>
             </CardContent>
           </Card>
@@ -90,6 +116,9 @@ export default function ConfiguracoesPage() {
                <div className="space-y-1">
                 <Label htmlFor="entregue">Entrega Concluída</Label>
                 <Textarea id="entregue" defaultValue="Entrega concluída 🎉! Código {{codigo}}. Obrigado por escolher {{empresa}}." />
+              </div>
+                 <div className="flex justify-end pt-2">
+                    <Button>Salvar Modelos</Button>
               </div>
             </CardContent>
           </Card>
