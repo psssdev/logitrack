@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,10 +10,25 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { NewOrderForm } from '@/components/new-order-form';
-import { getClients } from '@/lib/actions';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, orderBy, query } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { Client } from '@/lib/types';
 
-export default async function NewOrderPage() {
-  const clients = await getClients();
+export default function NewOrderPage() {
+  const firestore = useFirestore();
+
+  const clientsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    // Assuming a 'clients' subcollection under a specific company
+    return query(
+      collection(firestore, 'companies', '1', 'clients'),
+      orderBy('nome', 'asc')
+    );
+  }, [firestore]);
+
+  const { data: clients, isLoading } = useCollection<Client>(clientsQuery);
+
   return (
     <div className="mx-auto grid w-full max-w-4xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
@@ -34,7 +50,8 @@ export default async function NewOrderPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NewOrderForm clients={clients} />
+          {isLoading && <Skeleton className="h-48 w-full" />}
+          {clients && <NewOrderForm clients={clients} />}
         </CardContent>
       </Card>
     </div>

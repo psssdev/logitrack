@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,17 +11,27 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { NewAddressForm } from '@/components/new-address-form';
-import { getClientById } from '@/lib/actions';
 import { notFound } from 'next/navigation';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import type { Client } from '@/lib/types';
+import { doc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default async function NewAddressPage({
+export default function NewAddressPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const client = await getClientById(params.id);
+  const firestore = useFirestore();
 
-  if (!client) {
+  const clientRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'companies', '1', 'clients', params.id);
+  }, [firestore, params.id]);
+
+  const { data: client, isLoading } = useDoc<Client>(clientRef);
+
+  if (!isLoading && !client) {
     notFound();
   }
 
@@ -27,7 +39,7 @@ export default async function NewAddressPage({
     <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href={`/clientes/${client.id}`}>
+          <Link href={`/clientes/${params.id}`}>
             <ChevronLeft className="h-4 w-4" />
             <span className="sr-only">Voltar</span>
           </Link>
@@ -37,15 +49,25 @@ export default async function NewAddressPage({
         </h1>
       </div>
       <Card>
-        <CardHeader>
-          <CardTitle>Dados do Endereço</CardTitle>
-          <CardDescription>
-            Cadastrando endereço para o cliente{' '}
-            <span className="font-semibold text-foreground">{client.nome}</span>.
-          </CardDescription>
-        </CardHeader>
+        {isLoading ? (
+          <CardHeader>
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-4 w-3/4 mt-2" />
+          </CardHeader>
+        ) : (
+          <CardHeader>
+            <CardTitle>Dados do Endereço</CardTitle>
+            <CardDescription>
+              Cadastrando endereço para o cliente{' '}
+              <span className="font-semibold text-foreground">
+                {client?.nome}
+              </span>
+              .
+            </CardDescription>
+          </CardHeader>
+        )}
         <CardContent>
-          <NewAddressForm clientId={client.id} />
+          <NewAddressForm clientId={params.id} />
         </CardContent>
       </Card>
     </div>
