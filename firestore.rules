@@ -1,171 +1,221 @@
 /**
- * @fileoverview Firestore Security Rules for the transport app.
+ * @fileoverview Firestore Security Rules for Prototyping.
  *
  * Core Philosophy:
- * This ruleset implements a multi-tenant security model. Data is partitioned by `companyId`, and users must be authenticated to access any data.
- * All data access is scoped to the company level.
+ * This ruleset implements a multi-tenant security model where users are associated with companies, and access control is determined by the user's role within that company.
+ * Strict ownership is enforced for user profiles, and company-level data access is role-based (viewer, editor, admin).
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile information, accessible only to the user themselves.
- * - /companies/{companyId}: Stores company-specific data.
- * - /companies/{companyId}/clients/{clientId}: Stores client information for a company.
- * - /companies/{companyId}/origins/{originId}: Stores shipment origins for a company.
- * - /companies/{companyId}/clients/{clientId}/addresses/{addressId}: Stores addresses for a specific client.
- * - /companies/{companyId}/orders/{orderId}: Stores order information for a company.
+ * - /users/{userId}: Stores user profile information, including companyId and role.
+ * - /companies/{companyId}: Stores company information.
+ * - /companies/{companyId}/clients/{clientId}: Stores client data for each company.
+ * - /companies/{companyId}/origins/{originId}: Stores origin data for each company.
+ * - /companies/{companyId}/clients/{clientId}/addresses/{addressId}: Stores address data for each client within a company.
+ * - /companies/{companyId}/orders/{orderId}: Stores order data for each company.
  *
  * Key Security Decisions:
- * - Strict User Ownership:  User profiles are only accessible to the authenticated user.
- * - Multi-Tenant Enforcement: All company-related data is scoped under the /companies/{companyId} path and is accessible only to authenticated users (in future implementations, roles will be created).
- * - No User Listing: Listing all users is not permitted.
+ * - Users can only read/write their own profile data. Listing users is disallowed.
+ * - Company-level data access requires the user to be a member of the company (companyId match).
+ * - Company admins have full CRUD access to company data. Editors have create, update, and delete access. Viewers have read-only access.
+ * - The default security posture is strict: any access not explicitly allowed is denied.
  *
  * Denormalization for Authorization:
- *  - Company ID: It is assumed that the application code ensures that companyId is present in relevant documents, enabling easy authorization checks.
+ * - User documents store `companyId` and `role` to avoid needing to query separate collections for authorization.
+ *
+ * Structural Segregation:
+ * - Company-specific data is segregated into subcollections under the `/companies/{companyId}` path, ensuring data isolation between tenants.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ---------- Utility Functions ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function userCompanyId() {
+      return isSignedIn() ? userDoc().data.companyId : null;
+    }
+    function userRole() {
+      return isSignedIn() ? userDoc().data.role : null;
+    }
+
+    // Roles
+    function isViewer() { return isSignedIn() && (userRole() == "viewer" || userRole() == "editor" || userRole() == "admin"); }
+    function isEditor() { return isSignedIn() && (userRole() == "editor" || userRole() == "admin"); }
+    function isAdmin()  { return isSignedIn() && (userRole() == "admin"); }
+
+    // Belongs to the company of the doc
+    function isCompanyMember(companyId) {
+      return isSignedIn() && userCompanyId() == companyId;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
     /**
-     * @description Controls access to user profile information.
+     * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (get) Authenticated user can read their own profile.
-     * @deny (get) Authenticated user cannot read other user profiles.
-     * @allow (create) Authenticated user can create their own profile.
-     * @deny (create) Unauthenticated user cannot create a profile.
-     * @allow (update) Authenticated user can update their own profile.
-     * @deny (update) Authenticated user cannot update other user profiles.
-     * @allow (delete) Authenticated user can delete their own profile.
-     * @deny (delete) Authenticated user cannot delete other user profiles.
-     * @principle Enforces user-ownership for profile data.
+     * @allow (get) User can read their own profile: auth.uid == userId
+     * @deny (get) User cannot read another user's profile: auth.uid != userId
+     * @allow (create) User can create their own profile: auth.uid == userId
+     * @deny (create) User cannot create a profile with a mismatched userId: auth.uid != userId
+     * @allow (update) User can update their own profile: auth.uid == userId
+     * @deny (update) User cannot update a profile with a mismatched userId: auth.uid != userId
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
+      allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserCreate();
+      allow update: if isExistingOwner(userId) && isValidUserUpdate();
+      allow delete: if isExistingOwner(userId);
+
+      function isValidUserCreate() {
+        return request.resource.data.keys().hasAll(["companyId", "role"]) &&
+               request.resource.data.companyId is string &&
+               request.resource.data.companyId.size() > 0 &&
+               request.resource.data.role in ["viewer", "editor", "admin"];
+      }
+
+      function isValidUserUpdate() {
+        return request.resource.data.keys().hasAll(["companyId", "role"]) &&
+               request.resource.data.companyId is string &&
+               request.resource.data.companyId.size() > 0 &&
+               request.resource.data.role in ["viewer", "editor", "admin"] &&
+               request.resource.data.companyId == resource.data.companyId;
+      }
     }
 
     /**
-     * @description Controls access to client information within a company.
+     * @description Controls access to company documents.
+     * @path /companies/{companyId}
+     * @allow (get) Company members (viewer+) can read company data: isCompanyMember() && isViewer()
+     * @deny (get) Non-company members cannot read company data: !isCompanyMember()
+     * @allow (create) Company admins can create, update, and delete company data: isCompanyMember() && isAdmin()
+     * @deny (create) Non-company admins cannot create company data: !isAdmin()
+     * @principle Enforces role-based access control for company data.
+     */
+    match /companies/{companyId} {
+      allow get: if isCompanyMember(companyId) && isViewer();
+      allow list: if false;
+      allow create: if isCompanyMember(companyId) && isAdmin();
+      allow update: if isCompanyMember(companyId) && isAdmin();
+      allow delete: if isCompanyMember(companyId) && isAdmin();
+    }
+
+    /**
+     * @description Controls access to client documents within a company.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow (get) Authenticated user can read client information within their company.
-     * @deny (get) Unauthenticated user cannot read client information.
-     * @allow (create) Authenticated user can create client information within their company.
-     * @deny (create) Unauthenticated user cannot create client information.
-     * @allow (update) Authenticated user can update client information within their company.
-     * @deny (update) Unauthenticated user cannot update client information.
-     * @allow (delete) Authenticated user can delete client information within their company.
-     * @deny (delete) Unauthenticated user cannot delete client information.
-     * @principle Enforces multi-tenancy for client data.
+     * @allow (get) Company members (viewer+) can read client data: isCompanyMember() && isViewer()
+     * @deny (get) Non-company members cannot read client data: !isCompanyMember()
+     * @allow (create) Company editors can create, update, and delete client data: isCompanyMember() && isEditor()
+     * @deny (create) Non-company editors cannot create client data: !isEditor()
+     * @principle Enforces role-based access control for company client data.
      */
     match /companies/{companyId}/clients/{clientId} {
-      allow get: if isSignedIn() && isCompanyUser(companyId);
-      allow list: if isSignedIn() && isCompanyUser(companyId);
-      allow create: if isSignedIn() && isCompanyUser(companyId);
-      allow update: if isSignedIn() && isCompanyUser(companyId);
-      allow delete: if isSignedIn() && isCompanyUser(companyId);
+      allow get: if isCompanyMember(companyId) && isViewer();
+      allow list: if isCompanyMember(companyId) && isViewer();
+      allow create: if isCompanyMember(companyId) && isEditor() && isValidClient();
+      allow update: if isCompanyMember(companyId) && isEditor() && isValidClient();
+      allow delete: if isCompanyMember(companyId) && isEditor() && isValidClient();
+
+      function isValidClient() {
+        return request.resource.data.name is string &&
+               request.resource.data.name.size() > 0 &&
+               (!("phone" in request.resource.data) || request.resource.data.phone is string) &&
+               (!("email" in request.resource.data) || request.resource.data.email is string);
+      }
     }
 
     /**
-     * @description Controls access to addresses for a specific client.
-     * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
-     * @allow (get) Authenticated user can read addresses for a client within their company.
-     * @deny (get) Unauthenticated user cannot read addresses.
-     * @allow (create) Authenticated user can create addresses for a client within their company.
-     * @deny (create) Unauthenticated user cannot create addresses.
-     * @allow (update) Authenticated user can update addresses for a client within their company.
-     * @deny (update) Unauthenticated user cannot update addresses.
-     * @allow (delete) Authenticated user can delete addresses for a client within their company.
-     * @deny (delete) Unauthenticated user cannot delete addresses.
-     * @principle Enforces multi-tenancy for address data.
-     */
-    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-      allow get: if isSignedIn() && isCompanyUser(companyId);
-      allow list: if isSignedIn() && isCompanyUser(companyId);
-      allow create: if isSignedIn() && isCompanyUser(companyId);
-      allow update: if isSignedIn() && isCompanyUser(companyId);
-      allow delete: if isSignedIn() && isCompanyUser(companyId);
-    }
-        /**
-     * @description Controls access to origins for a company.
+     * @description Controls access to origin documents within a company.
      * @path /companies/{companyId}/origins/{originId}
-     * @allow (get) Authenticated user can read origin within their company.
-     * @deny (get) Unauthenticated user cannot read origin.
-     * @allow (create) Authenticated user can create origin within their company.
-     * @deny (create) Unauthenticated user cannot create origin.
-     * @allow (update) Authenticated user can update origin within their company.
-     * @deny (update) Unauthenticated user cannot update origin.
-     * @allow (delete) Authenticated user can delete origin within their company.
-     * @deny (delete) Unauthenticated user cannot delete origin.
-     * @principle Enforces multi-tenancy for origins data.
+     * @allow (get) Company members (viewer+) can read origin data: isCompanyMember() && isViewer()
+     * @deny (get) Non-company members cannot read origin data: !isCompanyMember()
+     * @allow (create) Company editors can create, update, and delete origin data: isCompanyMember() && isEditor()
+     * @deny (create) Non-company editors cannot create origin data: !isEditor()
+     * @principle Enforces role-based access control for company origin data.
      */
     match /companies/{companyId}/origins/{originId} {
-          allow get: if isSignedIn() && isCompanyUser(companyId);
-          allow list: if isSignedIn() && isCompanyUser(companyId);
-          allow create: if isSignedIn() && isCompanyUser(companyId);
-          allow update: if isSignedIn() && isCompanyUser(companyId);
-          allow delete: if isSignedIn() && isCompanyUser(companyId);
+      allow get: if isCompanyMember(companyId) && isViewer();
+      allow list: if isCompanyMember(companyId) && isViewer();
+      allow create: if isCompanyMember(companyId) && isEditor() && isValidOrigin();
+      allow update: if isCompanyMember(companyId) && isEditor() && isValidOrigin();
+      allow delete: if isCompanyMember(companyId) && isEditor() && isValidOrigin();
+
+      function isValidOrigin() {
+        return request.resource.data.name is string &&
+               request.resource.data.name.size() > 0 &&
+               (!("description" in request.resource.data) || request.resource.data.description is string) &&
+               (!("active" in request.resource.data) || request.resource.data.active is bool);
+      }
     }
 
     /**
-     * @description Controls access to orders within a company.
+     * @description Controls access to order documents within a company.
      * @path /companies/{companyId}/orders/{orderId}
-     * @allow (get) Authenticated user can read order information within their company.
-     * @deny (get) Unauthenticated user cannot read order information.
-     * @allow (create) Authenticated user can create order information within their company.
-     * @deny (create) Unauthenticated user cannot create order information.
-     * @allow (update) Authenticated user can update order information within their company.
-     * @deny (update) Unauthenticated user cannot update order information.
-     * @allow (delete) Authenticated user can delete order information within their company.
-     * @deny (delete) Unauthenticated user cannot delete order information.
-     * @principle Enforces multi-tenancy for order data.
+     * @allow (get) Company members (viewer+) can read order data: isCompanyMember() && isViewer()
+     * @deny (get) Non-company members cannot read order data: !isCompanyMember()
+     * @allow (create) Company editors can create, update, and delete order data: isCompanyMember() && isEditor()
+     * @deny (create) Non-company editors cannot create order data: !isEditor()
+     * @principle Enforces role-based access control for company order data.
      */
     match /companies/{companyId}/orders/{orderId} {
-      allow get: if isSignedIn() && isCompanyUser(companyId);
-      allow list: if isSignedIn() && isCompanyUser(companyId);
-      allow create: if isSignedIn() && isCompanyUser(companyId);
-      allow update: if isSignedIn() && isCompanyUser(companyId);
-      allow delete: if isSignedIn() && isCompanyUser(companyId);
+      // Read (get and list/queries) for any member (viewer+)
+      allow get: if isCompanyMember(companyId) && isViewer();
+      allow list: if isCompanyMember(companyId) && isViewer();
+      // Write (create/edit/delete) only editor/admin and with validation
+      allow create: if isCompanyMember(companyId) && isEditor() && isValidOrder();
+      allow update: if isCompanyMember(companyId) && isEditor() && isValidOrder();
+      allow delete: if isCompanyMember(companyId) && isEditor() && isValidOrder();
+
+      // Minimum order validations (adjust to your actual fields)
+      function isValidOrder() {
+        return
+          // Required fields
+          request.resource.data.keys().hasAll(["status", "total", "items"]) &&
+          request.resource.data.status in ["pending", "approved", "paid", "canceled", "delivered"] &&
+          request.resource.data.total is number &&
+          request.resource.data.total >= 0 &&
+          request.resource.data.items is list &&
+          request.resource.data.items.size() >= 0 &&
+
+          // If it exists, customerId must be string
+          (!("customerId" in request.resource.data) || request.resource.data.customerId is string);
+      }
     }
 
-     /**
-      * @description Controls access to companies.
-      * @path /companies/{companyId}
-      */
-    match /companies/{companyId} {
-      allow get: if isSignedIn() && isCompanyUser(companyId);
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && isCompanyUser(companyId);
-      allow delete: if false;
+    /**
+     * @description Controls access to address documents within a company's client.
+     * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
+     * @allow (get) Company members (viewer+) can read address data: isCompanyMember() && isViewer()
+     * @deny (get) Non-company members cannot read address data: !isCompanyMember()
+     * @allow (create) Company editors can create, update, and delete address data: isCompanyMember() && isEditor()
+     * @deny (create) Non-company editors cannot create address data: !isEditor()
+     * @principle Enforces role-based access control for address data.
+     */
+    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
+      allow get: if isCompanyMember(companyId) && isViewer();
+      allow list: if isCompanyMember(companyId) && isViewer();
+      allow create: if isCompanyMember(companyId) && isEditor();
+      allow update: if isCompanyMember(companyId) && isEditor();
+      allow delete: if isCompanyMember(companyId) && isEditor();
     }
-  }
 
-  // Helper function to determine if the user is signed in.
-  function isSignedIn() {
-    return request.auth != null;
-  }
 
-  // Helper function to determine if the user is the owner of the resource.
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
-
-  // Helper function to determine if the user is the existing owner of the resource.
-  function isExistingOwner(userId) {
-      return isSignedIn() && isOwner(userId) && resource.data.userId == userId;
-  }
-
-    // Helper function to determine if the user is part of the company.
-  function isCompanyUser(companyId) {
-    return isSignedIn();
-    // In a real-world scenario, you would implement logic here to
-    // verify that the user is authorized to access the company's data.
-    // This could involve checking a custom claim on the user's JWT,
-    // querying a database to verify the user's role within the company,
-    // or any other appropriate authorization mechanism.
-    // For example:
-    // return request.auth.token.companyId == companyId;
+    // ---------- Default Block ----------
+    match /{document=**} {
+      allow read: if false;
+      allow write: if false;
+    }
   }
 }
