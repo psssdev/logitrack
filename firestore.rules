@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to get user's companyId from custom claims
+    function getCompanyId() {
+      return request.auth.token.companyId;
+    }
+
+    // Companies collection
+    match /companies/{companyId} {
+      // Only allow reads/writes if the user belongs to this company
+      allow read, write: if getCompanyId() == companyId;
+
+      // Subcollection for orders
+      match /orders/{orderId} {
+        allow read, write: if getCompanyId() == companyId;
+
+        // On create, ensure companyId matches user's company and is not changed
+        allow create: if request.resource.data.companyId == getCompanyId();
+
+        // On update, prevent changing companyId and codigoRastreio
+        allow update: if request.resource.data.companyId == resource.data.companyId
+                      && request.resource.data.codigoRastreio == resource.data.codigoRastreio;
+      }
+    }
+
+    // Root orders collection (if not using subcollections)
+    match /orders/{orderId} {
+      // Allow read if the order's companyId matches the user's companyId
+      allow read: if getCompanyId() == resource.data.companyId;
+      
+      // Allow create if the new order's companyId matches the user's
+      allow create: if getCompanyId() == request.resource.data.companyId;
+
+      // Allow update if companyId is not changing and matches user's company
+      allow update: if getCompanyId() == resource.data.companyId 
+                    && request.resource.data.companyId == resource.data.companyId
+                    && request.resource.data.codigoRastreio == resource.data.codigoRastreio;
+    }
+
+    // Drivers collection
+    match /drivers/{driverId} {
+      // Allow read/write if driver belongs to the user's company
+      allow read, write: if getCompanyId() == resource.data.companyId
+                        && getCompanyId() == request.resource.data.companyId;
+    }
+  }
+}
