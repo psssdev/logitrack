@@ -1,102 +1,69 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset enforces a multi-tenant security model where data access is primarily controlled at the company level.
- *
- * Data Structure:
- * - /companies/{companyId}: Root collection for company-specific data.
- * - /companies/{companyId}/orders/{orderId}: Subcollection for orders belonging to a specific company.
- * - /companies/{companyId}/drivers/{driverId}: Subcollection for drivers belonging to a specific company.
- *
- * Key Security Decisions:
- * - Access to companies is restricted to authorized users.
- * - Access to orders and drivers is restricted to users authorized for the specific company they belong to.
- * - List operations are secured to prevent unauthorized data access.
- *
- * Denormalization for Authorization:
- * - Orders and Drivers documents contain a `companyId` field, which is used to authorize access without needing to perform additional `get()` operations.
- *
- * Structural Segregation:
- * - Orders and Drivers are stored in separate subcollections under each company, ensuring that all documents within these collections share the same security requirements.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows access to company documents based on authorization.
-     * @path /companies/{companyId}
-     * @allow (get) if true; // Assuming public read access is allowed for company details in the prototype phase.
-     * @allow (create) if false; //TODO: Add logic to authorize Company creation
-     * @allow (update) if false; //TODO: Add logic to authorize Company updates
-     * @allow (delete) if false; //TODO: Add logic to authorize Company deletion
-     * @deny (list) if true; // Listing companies is not allowed for security reasons.
-     * @principle Enforces administrative access for company management.
+     * @description Enforces user-level access control for user profiles.
+     * @path /users/{userId}
+     * @allow (get, create, update, delete): Authenticated user can access their own profile.
+     * @deny (get, create, update, delete): Authenticated user cannot access another user's profile. Unauthenticated users cannot access any profiles.
+     * @principle Enforces document ownership for all operations.
      */
-    match /companies/{companyId} {
-      allow get: if true;
+    match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
-    /**
-     * @description Manages access to order documents within a specific company.
-     * @path /companies/{companyId}/orders/{orderId}
-     * @allow (get) if true; // Assuming public read access is allowed for order details in the prototype phase.
-     * @allow (create) if isValidCompanyId(companyId, request.resource.data.companyId);
-     * @allow (update) if isExistingValidCompanyId(companyId, resource.data.companyId);
-     * @allow (delete) if isExistingValidCompanyId(companyId, resource.data.companyId);
-     * @allow (list) if true; // Assuming public read access is allowed for order details in the prototype phase.
-     * @deny if false;
-     * @principle Enforces company-level access control for orders.
-     */
-    match /companies/{companyId}/orders/{orderId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isValidCompanyId(companyId, request.resource.data.companyId);
-      allow update: if isExistingValidCompanyId(companyId, resource.data.companyId);
-      allow delete: if isExistingValidCompanyId(companyId, resource.data.companyId);
+     /**
+      * @description Controls access to client information for a specific company.
+      * @path /companies/{companyId}/clients/{clientId}
+      * @allow (get, list, create, update, delete): Authenticated users.
+      * @deny (get, list, create, update, delete): Unauthenticated users.
+      * @principle Requires authentication for access to company-specific client data.
+      */
+    match /companies/{companyId}/clients/{clientId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
-    /**
-     * @description Manages access to driver documents within a specific company.
-     * @path /companies/{companyId}/drivers/{driverId}
-     * @allow (get) if true; // Assuming public read access is allowed for driver details in the prototype phase.
-     * @allow (create) if isValidCompanyId(companyId, request.resource.data.companyId);
-     * @allow (update) if isExistingValidCompanyId(companyId, resource.data.companyId);
-     * @allow (delete) if isExistingValidCompanyId(companyId, resource.data.companyId);
-     * @allow (list) if true; // Assuming public read access is allowed for driver details in the prototype phase.
-     * @principle Enforces company-level access control for drivers.
-     */
-    match /companies/{companyId}/drivers/{driverId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isValidCompanyId(companyId, request.resource.data.companyId);
-      allow update: if isExistingValidCompanyId(companyId, resource.data.companyId);
-      allow delete: if isExistingValidCompanyId(companyId, resource.data.companyId);
-    }
+      /**
+       * @description Controls access to origin information for a specific company.
+       * @path /companies/{companyId}/origins/{originId}
+       * @allow (get, list, create, update, delete): Authenticated users.
+       * @deny (get, list, create, update, delete): Unauthenticated users.
+       * @principle Requires authentication for access to company-specific origin data.
+       */
+    match /companies/{companyId}/origins/{originId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-    /// Helper functions
-
-    /**
-     * @description Checks if the provided companyId matches the companyId in the request data.
-     * @param {string} companyId The company ID from the path.
-     * @param {string} requestCompanyId The company ID from the request data.
-     * @return {bool} True if the company IDs match, false otherwise.
-     */
-    function isValidCompanyId(companyId, requestCompanyId) {
-      return companyId == requestCompanyId;
-    }
-
-    /**
-     * @description Checks if the provided companyId matches the existing companyId in the resource data.
-     * @param {string} companyId The company ID from the path.
-     * @param {string} resourceCompanyId The company ID from the resource data.
-     * @return {bool} True if the company IDs match and the document exists, false otherwise.
-     */
-    function isExistingValidCompanyId(companyId, resourceCompanyId) {
-          return resource != null && companyId == resourceCompanyId;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
   }
 }
