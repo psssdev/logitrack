@@ -61,6 +61,7 @@ const brazilianStates = [
 export default function ConfiguracoesPage() {
   const { toast } = useToast();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
+  const [isFetchingCnpj, setIsFetchingCnpj] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
   const [selectedState, setSelectedState] = React.useState('');
@@ -178,12 +179,52 @@ export default function ConfiguracoesPage() {
     }
   };
   
-    const handleCnpjSearch = () => {
-        toast({
-            title: 'Busca de CNPJ',
-            description: 'Funcionalidade de busca por CNPJ ainda não implementada.'
-        })
+  const handleCnpjSearch = async () => {
+    const currentCnpj = formValues.cnpj.replace(/\D/g, '');
+    if (currentCnpj.length !== 14) {
+      toast({
+        variant: 'destructive',
+        title: 'CNPJ inválido',
+        description: 'Por favor, digite um CNPJ com 14 dígitos.',
+      });
+      return;
     }
+
+    setIsFetchingCnpj(true);
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${currentCnpj}`);
+      if (!response.ok) {
+        throw new Error('CNPJ não encontrado ou API indisponível.');
+      }
+      const data = await response.json();
+
+      setFormValues(prev => ({
+        ...prev,
+        nomeFantasia: data.nome_fantasia || data.razao_social || prev.nomeFantasia,
+        cep: data.cep || prev.cep,
+        logradouro: data.logradouro || prev.logradouro,
+        numero: data.numero || prev.numero,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.municipio || prev.cidade,
+        estado: data.uf || prev.estado,
+      }));
+      setSelectedState(data.uf);
+
+      toast({
+        title: 'Dados da Empresa Encontrados!',
+        description: 'Os campos foram preenchidos com os dados do CNPJ.',
+      });
+
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro na Busca por CNPJ',
+        description: error.message || 'Não foi possível buscar os dados. Tente novamente.',
+      });
+    } finally {
+      setIsFetchingCnpj(false);
+    }
+  };
     
     const handleSaveChanges = () => {
         // Here you would typically save the formValues state to your backend
@@ -222,8 +263,8 @@ export default function ConfiguracoesPage() {
                         <Input id="cnpj" value={formValues.cnpj} onChange={handleInputChange} />
                     </div>
                     <div className="flex items-end">
-                    <Button variant="outline" className="w-full" onClick={handleCnpjSearch}>
-                        <Search className="mr-2 h-4 w-4" />
+                    <Button variant="outline" className="w-full" onClick={handleCnpjSearch} disabled={isFetchingCnpj}>
+                        {isFetchingCnpj ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                         Buscar
                     </Button>
                     </div>
