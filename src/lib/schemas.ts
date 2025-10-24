@@ -62,6 +62,10 @@ export const newOrderSchema = orderSchema.omit({
   companyId: true,
   pago: true,
   status: true,
+  nomeCliente: true, // Will be derived from clientId
+  telefone: true, // Will be derived from clientId
+}).extend({
+    clientId: z.string({ required_error: 'Selecione um cliente.' }),
 });
 
 export const driverSchema = z.object({
@@ -71,4 +75,16 @@ export const driverSchema = z.object({
   placa: z.string().optional(),
   ativo: z.boolean(),
   companyId: z.string(),
+});
+
+export const clientSchema = z.object({
+    id: z.string(),
+    nome: z.string().min(1, "Nome é obrigatório"),
+    telefone: z.string().min(10, "Telefone inválido"),
+    createdAt: z.date(),
+});
+
+export const newClientSchema = clientSchema.omit({
+    id: true,
+    createdAt: true,
 });

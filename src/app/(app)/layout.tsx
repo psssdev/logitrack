@@ -11,6 +11,7 @@ import {
   Package,
   Settings,
   Users,
+  Truck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -30,7 +31,8 @@ import { ThemeToggle } from '@/components/theme-toggle';
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/encomendas', icon: Package, label: 'Encomendas' },
-  { href: '/motoristas', icon: Users, label: 'Motoristas' },
+  { href: '/clientes', icon: Users, label: 'Clientes' },
+  { href: '/motoristas', icon: Truck, label: 'Motoristas' },
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];

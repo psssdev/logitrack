@@ -1,9 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { orders, drivers } from './data';
-import type { NewOrder, Order, OrderStatus } from './types';
-import { newOrderSchema } from './schemas';
+import { orders, drivers, clients } from './data';
+import type { NewOrder, Order, OrderStatus, Client, NewClient } from './types';
+import { newOrderSchema, newClientSchema } from './schemas';
 
 // Simulate a database delay
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -32,9 +32,14 @@ export async function getDrivers() {
   return drivers;
 }
 
-export async function createOrder(formData: FormData) {
+export async function getClients() {
+    await delay(200);
+    return clients;
+}
+
+export async function createClient(formData: FormData) {
   const values = Object.fromEntries(formData.entries());
-  const validatedFields = newOrderSchema.safeParse(values);
+  const validatedFields = newClientSchema.safeParse(values);
 
   if (!validatedFields.success) {
     return {
@@ -42,10 +47,51 @@ export async function createOrder(formData: FormData) {
       message: 'Erro de validação.',
     };
   }
+  
+  try {
+    const newClient: Client = {
+      ...validatedFields.data,
+      id: (clients.length + 1).toString(),
+      createdAt: new Date(),
+    };
+
+    clients.unshift(newClient);
+    
+  } catch (e) {
+    return {
+      message: 'Erro no banco de dados: Falha ao criar cliente.',
+    };
+  }
+
+  revalidatePath('/clientes');
+  return { message: 'Cliente criado com sucesso.' };
+}
+
+
+export async function createOrder(formData: FormData) {
+  const values = Object.fromEntries(formData.entries());
+  const validatedFields = newOrderSchema.safeParse(values);
+
+  if (!validatedFields.success) {
+    console.log(validatedFields.error.flatten().fieldErrors)
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Erro de validação.',
+    };
+  }
 
   try {
+    const { clientId, ...orderData } = validatedFields.data;
+    const client = clients.find(c => c.id === clientId);
+
+    if(!client) {
+        return { message: "Cliente não encontrado."};
+    }
+
     const newOrder: Order = {
-      ...validatedFields.data,
+      ...orderData,
+      nomeCliente: client.nome,
+      telefone: client.telefone,
       id: (orders.length + 1).toString(),
       codigoRastreio: `TR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
       status: 'PENDENTE',

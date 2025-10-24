@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
@@ -21,11 +22,27 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder } from '@/lib/types';
+import type { NewOrder, Client } from '@/lib/types';
 import { createOrder } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { drivers } from '@/lib/data';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { ChevronsUpDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 const paymentMethodLabels = {
   pix: 'PIX',
@@ -35,9 +52,11 @@ const paymentMethodLabels = {
   link: 'Link de Pagamento',
 };
 
-export function NewOrderForm() {
+export function NewOrderForm({ clients }: { clients: Client[] }) {
   const { toast } = useToast();
   const router = useRouter();
+  const [popoverOpen, setPopoverOpen] = React.useState(false);
+
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
     defaultValues: {
@@ -61,53 +80,107 @@ export function NewOrderForm() {
     });
 
     const result = await createOrder(formData);
-    
+
     if (result?.message.includes('sucesso')) {
-        toast({
-            title: 'Sucesso!',
-            description: 'Encomenda criada e cliente notificado.',
-        });
-        router.push('/encomendas');
+      toast({
+        title: 'Sucesso!',
+        description: 'Encomenda criada e cliente notificado.',
+      });
+      router.push('/encomendas');
     } else {
-        toast({
-            variant: 'destructive',
-            title: 'Erro ao criar encomenda.',
-            description: result?.message || 'Ocorreu um erro desconhecido.',
-        });
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao criar encomenda.',
+        description: result?.message || 'Ocorreu um erro desconhecido.',
+      });
     }
   }
+
+  const selectedClientId = form.watch('clientId');
+
+  React.useEffect(() => {
+    if (selectedClientId) {
+      const client = clients.find((c) => c.id === selectedClientId);
+      if (client) {
+        form.setValue('nomeCliente', client.nome, { shouldValidate: true });
+        form.setValue('telefone', client.telefone, { shouldValidate: true });
+      }
+    }
+  }, [selectedClientId, clients, form]);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="nomeCliente"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome do Cliente *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: João da Silva" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="telefone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Telefone (WhatsApp) *</FormLabel>
-                <FormControl>
-                  <Input placeholder="(99) 99999-9999" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="clientId"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Cliente *</FormLabel>
+              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={cn(
+                        'w-full justify-between',
+                        !field.value && 'text-muted-foreground'
+                      )}
+                    >
+                      {field.value
+                        ? clients.find((client) => client.id === field.value)?.nome
+                        : 'Selecione um cliente'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar cliente..." />
+                    <CommandList>
+                      <CommandEmpty>
+                        <div className="p-4 text-center text-sm">
+                            <p>Nenhum cliente encontrado.</p>
+                            <Button variant="link" asChild className="mt-2">
+                                <Link href="/clientes/novo">Cadastrar novo cliente</Link>
+                            </Button>
+                        </div>
+                        </CommandEmpty>
+                      <CommandGroup>
+                        {clients.map((client) => (
+                          <CommandItem
+                            value={client.nome}
+                            key={client.id}
+                            onSelect={() => {
+                              form.setValue('clientId', client.id);
+                              setPopoverOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                client.id === field.value
+                                  ? 'opacity-100'
+                                  : 'opacity-0'
+                              )}
+                            />
+                            <div>
+                                <p>{client.nome}</p>
+                                <p className="text-xs text-muted-foreground">{client.telefone}</p>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
@@ -144,7 +217,7 @@ export function NewOrderForm() {
               <FormItem>
                 <FormLabel>Valor da Entrega *</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" {...field} />
+                  <Input type="number" step="0.01" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -166,16 +239,20 @@ export function NewOrderForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {Object.entries(paymentMethodLabels).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
+                    {Object.entries(paymentMethodLabels).map(
+                      ([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      )
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
-           <FormField
+          <FormField
             control={form.control}
             name="motoristaId"
             render={({ field }) => (
@@ -191,8 +268,10 @@ export function NewOrderForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {drivers.map(driver => (
-                        <SelectItem key={driver.id} value={driver.id}>{driver.nome}</SelectItem>
+                    {drivers.map((driver) => (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        {driver.nome}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -220,9 +299,15 @@ export function NewOrderForm() {
           )}
         />
         <div className="flex justify-end">
-            <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? 'Salvando...' : 'Salvar & Notificar WhatsApp'}
-            </Button>
+          <Button
+            type="submit"
+            size="lg"
+            disabled={form.formState.isSubmitting}
+          >
+            {form.formState.isSubmitting
+              ? 'Salvando...'
+              : 'Salvar & Notificar WhatsApp'}
+          </Button>
         </div>
       </form>
     </Form>

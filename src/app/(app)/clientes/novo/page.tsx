@@ -8,33 +8,31 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { NewOrderForm } from '@/components/new-order-form';
-import { getClients } from '@/lib/actions';
+import { NewClientForm } from '@/components/new-client-form';
 
-export default async function NewOrderPage() {
-  const clients = await getClients();
+export default function NewClientPage() {
   return (
-    <div className="mx-auto grid w-full max-w-4xl flex-1 auto-rows-max gap-4">
+    <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href="/encomendas">
+          <Link href="/clientes">
             <ChevronLeft className="h-4 w-4" />
             <span className="sr-only">Voltar</span>
           </Link>
         </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-          Nova Encomenda
+          Novo Cliente
         </h1>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Detalhes da Encomenda</CardTitle>
+          <CardTitle>Dados do Cliente</CardTitle>
           <CardDescription>
-            Selecione um cliente e preencha os detalhes da entrega.
+            Preencha os campos abaixo para cadastrar um novo cliente.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NewOrderForm clients={clients} />
+          <NewClientForm />
         </CardContent>
       </Card>
     </div>
