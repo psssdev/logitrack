@@ -111,25 +111,34 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
   const selectedClientId = form.watch('clientId');
 
   React.useEffect(() => {
-    if (selectedClientId) {
-      const client = clients.find((c) => c.id === selectedClientId);
-      if (client) {
-        form.setValue('nomeCliente', client.nome, { shouldValidate: true });
-        form.setValue('telefone', client.telefone, { shouldValidate: true });
+    const handleClientChange = async () => {
+      if (selectedClientId) {
+        const client = clients.find((c) => c.id === selectedClientId);
+        if (client) {
+          form.setValue('nomeCliente', client.nome, { shouldValidate: true });
+          form.setValue('telefone', client.telefone, { shouldValidate: true });
 
-        const fetchAddresses = async () => {
-            setLoadingAddresses(true);
-            const clientAddresses = await getAddressesByClientId(client.id);
-            setAddresses(clientAddresses);
-            // Reset destination when client changes
+          setLoadingAddresses(true);
+          const clientAddresses = await getAddressesByClientId(client.id);
+          setAddresses(clientAddresses);
+          
+          if (clientAddresses.length > 0) {
+            // Auto-select the first address
+            form.setValue('destino', clientAddresses[0].fullAddress);
+          } else {
+             // Reset destination if no addresses are found
             form.setValue('destino', '');
-            setLoadingAddresses(false);
+          }
+
+          setLoadingAddresses(false);
         }
-        fetchAddresses();
+      } else {
+          setAddresses([]);
+          form.setValue('destino', '');
       }
-    } else {
-        setAddresses([]);
-    }
+    };
+    
+    handleClientChange();
   }, [selectedClientId, clients, form]);
 
   return (
@@ -239,7 +248,7 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
                 <Select onValueChange={field.onChange} value={field.value} disabled={!selectedClientId || loadingAddresses}>
                     <FormControl>
                     <SelectTrigger>
-                        <SelectValue placeholder={loadingAddresses ? "Carregando..." : "Selecione um endereço de destino"} />
+                        <SelectValue placeholder={loadingAddresses ? "Carregando..." : (addresses.length > 0 ? "Selecione um endereço" : "Cadastre um endereço para o cliente")} />
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
