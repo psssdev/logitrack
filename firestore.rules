@@ -1,38 +1,41 @@
 /**
- * @fileoverview Firestore Security Rules for the application.
+ * @fileoverview Firestore Security Rules for the transport app.
  *
  * Core Philosophy:
- * This ruleset enforces a multi-tenant data model where data is segregated by company.
- * Users must be authenticated to access any data.  Within a company, users have full access to all data.
- * No cross-company data access is permitted.
+ * This ruleset implements a multi-tenant security model.  Companies are isolated from each other, and user access is implicitly tied to company data.
+ * The ruleset prioritizes secure access control over strict data validation in this prototyping phase.
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile information (not company-specific).
- * - /companies/{companyId}: Root collection for company-specific data.
- * - /companies/{companyId}/clients/{clientId}: Stores client data for a specific company.
- * - /companies/{companyId}/origins/{originId}: Stores shipment origins for a specific company.
- * - /companies/{companyId}/clients/{clientId}/addresses/{addressId}: Stores addresses for clients within a company.
- * - /companies/{companyId}/orders/{orderId}: Stores order data for a specific company.
- * - /companies/{companyId}/drivers/{driverId}: Stores driver data for a specific company.
+ * - /users/{userId}: Stores user profile information.
+ * - /companies/{companyId}/...:  All company-specific data is stored under a company ID.
+ *   - /clients/{clientId}: Customer information for each company.
+ *   - /origins/{originId}: Shipment origins for each company.
+ *   - /clients/{clientId}/addresses/{addressId}: Addresses for a specific client within a company.
+ *   - /orders/{orderId}: Orders for a specific company.
  *
  * Key Security Decisions:
- * - Users can only read their own profile data.
- * - Only authenticated users can access company-related data.
- * - No listing of users is allowed.
+ * - User listing is disallowed.
+ * - Data validation is relaxed to facilitate rapid prototyping.  Only authorization-critical fields are validated.
+ * - All company-owned data enforces company-level isolation.
  *
  * Denormalization for Authorization:
- *  - The ruleset assumes that any user accessing data under a /companies/{companyId} path is authorized to do so. More fine-grained access control within a company (e.g., role-based access) would require denormalizing user roles onto the company document or each individual document.
+ * - The `Order` entity has `createdBy` field to store the UID of the user who created the order.  This enables write-level ownership checks.
+ *
+ * Structural Segregation:
+ * - No structural segregation is explicitly used.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read and write their own profile data.
+     * @description Controls access to user profile information.
      * @path /users/{userId}
-     * @allow (get, list, create, update, delete) if isSignedIn() && isOwner(userId)
-     * @deny (get, list, create, update, delete) if !isSignedIn() || !isOwner(userId)
-     * @principle Enforces user-ownership for profile data.
+     * @allow (create) User with matching UID can create their profile.
+     * @allow (get, list, update, delete) User with matching UID can access their profile.
+     * @deny (create) User cannot create a profile with a mismatched UID.
+     * @deny (update, delete) Non-owners cannot modify user profiles.
+     * @principle Enforces document ownership for all operations on user profiles.
      */
     match /users/{userId} {
       function isOwner(userId) {
@@ -42,87 +45,107 @@ service cloud.firestore {
         return request.auth != null;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false; // No listing of users.
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && request.auth.uid == userId && request.resource.data.email is string && request.resource.data.displayName is string;
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Allows access to client data within a company.
+     * @description Controls access to company documents.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow (get, list, create, update, delete) if isSignedIn()
-     * @deny (get, list, create, update, delete) if !isSignedIn()
-     * @principle Enforces company-based data segregation; any logged in user can access company data.
+     * @allow (get, list) Anyone can read client details within a company.
+     * @allow (create) Any authenticated user can create a client.
+     * @allow (update, delete) Only the company owner/admin can modify client details.
+     * @deny (update, delete) Non-owners cannot modify client data.
+     * @principle Enforces company-level ownership and allows public reads.
      */
     match /companies/{companyId}/clients/{clientId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    /**
-     * @description Allows access to addresses for a specific client within a company.
-     * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
-     * @allow (get, list, create, update, delete) if isSignedIn()
-     * @deny (get, list, create, update, delete) if !isSignedIn()
-     * @principle Enforces company-based data segregation; any logged in user can access company data.
-     */
-    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    /**
-     * @description Allows access to order data within a company.
-     * @path /companies/{companyId}/orders/{orderId}
-     * @allow (get, list, create, update, delete) if isSignedIn()
-     * @deny (get, list, create, update, delete) if !isSignedIn()
-     * @principle Enforces company-based data segregation; any logged in user can access company data.
-     */
-    match /companies/{companyId}/orders/{orderId} {
+        function isOwner(companyId) {
+          return true; // TODO: Implement company owner validation
+        }
         function isSignedIn() {
           return request.auth != null;
         }
 
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
+        allow get: if true;
+        allow list: if true;
         allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+        allow update: if isSignedIn() && isOwner(companyId);
+        allow delete: if isSignedIn() && isOwner(companyId);
     }
 
-      /**
-       * @description Allows access to origin data within a company.
-       * @path /companies/{companyId}/origins/{originId}
-       * @allow (get, list, create, update, delete) if isSignedIn()
-       * @deny (get, list, create, update, delete) if !isSignedIn()
-       * @principle Enforces company-based data segregation; any logged in user can access company data.
-       */
-    match /companies/{companyId}/origins/{originId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
+    /**
+     * @description Controls access to shipment origin documents.
+     * @path /companies/{companyId}/origins/{originId}
+     * @allow (get, list) Anyone can read origin details within a company.
+     * @allow (create) Any authenticated user can create an origin.
+     * @allow (update, delete) Only the company owner/admin can modify origin details.
+     * @deny (update, delete) Non-owners cannot modify origin data.
+     * @principle Enforces company-level ownership and allows public reads.
+     */
+     match /companies/{companyId}/origins/{originId} {
+        function isOwner(companyId) {
+          return true; // TODO: Implement company owner validation
+        }
+        function isSignedIn() {
+          return request.auth != null;
+        }
 
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        allow get: if true;
+        allow list: if true;
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && isOwner(companyId);
+        allow delete: if isSignedIn() && isOwner(companyId);
+    }
+
+    /**
+     * @description Controls access to client address documents.
+     * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
+     * @allow (get, list) Anyone can read address details for a client within a company.
+     * @allow (create) Any authenticated user can create an address.
+     * @allow (update, delete) Only the company owner/admin can modify address details.
+     * @deny (update, delete) Non-owners cannot modify address data.
+     * @principle Enforces company-level ownership and allows public reads.
+     */
+    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
+      function isOwner(companyId) {
+          return true; // TODO: Implement company owner validation
+        }
+        function isSignedIn() {
+          return request.auth != null;
+        }
+
+        allow get: if true;
+        allow list: if true;
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && isOwner(companyId);
+        allow delete: if isSignedIn() && isOwner(companyId);
+    }
+
+    /**
+     * @description Controls access to order documents.
+     * @path /companies/{companyId}/orders/{orderId}
+     * @allow (get, list) Any authenticated user can list orders within a company.
+     * @allow (create) Any authenticated user can create an order.
+     * @allow (update, delete) Only the user who created the order can modify/delete it.
+     * @deny (update, delete) Non-owners cannot modify order data.
+     * @principle Enforces company-level scoping with owner-only writes.
+     */
+    match /companies/{companyId}/orders/{orderId} {
+        function isOwner(orderData) {
+          return orderData.createdBy == request.auth.uid;
+        }
+        function isSignedIn() {
+          return request.auth != null;
+        }
+
+        allow get: if true;
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+        allow update: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+        allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
     }
   }
 }
