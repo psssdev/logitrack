@@ -11,7 +11,8 @@ import {
   Package,
   Settings,
   Users,
-  Truck
+  Truck,
+  MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -33,6 +34,7 @@ const navItems = [
   { href: '/encomendas', icon: Package, label: 'Encomendas' },
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
+  { href: '/origens', icon: MapPin, label: 'Origens' },
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
