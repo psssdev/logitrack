@@ -172,9 +172,13 @@ export async function createAddress(formData: FormData) {
     }
     
     try {
+        const { logradouro, numero, bairro, cidade, estado, cep } = validatedFields.data;
+        const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
+        
         const newAddress: Address = {
             ...validatedFields.data,
             id: (addresses.length + 1).toString(),
+            fullAddress: fullAddress,
         };
 
         addresses.push(newAddress);

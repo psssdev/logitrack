@@ -93,11 +93,18 @@ export const addressSchema = z.object({
   id: z.string(),
   clientId: z.string(),
   label: z.string().min(1, 'O rótulo é obrigatório'),
-  fullAddress: z.string().min(1, 'O endereço é obrigatório'),
+  logradouro: z.string().min(1, 'O logradouro é obrigatório'),
+  numero: z.string().min(1, 'O número é obrigatório'),
+  bairro: z.string().min(1, 'O bairro é obrigatório'),
+  cidade: z.string().min(1, 'A cidade é obrigatória'),
+  estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
+  cep: z.string().min(8, 'O CEP é obrigatório'),
+  fullAddress: z.string(),
 });
 
 export const newAddressSchema = addressSchema.omit({
   id: true,
+  fullAddress: true,
 });
 
 export const originSchema = z.object({
