@@ -13,6 +13,7 @@ import {
   Users,
   Truck,
   MapPin,
+  DollarSign,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -37,6 +38,7 @@ const navItems = [
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
   { href: '/origens', icon: MapPin, label: 'Origens' },
+  { href: '/financeiro', icon: DollarSign, label: 'Financeiro' },
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
