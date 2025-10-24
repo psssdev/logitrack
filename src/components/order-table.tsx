@@ -30,6 +30,7 @@ const paymentMethodLabels: Record<string, string> = {
   cartao: 'Cartão',
   boleto: 'Boleto',
   link: 'Link',
+  haver: 'A Haver',
 };
 
 export function OrderTable({ orders }: { orders: Order[] }) {

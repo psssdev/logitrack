@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { orders, drivers, addresses } from './data';
 import type { NewOrder, Order, OrderStatus } from './types';
 import { newOrderSchema } from './schemas';
+import { getFirestoreServer } from '@/firebase/server-init';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 // This is a temporary measure for the prototype.
 // In a real app, this would come from the authenticated user's session.
@@ -57,7 +59,7 @@ export async function createOrder(formData: FormData) {
 
   try {
     // This part still uses mock data and will be migrated later.
-    const { nomeCliente, telefone } = {nomeCliente: 'Mock', telefone: 'Mock'}
+    const { nomeCliente, telefone, valorEntrega, formaPagamento } = {nomeCliente: 'Mock', telefone: 'Mock', valorEntrega: validatedFields.data.valorEntrega, formaPagamento: validatedFields.data.formaPagamento}
 
     const newOrder: Order = {
       ...validatedFields.data,
@@ -76,8 +78,13 @@ export async function createOrder(formData: FormData) {
 
     orders.unshift(newOrder); // Add to the beginning of the array
 
+    let notificationMessage = `WHATSAPP: Notificação "recebido" para ${newOrder.nomeCliente}.`;
+    if(formaPagamento === 'haver'){
+        notificationMessage += ` Valor a pagar: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorEntrega as number)}.`
+    }
+
     // Simulate sending a WhatsApp notification
-    console.log(`WHATSAPP: Notificação "recebido" para ${newOrder.nomeCliente}`);
+    console.log(notificationMessage);
     
   } catch (e) {
     return {
@@ -121,6 +128,47 @@ export async function getDashboardSummary() {
     return { total, pendentes, emRota, entregues };
 }
 
+
+export async function createClient(formData: FormData) {
+    const values = Object.fromEntries(formData.entries());
+    // Validation would happen here
+    console.log('Creating client with:', values);
+    await delay(1000);
+    revalidatePath('/clientes');
+    return { message: 'Cliente criado com sucesso.' };
+}
+
+export async function createAddress(formData: FormData) {
+    const values = Object.fromEntries(formData.entries());
+    console.log('Creating address with:', values);
+    await delay(1000);
+    revalidatePath(`/clientes/${values.clientId}`);
+    return { message: 'Endereço criado com sucesso.' };
+}
+
+
 export async function triggerRevalidation(path: string) {
     revalidatePath(path);
+}
+
+
+export async function createOrigin(data: { name: string; address: string; }) {
+  const firestore = getFirestoreServer();
+  const originsCollection = collection(firestore, 'companies', COMPANY_ID, 'origins');
+
+  try {
+    await addDoc(originsCollection, {
+      ...data,
+      createdAt: serverTimestamp(),
+    });
+
+    // Revalidate paths to update caches
+    revalidatePath('/origens');
+    revalidatePath('/encomendas/nova'); // Revalidate form page if it uses origins
+
+    return { success: true, message: 'Origem criada com sucesso.' };
+  } catch (error: any) {
+    console.error("Error creating origin:", error);
+    return { success: false, message: `Erro no banco de dados: ${error.message}` };
+  }
 }

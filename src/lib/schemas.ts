@@ -12,6 +12,7 @@ export const paymentMethodSchema = z.enum([
   'cartao',
   'boleto',
   'link',
+  'haver',
 ]);
 
 export const orderSchema = z.object({

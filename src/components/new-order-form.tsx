@@ -61,6 +61,7 @@ const paymentMethodLabels = {
   cartao: 'Cartão',
   boleto: 'Boleto',
   link: 'Link de Pagamento',
+  haver: 'A Haver',
 };
 
 export function NewOrderForm({
@@ -77,17 +78,6 @@ export function NewOrderForm({
   const [loadingAddresses, setLoadingAddresses] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
-
-  const handleScanSuccess = (scannedValue: string) => {
-    form.setValue('numeroNota', scannedValue);
-    toast({
-      title: 'Código lido com sucesso!',
-      description: `Número da nota: ${scannedValue}`,
-    });
-    // Close dialog
-    // In a real implementation you might need to find a way to close the dialog from here.
-    // For now, the user has to close it manually.
-  };
 
   const handleOpenScanner = async () => {
     try {
@@ -363,7 +353,12 @@ export function NewOrderForm({
                 <FormLabel>Número da Nota</FormLabel>
                 <div className="flex gap-2">
                   <FormControl>
-                    <Input placeholder="Nº da nota fiscal" {...field} />
+                    <Input
+                      placeholder="Nº da nota fiscal"
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                    />
                   </FormControl>
                   <Dialog>
                     <DialogTrigger asChild>
@@ -525,5 +520,3 @@ export function NewOrderForm({
     </Form>
   );
 }
-
-    
