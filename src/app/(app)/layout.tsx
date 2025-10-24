@@ -31,10 +31,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { FirebaseClientProvider, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { AuthGuard } from '@/components/auth-guard';
-import { doc } from 'firebase/firestore';
-import type { Company } from '@/lib/types';
+import { FirebaseClientProvider } from '@/firebase';
+import { AuthGuard, useCompany } from '@/components/auth-guard';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const navItems = [
@@ -48,16 +46,9 @@ const navItems = [
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
-const COMPANY_ID = '1'; // Assuming a single-tenant setup for now
 
 function CompanyBranding() {
-  const firestore = useFirestore();
-  const companyRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore]);
-
-  const { data: company, isLoading } = useDoc<Company>(companyRef);
+  const { company, isLoading } = useCompany();
 
   if (isLoading) {
     return (
@@ -215,5 +206,3 @@ const UserMenu = () => {
     </DropdownMenu>
   );
 };
-
-    

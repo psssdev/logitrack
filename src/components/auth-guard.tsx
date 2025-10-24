@@ -2,9 +2,41 @@
 
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, createContext, useContext, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import type { Company } from '@/lib/types';
+import { useDoc } from '@/firebase';
+
+// 1. Create a context for the company data
+const CompanyContext = createContext<{ company: Company | null; isLoading: boolean }>({
+  company: null,
+  isLoading: true,
+});
+
+// 2. Create a hook to use the company context
+export const useCompany = () => useContext(CompanyContext);
+
+// 3. Create a provider component that will fetch and provide the data
+function CompanyProvider({ children }: { children: React.ReactNode }) {
+  const firestore = useFirestore();
+  const [companyRef, setCompanyRef] = useState<any>(null);
+
+  useEffect(() => {
+    if (firestore) {
+      // For now, hardcode company ID '1'. In a multi-tenant app, this would be dynamic.
+      setCompanyRef(doc(firestore, 'companies', '1'));
+    }
+  }, [firestore]);
+
+  const { data: company, isLoading } = useDoc<Company>(companyRef);
+
+  return (
+    <CompanyContext.Provider value={{ company: company, isLoading }}>
+      {children}
+    </CompanyContext.Provider>
+  );
+}
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -19,15 +51,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     // If a user is logged in, ensure their profile document exists.
-    // This is the "seeding" logic required by the security rules.
     if (firestore && user) {
       const userRef = doc(firestore, 'users', user.uid);
       getDoc(userRef).then((docSnap) => {
         if (!docSnap.exists()) {
-          // Document doesn't exist, so create it with default values.
-          // This is crucial for Firestore security rules to work.
+          // Document doesn't exist, so create it.
           setDoc(userRef, {
-            companyId: '1', // Default company ID (as a string)
+            companyId: '1', // Default company ID
             role: 'admin',      // Default role
             email: user.email,
             displayName: user.displayName || user.email,
@@ -41,7 +71,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [user, isUserLoading, router, firestore]);
 
   // While checking for the user, show a full-screen loading spinner.
-  // This prevents any child components from rendering and attempting to fetch data.
   if (isUserLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -50,9 +79,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Only if loading is complete AND a user exists, render the protected content.
+  // Only if loading is complete AND a user exists, render the protected content
+  // wrapped in the CompanyProvider.
   if (user) {
-    return <>{children}</>;
+    return <CompanyProvider>{children}</CompanyProvider>;
   }
 
   // If there's no user and we are about to redirect, render nothing to avoid flicker.
