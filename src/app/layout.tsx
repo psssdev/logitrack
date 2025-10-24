@@ -9,6 +9,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
   title: 'LogiTrack',
   description: 'Sistema de gestão de encomendas para transportadoras.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
