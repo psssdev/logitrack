@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { createOrigin } from '@/lib/actions';
+import { triggerRevalidation } from '@/lib/actions';
 import { newOriginSchema } from '@/lib/schemas';
 import type { NewOrigin } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
@@ -26,6 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import { useFirestore } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 type City = {
   id: number;
@@ -62,9 +64,12 @@ const brazilianStates = [
     { value: 'TO', label: 'Tocantins' },
 ];
 
+const COMPANY_ID = '1';
+
 export function NewOriginForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const firestore = useFirestore();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
@@ -141,14 +146,12 @@ export function NewOriginForm() {
         form.setValue('estado', '');
       } else {
         form.setValue('estado', data.uf, { shouldValidate: true });
-        // The useEffect for state change will handle fetching cities.
-        // We might need to wait for cities to be loaded before setting the value.
         setTimeout(() => {
             form.setValue('cidade', data.localidade, { shouldValidate: true });
-        }, 500); // Small delay to allow cities list to populate
+        }, 500); 
         form.setValue('logradouro', data.logradouro, { shouldValidate: true });
         form.setValue('bairro', data.bairro, { shouldValidate: true });
-        form.setFocus('numero'); // Move focus to the number field
+        form.setFocus('numero'); 
         toast({
           title: 'Endereço encontrado!',
           description: 'Por favor, preencha o número.',
@@ -166,25 +169,42 @@ export function NewOriginForm() {
   };
 
   async function onSubmit(data: NewOrigin) {
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, String(value));
-    });
+    if (!firestore) {
+        toast({
+            variant: 'destructive',
+            title: 'Erro de conexão',
+            description: 'Não foi possível conectar ao banco de dados.'
+        });
+        return;
+    }
 
-    const result = await createOrigin(formData);
+    try {
+        const originsCollection = collection(firestore, 'companies', COMPANY_ID, 'origins');
+        const { logradouro, numero, bairro, cidade, estado, cep, name } = data;
+        const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 
-    if (result?.message.includes('sucesso')) {
-      toast({
-        title: 'Sucesso!',
-        description: 'Nova origem cadastrada.',
-      });
-      router.push('/origens');
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao cadastrar origem.',
-        description: result?.message || 'Ocorreu um erro desconhecido.',
-      });
+        await addDoc(originsCollection, {
+            name,
+            address: fullAddress,
+            createdAt: serverTimestamp(),
+        });
+        
+        await triggerRevalidation('/origens');
+        await triggerRevalidation('/encomendas/nova');
+
+        toast({
+            title: 'Sucesso!',
+            description: 'Nova origem cadastrada.',
+        });
+        router.push('/origens');
+
+    } catch (error: any) {
+        console.error("Error creating origin:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao cadastrar origem.',
+            description: error.message || 'Ocorreu um erro desconhecido.',
+        });
     }
   }
 
@@ -327,7 +347,7 @@ export function NewOriginForm() {
             size="lg"
             disabled={form.formState.isSubmitting}
           >
-            {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Origem'}
+            {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Origem'}
           </Button>
         </div>
       </form>

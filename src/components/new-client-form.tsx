@@ -14,14 +14,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/actions';
+import { triggerRevalidation } from '@/lib/actions';
 import { newClientSchema } from '@/lib/schemas';
 import type { NewClient } from '@/lib/types';
+import { useFirestore } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 
+const COMPANY_ID = '1';
 
 export function NewClientForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const firestore = useFirestore();
+
   const form = useForm<NewClient>({
     resolver: zodResolver(newClientSchema),
     defaultValues: {
@@ -31,26 +37,35 @@ export function NewClientForm() {
   });
 
   async function onSubmit(data: NewClient) {
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        formData.append(key, String(value));
-      }
-    });
+    if (!firestore) {
+        toast({
+            variant: 'destructive',
+            title: 'Erro de conexão',
+            description: 'Não foi possível conectar ao banco de dados.'
+        });
+        return;
+    }
 
-    const result = await createClient(formData);
-    
-    if (result?.message.includes('sucesso')) {
+    try {
+        const clientsCollection = collection(firestore, 'companies', COMPANY_ID, 'clients');
+        await addDoc(clientsCollection, {
+            ...data,
+            createdAt: serverTimestamp()
+        });
+
+        await triggerRevalidation('/clientes');
+
         toast({
             title: 'Sucesso!',
             description: 'Novo cliente cadastrado.',
         });
         router.push('/clientes');
-    } else {
+    } catch (error: any) {
+        console.error("Error creating client:", error);
         toast({
             variant: 'destructive',
             title: 'Erro ao cadastrar cliente.',
-            description: result?.message || 'Ocorreu um erro desconhecido.',
+            description: error.message || 'Ocorreu um erro desconhecido.',
         });
     }
   }
@@ -88,7 +103,7 @@ export function NewClientForm() {
         </div>
         <div className="flex justify-end">
             <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Cliente'}
+            {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Cliente'}
             </Button>
         </div>
       </form>

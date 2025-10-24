@@ -2,11 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { orders, drivers, addresses } from './data';
-import type { NewOrder, Order, OrderStatus, NewClient, Address, NewAddress, Origin, NewOrigin } from './types';
-import { newOrderSchema, newClientSchema, newAddressSchema, newOriginSchema } from './schemas';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getFirestoreServer } from '@/firebase/server-init';
+import type { NewOrder, Order, OrderStatus } from './types';
+import { newOrderSchema } from './schemas';
 
 // This is a temporary measure for the prototype.
 // In a real app, this would come from the authenticated user's session.
@@ -40,40 +37,9 @@ export async function getDrivers() {
   return drivers;
 }
 
-
-export async function getAddressesByClientId(clientId: string): Promise<Address[]> {
+export async function getAddressesByClientId(clientId: string) {
     await delay(150);
     return addresses.filter(a => a.clientId === clientId);
-}
-
-export async function createClient(formData: FormData) {
-  const values = Object.fromEntries(formData.entries());
-  const validatedFields = newClientSchema.safeParse(values);
-
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-      message: 'Erro de validação.',
-    };
-  }
-  
-  try {
-    const firestore = getFirestoreServer();
-    const clientsCollection = collection(firestore, 'companies', COMPANY_ID, 'clients');
-    
-    await addDoc(clientsCollection, {
-      ...validatedFields.data,
-      createdAt: serverTimestamp()
-    });
-    
-  } catch (e: any) {
-    return {
-      message: `Erro no banco de dados: ${e.message}`,
-    };
-  }
-
-  revalidatePath('/clientes');
-  return { message: 'Cliente criado com sucesso.' };
 }
 
 
@@ -91,10 +57,6 @@ export async function createOrder(formData: FormData) {
 
   try {
     // This part still uses mock data and will be migrated later.
-    // const client = clients.find(c => c.id === clientId);
-    // if(!client) {
-    //     return { message: "Cliente não encontrado."};
-    // }
     const { nomeCliente, telefone } = {nomeCliente: 'Mock', telefone: 'Mock'}
 
     const newOrder: Order = {
@@ -159,70 +121,6 @@ export async function getDashboardSummary() {
     return { total, pendentes, emRota, entregues };
 }
 
-export async function createAddress(formData: FormData) {
-    const values = Object.fromEntries(formData.entries());
-    const validatedFields = newAddressSchema.safeParse(values);
-
-    if (!validatedFields.success) {
-        return {
-            errors: validatedFields.error.flatten().fieldErrors,
-            message: 'Erro de validação.',
-        };
-    }
-    
-    try {
-        const { logradouro, numero, bairro, cidade, estado, cep } = validatedFields.data;
-        const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
-        
-        const newAddress: Address = {
-            ...validatedFields.data,
-            id: (addresses.length + 1).toString(),
-            fullAddress: fullAddress,
-        };
-
-        addresses.push(newAddress);
-        
-    } catch (e) {
-        return {
-            message: 'Erro no banco de dados: Falha ao criar endereço.',
-        };
-    }
-
-    revalidatePath(`/clientes/${validatedFields.data.clientId}`);
-    return { message: 'Endereço criado com sucesso.' };
-}
-
-export async function createOrigin(formData: FormData) {
-  const values = Object.fromEntries(formData.entries());
-  const validatedFields = newOriginSchema.safeParse(values);
-
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-      message: 'Erro de validação.',
-    };
-  }
-  
-  try {
-    const firestore = getFirestoreServer();
-    const originsCollection = collection(firestore, 'companies', COMPANY_ID, 'origins');
-    
-    const { logradouro, numero, bairro, cidade, estado, cep, name } = validatedFields.data;
-    const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
-
-    await addDoc(originsCollection, {
-      name,
-      address: fullAddress,
-      createdAt: serverTimestamp(),
-    });
-    
-  } catch (e: any) {
-    return {
-      message: `Erro no banco de dados: ${e.message}`,
-    };
-  }
-
-  revalidatePath('/origens');
-  revalidatePath('/encomendas/nova');
-  return { message: 'Nova origem cadastrada com sucesso.' };
+export async function triggerRevalidation(path: string) {
+    revalidatePath(path);
 }
