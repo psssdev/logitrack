@@ -30,7 +30,7 @@ import type { Order } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { getDashboardSummary } from '@/lib/actions';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, orderBy, query, limit } from 'firebase/firestore';
+import { collection, query, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
@@ -43,7 +43,6 @@ export default function DashboardPage() {
         if (!firestore) return null;
         return query(
             collection(firestore, 'companies', '1', 'orders'),
-            orderBy('createdAt', 'desc'),
             limit(5)
         );
     }, [firestore]);

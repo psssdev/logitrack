@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/card';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order } from '@/lib/types';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AccountsReceivableTable } from '@/components/accounts-receivable-table';
 import {
@@ -42,8 +42,7 @@ export default function FinanceiroPage() {
     return query(
       collection(firestore, 'companies', COMPANY_ID, 'orders'),
       where('formaPagamento', '==', 'haver'),
-      where('pago', '==', false),
-      orderBy('createdAt', 'desc')
+      where('pago', '==', false)
     );
   }, [firestore]);
 
