@@ -41,7 +41,7 @@ export const orderSchema = z.object({
     .array(
       z.object({
         status: orderStatusSchema,
-        at: z.date(),
+        at: z.any(),
         userId: z.string(),
       })
     )
@@ -154,3 +154,5 @@ export const newOriginSchema = originSchema.omit({
   address: true, // `address` will be generated in the server action
   createdAt: true,
 });
+
+    

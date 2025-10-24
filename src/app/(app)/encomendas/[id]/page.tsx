@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -81,7 +82,6 @@ export default function OrderDetailPage({
   }
 
   if (order) {
-    const totalValue = order.items.reduce((acc, item) => acc + (item.value || 0), 0);
 
     return (
       <div className="mx-auto grid max-w-6xl flex-1 auto-rows-max gap-4">
@@ -160,8 +160,8 @@ export default function OrderDetailPage({
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={2} className="font-semibold">Total</TableCell>
-                                <TableCell className="text-right font-bold">{formatCurrency(totalValue)}</TableCell>
+                                <TableCell colSpan={2} className="font-semibold text-right">Total</TableCell>
+                                <TableCell className="text-right font-bold">{formatCurrency(order.valorEntrega)}</TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>
@@ -281,3 +281,5 @@ function OrderDetailsSkeleton() {
     </div>
   );
 }
+
+    

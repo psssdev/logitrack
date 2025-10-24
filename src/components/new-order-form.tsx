@@ -125,7 +125,7 @@ export function NewOrderForm({
 
   const selectedClientId = form.watch('clientId');
   const items = form.watch('items');
-  const totalValue = items.reduce((acc, item) => acc + (item.value || 0), 0);
+  const totalValue = items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0);
 
   const addressesQuery = useMemoFirebase(() => {
     if (!firestore || !selectedClientId) return null;
@@ -224,7 +224,7 @@ export function NewOrderForm({
         createdAt: serverTimestamp(),
         createdBy: user.uid,
         timeline: [
-          { status: 'PENDENTE', at: serverTimestamp(), userId: user.uid },
+          { status: 'PENDENTE', at: new Date(), userId: user.uid },
         ],
         messages: [],
       };
@@ -496,13 +496,9 @@ export function NewOrderForm({
                     </TableBody>
                     <TableFooter>
                         <TableRow>
-                            <TableCell colSpan={4}>
-                                <Button type="button" size="sm" variant="ghost" onClick={() => append({ description: '', quantity: 1, value: 0 })}>
-                                    <PlusCircle className="mr-2 h-4 w-4"/>
-                                    Adicionar Item
-                                </Button>
-                            </TableCell>
+                            <TableCell colSpan={3} className="font-semibold text-right">Total</TableCell>
                             <TableCell className="text-right font-bold text-lg">{formatCurrency(totalValue)}</TableCell>
+                            <TableCell />
                         </TableRow>
                     </TableFooter>
                 </Table>
@@ -666,3 +662,5 @@ export function NewOrderForm({
     </Form>
   );
 }
+
+    
