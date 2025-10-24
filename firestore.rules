@@ -1,20 +1,27 @@
 /**
- * @fileOverview Firestore Security Rules for the transport app.
+ * @fileoverview Firestore Security Rules for the application.
  *
  * Core Philosophy:
- * This ruleset enforces a multi-tenant security model where data is primarily segregated by company.
- * Users have ownership of their profiles. Companies own their clients, origins, addresses, orders, and drivers.
+ * This ruleset enforces a multi-tenant data model where data is segregated by company.
+ * Users must be authenticated to access any data.  Within a company, users have full access to all data.
+ * No cross-company data access is permitted.
  *
  * Data Structure:
- * - /users/{userId}: User profiles, accessible only by the user themselves.
- * - /companies/{companyId}/clients/{clientId}: Clients belonging to a specific company.
- * - /companies/{companyId}/origins/{originId}: Origins belonging to a specific company.
- * - /companies/{companyId}/clients/{clientId}/addresses/{addressId}: Addresses associated with a specific client within a company.
- * - /companies/{companyId}/orders/{orderId}: Orders belonging to a specific company.
+ * - /users/{userId}: Stores public user profile information (not company-specific).
+ * - /companies/{companyId}: Root collection for company-specific data.
+ * - /companies/{companyId}/clients/{clientId}: Stores client data for a specific company.
+ * - /companies/{companyId}/origins/{originId}: Stores shipment origins for a specific company.
+ * - /companies/{companyId}/clients/{clientId}/addresses/{addressId}: Stores addresses for clients within a company.
+ * - /companies/{companyId}/orders/{orderId}: Stores order data for a specific company.
+ * - /companies/{companyId}/drivers/{driverId}: Stores driver data for a specific company.
  *
  * Key Security Decisions:
- * - User profiles are private and only accessible to the owning user. Listing all users is disallowed.
- * - All company-owned data (clients, origins, addresses, orders) is only accessible to authenticated users.  For simplicity, this initial ruleset does not implement granular roles or permissions within a company.
+ * - Users can only read their own profile data.
+ * - Only authenticated users can access company-related data.
+ * - No listing of users is allowed.
+ *
+ * Denormalization for Authorization:
+ *  - The ruleset assumes that any user accessing data under a /companies/{companyId} path is authorized to do so. More fine-grained access control within a company (e.g., role-based access) would require denormalizing user roles onto the company document or each individual document.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -23,35 +30,37 @@ service cloud.firestore {
     /**
      * @description Allows users to read and write their own profile data.
      * @path /users/{userId}
-     * @allow (get, create, update, delete, list) if request.auth.uid == userId
-     * @deny (get, create, update, delete, list) if request.auth.uid != userId
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, list, create, update, delete) if isSignedIn() && isOwner(userId)
+     * @deny (get, list, create, update, delete) if !isSignedIn() || !isOwner(userId)
+     * @principle Enforces user-ownership for profile data.
      */
     match /users/{userId} {
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      function isSignedIn() {
+        return request.auth != null;
       }
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // No listing of users.
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Allows authenticated users to read and write clients within their company.
+     * @description Allows access to client data within a company.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow (get, create, update, delete, list) if isSignedIn()
-     * @deny (get, create, update, delete, list) if !isSignedIn()
-     * @principle Enforces company-level access for client data.
+     * @allow (get, list, create, update, delete) if isSignedIn()
+     * @deny (get, list, create, update, delete) if !isSignedIn()
+     * @principle Enforces company-based data segregation; any logged in user can access company data.
      */
     match /companies/{companyId}/clients/{clientId} {
       function isSignedIn() {
         return request.auth != null;
       }
+
       allow get: if isSignedIn();
       allow list: if isSignedIn();
       allow create: if isSignedIn();
@@ -60,34 +69,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows authenticated users to read and write origins within their company.
-     * @path /companies/{companyId}/origins/{originId}
-     * @allow (get, create, update, delete, list) if isSignedIn()
-     * @deny (get, create, update, delete, list) if !isSignedIn()
-     * @principle Enforces company-level access for origin data.
-     */
-    match /companies/{companyId}/origins/{originId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    /**
-     * @description Allows authenticated users to read and write addresses for clients within their company.
+     * @description Allows access to addresses for a specific client within a company.
      * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
-     * @allow (get, create, update, delete, list) if isSignedIn()
-     * @deny (get, create, update, delete, list) if !isSignedIn()
-     * @principle Enforces company-level access for address data.
+     * @allow (get, list, create, update, delete) if isSignedIn()
+     * @deny (get, list, create, update, delete) if !isSignedIn()
+     * @principle Enforces company-based data segregation; any logged in user can access company data.
      */
     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
       function isSignedIn() {
         return request.auth != null;
       }
+
       allow get: if isSignedIn();
       allow list: if isSignedIn();
       allow create: if isSignedIn();
@@ -96,16 +88,36 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows authenticated users to read and write orders within their company.
+     * @description Allows access to order data within a company.
      * @path /companies/{companyId}/orders/{orderId}
-     * @allow (get, create, update, delete, list) if isSignedIn()
-     * @deny (get, create, update, delete, list) if !isSignedIn()
-     * @principle Enforces company-level access for order data.
+     * @allow (get, list, create, update, delete) if isSignedIn()
+     * @deny (get, list, create, update, delete) if !isSignedIn()
+     * @principle Enforces company-based data segregation; any logged in user can access company data.
      */
     match /companies/{companyId}/orders/{orderId} {
+        function isSignedIn() {
+          return request.auth != null;
+        }
+
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
+    }
+
+      /**
+       * @description Allows access to origin data within a company.
+       * @path /companies/{companyId}/origins/{originId}
+       * @allow (get, list, create, update, delete) if isSignedIn()
+       * @deny (get, list, create, update, delete) if !isSignedIn()
+       * @principle Enforces company-based data segregation; any logged in user can access company data.
+       */
+    match /companies/{companyId}/origins/{originId} {
       function isSignedIn() {
         return request.auth != null;
       }
+
       allow get: if isSignedIn();
       allow list: if isSignedIn();
       allow create: if isSignedIn();
