@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -14,6 +15,7 @@ import {
   Truck,
   MapPin,
   DollarSign,
+  Building,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -29,8 +31,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { FirebaseClientProvider } from '@/firebase';
+import { FirebaseClientProvider, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { AuthGuard } from '@/components/auth-guard';
+import { doc } from 'firebase/firestore';
+import type { Company } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -42,6 +47,42 @@ const navItems = [
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
+
+const COMPANY_ID = '1'; // Assuming a single-tenant setup for now
+
+function CompanyBranding() {
+  const firestore = useFirestore();
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'companies', COMPANY_ID);
+  }, [firestore]);
+
+  const { data: company, isLoading } = useDoc<Company>(companyRef);
+
+  if (isLoading) {
+    return (
+        <div className="flex items-center gap-2 font-semibold">
+            <Skeleton className="h-6 w-6 rounded-sm" />
+            <Skeleton className="h-5 w-24" />
+        </div>
+    );
+  }
+
+  return (
+    <Link
+      href="/"
+      className="flex items-center gap-2 font-semibold"
+    >
+      {company?.logoUrl ? (
+        <img src={company.logoUrl} alt="Logo da Empresa" className="h-6 w-auto" />
+      ) : (
+        <Logo className="h-6 w-6" />
+      )}
+      <span>{company?.nomeFantasia || 'LogiTrack'}</span>
+    </Link>
+  );
+}
+
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
@@ -59,13 +100,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {isSidebarOpen && (
               <div className="flex h-full max-h-screen flex-col gap-2">
                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                  <Link
-                    href="/"
-                    className="flex items-center gap-2 font-semibold"
-                  >
-                    <Logo className="h-6 w-6" />
-                    <span className="">LogiTrack</span>
-                  </Link>
+                  <CompanyBranding />
                 </div>
                 <div className="flex-1">
                   <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
@@ -107,13 +142,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
                   </SheetHeader>
                   <nav className="grid gap-2 text-lg font-medium">
-                    <Link
-                      href="#"
-                      className="flex items-center gap-2 text-lg font-semibold mb-4"
-                    >
-                      <Logo className="h-6 w-6" />
-                      <span>LogiTrack</span>
-                    </Link>
+                    <div className="flex items-center gap-2 text-lg font-semibold mb-4">
+                        <CompanyBranding />
+                    </div>
                     <NavLinks />
                   </nav>
                 </SheetContent>
@@ -184,3 +215,5 @@ const UserMenu = () => {
     </DropdownMenu>
   );
 };
+
+    

@@ -46,4 +46,28 @@ export type Origin = Omit<z.infer<typeof originSchema>, 'createdAt'> & {
 };
 export type NewOrigin = z.infer<typeof newOriginSchema>;
 
+// Company type, derived from the JSON schema
+export type Company = {
+    id: string;
+    nomeFantasia: string;
+    cnpj?: string;
+    logoUrl?: string;
+    cep?: string;
+    logradouro?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
+    whatsappProvider?: string;
+    whatsappToken?: string;
+    msgRecebido?: string;
+    msgEmRota?: string;
+    msgEntregue?: string;
+    codigoPrefixo: string;
+    linkBaseRastreio: string;
+    createdAt?: Date | Timestamp;
+    updatedAt?: Date | Timestamp;
+}
+
+
     
