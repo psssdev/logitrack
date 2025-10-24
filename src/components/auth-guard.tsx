@@ -1,20 +1,43 @@
 'use client';
 
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const router = useRouter();
 
   useEffect(() => {
     // If loading is finished and there's still no user, redirect to login page.
     if (!isUserLoading && !user) {
       router.replace('/');
+      return;
     }
-  }, [user, isUserLoading, router]);
+
+    // If a user is logged in, ensure their profile document exists.
+    if (firestore && user) {
+      const userRef = doc(firestore, 'users', user.uid);
+      getDoc(userRef).then((docSnap) => {
+        if (!docSnap.exists()) {
+          // Document doesn't exist, so create it with default values.
+          // This is crucial for Firestore security rules to work.
+          setDoc(userRef, {
+            companyId: '1', // Default company ID
+            role: 'admin',      // Default role
+            email: user.email,
+            displayName: user.displayName || user.email,
+          }).catch((error) => {
+            console.error("Failed to create user profile document:", error);
+          });
+        }
+      });
+    }
+
+  }, [user, isUserLoading, router, firestore]);
 
   // While checking for the user, show a full-screen loading spinner.
   // This prevents any child components from rendering and attempting to fetch data.
