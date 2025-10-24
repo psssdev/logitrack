@@ -229,5 +229,6 @@ export async function createOrigin(formData: FormData) {
   }
 
   revalidatePath('/origens');
-  return { message: 'Origem criada com sucesso.' };
+  revalidatePath('/encomendas/nova');
+  return { message: 'Nova origem cadastrada com sucesso.' };
 }
