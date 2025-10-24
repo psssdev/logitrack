@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,9 +21,10 @@ import { Timestamp } from 'firebase/firestore';
 export default function ClientDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-    return <ClientDetailContent clientId={params.id} />
+    const { id } = React.use(params);
+    return <ClientDetailContent clientId={id} />
 }
 
 function ClientDetailContent({ clientId }: { clientId: string }) {

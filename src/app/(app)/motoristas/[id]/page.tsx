@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
@@ -24,9 +25,10 @@ import { collection, query, where } from 'firebase/firestore';
 export default function MotoristaDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-    return <MotoristaDetailContent driverId={params.id} />
+    const { id } = React.use(params);
+    return <MotoristaDetailContent driverId={id} />
 }
 
 function MotoristaDetailContent({ driverId }: { driverId: string }) {

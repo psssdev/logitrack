@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -56,8 +57,9 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
-  return <OrderDetailContent orderId={params.id} />;
+export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
+  return <OrderDetailContent orderId={id} />;
 }
 
 

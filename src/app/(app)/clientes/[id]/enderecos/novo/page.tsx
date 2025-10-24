@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,9 +21,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function NewAddressPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <NewAddressContent clientId={params.id} />
+  const { id } = React.use(params);
+  return <NewAddressContent clientId={id} />
 }
 
 function NewAddressContent({ clientId }: { clientId: string }) {
