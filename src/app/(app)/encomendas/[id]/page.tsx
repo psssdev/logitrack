@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -112,6 +113,12 @@ export default function OrderDetailPage({
                               <div className="flex items-center justify-between">
                                   <dt className="text-muted-foreground">Nota Fiscal</dt>
                                   <dd className="font-mono">{order.numeroNota}</dd>
+                              </div>
+                          )}
+                          {order.quantidadeVolumes && (
+                              <div className="flex items-center justify-between">
+                                  <dt className="text-muted-foreground">Volumes</dt>
+                                  <dd>{order.quantidadeVolumes}</dd>
                               </div>
                           )}
                       </dl>

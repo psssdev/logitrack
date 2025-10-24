@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 export const orderStatusSchema = z.enum([
@@ -29,6 +30,7 @@ export const orderSchema = z.object({
   motoristaId: z.string().optional(),
   observacao: z.string().optional(),
   numeroNota: z.string().optional(),
+  quantidadeVolumes: z.coerce.number().int().min(1, 'A quantidade deve ser pelo menos 1'),
   timeline: z
     .array(
       z.object({

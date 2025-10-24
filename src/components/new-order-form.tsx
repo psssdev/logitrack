@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -89,6 +90,7 @@ export function NewOrderForm({
       origem: origins.length > 0 ? origins[0].address : '',
       destino: '',
       valorEntrega: 0,
+      quantidadeVolumes: 1,
       formaPagamento: 'pix',
       observacao: '',
       numeroNota: '',
@@ -432,7 +434,7 @@ export function NewOrderForm({
               </FormItem>
             )}
           />
-          <FormField
+           <FormField
             control={form.control}
             name="valorEntrega"
             render={({ field }) => (
@@ -451,7 +453,25 @@ export function NewOrderForm({
             )}
           />
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
+          <FormField
+            control={form.control}
+            name="quantidadeVolumes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Qtd. Volumes *</FormLabel>
+                <FormControl>
+                   <Input
+                    type="number"
+                    step="1"
+                    {...field}
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="formaPagamento"
