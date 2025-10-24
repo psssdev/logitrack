@@ -130,6 +130,10 @@
           "type": "string",
           "description": "Optional notes about the order."
         },
+        "numeroNota": {
+            "type": "string",
+            "description": "The invoice number for the manifest."
+        },
         "timeline": {
           "type": "array",
           "description": "Array of status changes with timestamps and user references.",
@@ -253,6 +257,23 @@
         }
       },
       "required": ["name", "address", "createdAt"]
+    },
+    "Address": {
+      "title": "Address",
+      "description": "Represents a client's address.",
+      "type": "object",
+      "properties": {
+        "label": { "type": "string", "description": "A label for the address, e.g., 'Casa', 'Trabalho'." },
+        "logradouro": { "type": "string" },
+        "numero": { "type": "string" },
+        "bairro": { "type": "string" },
+        "cidade": { "type": "string" },
+        "estado": { "type": "string" },
+        "cep": { "type": "string" },
+        "fullAddress": { "type": "string", "description": "The complete, concatenated address string." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress", "createdAt"]
     }
   },
   "auth": {
@@ -278,6 +299,12 @@
             "$ref": "#/entities/Origin"
         },
         "description": "Stores shipment origin points for a specific company."
+    },
+    "/companies/{companyId}/clients/{clientId}/addresses/{addressId}": {
+      "schema": {
+        "$ref": "#/entities/Address"
+      },
+      "description": "Stores addresses for a specific client."
     }
   }
 }

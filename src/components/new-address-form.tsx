@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { createAddress } from '@/lib/actions';
-import { newAddressSchema } from '@/lib/schemas';
+import { newAddressFormSchema } from '@/lib/schemas';
 import type { NewAddress } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -64,7 +64,7 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
 
   const form = useForm<NewAddress>({
-    resolver: zodResolver(newAddressSchema),
+    resolver: zodResolver(newAddressFormSchema),
     defaultValues: {
       clientId,
       label: '',

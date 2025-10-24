@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressSchema, originSchema, newOriginSchema } from './schemas';
+import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
 // Base Order type from schema
@@ -22,10 +22,12 @@ export type Client = Omit<z.infer<typeof clientSchema>, 'createdAt'> & {
 
 // NewClient type for form creation
 export type NewClient = z.infer<typeof newClientSchema>;
+export type NewClientWithAddress = z.infer<typeof newClientSchema>;
+
 
 // Address types
 export type Address = z.infer<typeof addressSchema>;
-export type NewAddress = z.infer<typeof newAddressSchema>;
+export type NewAddress = z.infer<typeof newAddressFormSchema>;
 
 // Base Origin type with potential Firestore Timestamp
 export type Origin = Omit<z.infer<typeof originSchema>, 'createdAt'> & {

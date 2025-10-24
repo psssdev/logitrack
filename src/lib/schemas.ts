@@ -86,10 +86,28 @@ export const clientSchema = z.object({
     createdAt: z.any(), // Allow Date or Firestore Timestamp
 });
 
-export const newClientSchema = clientSchema.omit({
-    id: true,
-    createdAt: true,
+export const newAddressSchema = z.object({
+  label: z.string().min(1, 'O rótulo é obrigatório'),
+  logradouro: z.string().min(1, 'O logradouro é obrigatório'),
+  numero: z.string().min(1, 'O número é obrigatório'),
+  bairro: z.string().min(1, 'O bairro é obrigatório'),
+  cidade: z.string().min(1, 'A cidade é obrigatória'),
+  estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
+  cep: z.string().min(8, 'O CEP é obrigatório'),
 });
+
+
+export const newClientSchema = z.object({
+    nome: z.string().min(1, "Nome é obrigatório"),
+    telefone: z.string().min(10, "Telefone inválido"),
+    logradouro: z.string().optional(),
+    numero: z.string().optional(),
+    bairro: z.string().optional(),
+    cidade: z.string().optional(),
+    estado: z.string().optional(),
+    cep: z.string().optional(),
+});
+
 
 export const addressSchema = z.object({
   id: z.string(),
@@ -104,7 +122,7 @@ export const addressSchema = z.object({
   fullAddress: z.string(),
 });
 
-export const newAddressSchema = addressSchema.omit({
+export const newAddressFormSchema = addressSchema.omit({
   id: true,
   fullAddress: true,
 });
