@@ -1,6 +1,24 @@
+
 {
   "entities": {
-    "Company": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        }
+      },
+      "required": ["displayName", "email"]
+    },
+     "Company": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Company",
       "type": "object",
@@ -193,73 +211,73 @@
         "placa",
         "ativo"
       ]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Represents a customer who places orders.",
+      "type": "object",
+      "properties": {
+        "nome": {
+          "type": "string",
+          "description": "The full name of the client."
+        },
+        "telefone": {
+          "type": "string",
+          "description": "The client's phone number, preferably in E.164 format."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the client was created."
+        }
+      },
+      "required": ["nome", "telefone", "createdAt"]
+    },
+    "Origin": {
+      "title": "Origin",
+      "description": "Represents a shipment origin point.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A friendly name for the origin, e.g., 'Warehouse A'."
+        },
+        "address": {
+          "type": "string",
+          "description": "The full, concatenated address of the origin."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the origin was created."
+        }
+      },
+      "required": ["name", "address", "createdAt"]
     }
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "companies/{companyId}",
-        "definition": {
-          "entityName": "Company",
-          "schema": {
-            "$ref": "#/backend/entities/Company"
-          },
-          "description": "Stores company-specific settings and data. The `companyId` is used for multi-tenant isolation.",
-          "params": [
-            {
-              "name": "companyId",
-              "description": "Unique identifier for the company."
-            }
-          ]
-        }
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
       },
-      {
-        "path": "companies/{companyId}/orders/{orderId}",
-        "definition": {
-          "entityName": "Order",
-          "schema": {
-            "$ref": "#/backend/entities/Order"
-          },
-          "description": "Stores order information for a specific company. Includes denormalized 'companyId' for authorization independence.",
-          "params": [
-            {
-              "name": "companyId",
-              "description": "Unique identifier for the company."
-            },
-            {
-              "name": "orderId",
-              "description": "Unique identifier for the order."
-            }
-          ]
-        }
+      "description": "Stores public information about a user."
+    },
+    "/companies/{companyId}/clients/{clientId}": {
+      "schema": {
+        "$ref": "#/entities/Client"
       },
-      {
-        "path": "companies/{companyId}/drivers/{driverId}",
-        "definition": {
-          "entityName": "Driver",
-          "schema": {
-            "$ref": "#/backend/entities/Driver"
-          },
-          "description": "Stores driver information for a specific company. Includes denormalized 'companyId' for authorization independence.",
-          "params": [
-            {
-              "name": "companyId",
-              "description": "Unique identifier for the company."
-            },
-            {
-              "name": "driverId",
-              "description": "Unique identifier for the driver."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "This design prioritizes security, scalability, and debuggability based on the provided requirements. It utilizes denormalization to ensure Authorization Independence, structural segregation for homogeneous security postures, and access modeling for consistent authorization patterns.\n\n**Authorization Independence (Denormalization):**\nThe `orders` subcollection includes `companyId`, eliminating the need for `get()` calls to the parent `companies` document to enforce company-level access control.  Similarly, if driver-level access is implemented, the `orders` collection includes a `driverId`. This is crucial for atomic operations (transactions/batches) when creating orders and ensures that security rules can be evaluated independently without relying on parent data. The `companyId` is also on the `drivers` collection, so that queries can easily be made about drivers within the tenant.\n\n**Structural Segregation:**\nAll documents within the `companies/{companyId}/orders` collection share the same security requirements: only authorized users (admins, operators, drivers of that company) can access them. This avoids mixing data with different access needs in the same collection. All `drivers` share the same security posture of being accessible by admins, operators and themselves (drivers).\n\n**Access Modeling:**\n*   **Company Data:** The `companies` collection is designed for administrative access, with each document representing a separate tenant (company). Access is controlled through authentication and authorization rules.\n*   **Order Data:**  Orders are stored within a subcollection `companies/{companyId}/orders`. This structure enforces clear ownership by the company. Access is granted based on the user's role within the company and the `companyId` stored in the `orders` document.\n*   **Driver Data:** Drivers are stored within the `companies/{companyId}/drivers` collection to associate them with companies. This structure is straightforward and ensures data integrity.\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations. For example, listing orders for a specific company is done via querying the `companies/{companyId}/orders` collection.  The security rules can then enforce that the authenticated user has the correct permissions to access orders for that `companyId`.  Because security rules do not act as filters, the queries will be secure and predictable.\n\n**Invariants:**\nThe structure supports the integrity of ownership (`companyId`), timestamps (`createdAt`), and denormalized data (e.g., `companyId` in `orders`). Security rules can enforce that these fields are immutable after creation, preventing unauthorized modifications."
+      "description": "Stores customer information for a specific company."
+    },
+    "/companies/{companyId}/origins/{originId}": {
+        "schema": {
+            "$ref": "#/entities/Origin"
+        },
+        "description": "Stores shipment origin points for a specific company."
+    }
   }
 }

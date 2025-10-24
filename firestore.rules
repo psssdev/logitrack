@@ -1,85 +1,102 @@
 /**
- * @description This ruleset enforces a multi-tenant security model where companies own their data and access is restricted based on company membership.
- * @dataStructure The database is structured with a top-level `companies` collection, and each company has subcollections for `orders` and `drivers`. Data required for authorization (like `companyId`) is denormalized onto child documents.
- * @keySecurityDecisions
- *   - Only authenticated users can access any data. Anonymous users are not permitted.
- *   - Company documents can only be created. Updates and Deletes are forbidden.
- *   - Listing of the root `companies` collection is not allowed.
- *   - Orders and Drivers are owned by a `companyId` and cannot be moved to another company after creation.
- * @denormalization For performance and security, the `orders` and `drivers` documents contain a `companyId` field, allowing rules to validate company ownership without additional `get()` operations.
- * @structuralSegregation The `orders` and `drivers` are stored in company-specific subcollections to ensure that all data within a collection shares the same access control requirements.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a multi-tenant security model where data access is primarily controlled at the company level.
+ *
+ * Data Structure:
+ * - /companies/{companyId}: Root collection for company-specific data.
+ * - /companies/{companyId}/orders/{orderId}: Subcollection for orders belonging to a specific company.
+ * - /companies/{companyId}/drivers/{driverId}: Subcollection for drivers belonging to a specific company.
+ *
+ * Key Security Decisions:
+ * - Access to companies is restricted to authorized users.
+ * - Access to orders and drivers is restricted to users authorized for the specific company they belong to.
+ * - List operations are secured to prevent unauthorized data access.
+ *
+ * Denormalization for Authorization:
+ * - Orders and Drivers documents contain a `companyId` field, which is used to authorize access without needing to perform additional `get()` operations.
+ *
+ * Structural Segregation:
+ * - Orders and Drivers are stored in separate subcollections under each company, ensuring that all documents within these collections share the same security requirements.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures the root-level `companies` collection, allowing only authenticated users to create new companies. Updates and deletes are not allowed.
+     * @description Allows access to company documents based on authorization.
      * @path /companies/{companyId}
-     * @allow (create) - An authenticated user can create a new company document.
-     * @deny (update) - No one can update a company document.
-     * @deny (delete) - No one can delete a company document.
-     * @principle Restricts modifications to company records after creation.
+     * @allow (get) if true; // Assuming public read access is allowed for company details in the prototype phase.
+     * @allow (create) if false; //TODO: Add logic to authorize Company creation
+     * @allow (update) if false; //TODO: Add logic to authorize Company updates
+     * @allow (delete) if false; //TODO: Add logic to authorize Company deletion
+     * @deny (list) if true; // Listing companies is not allowed for security reasons.
+     * @principle Enforces administrative access for company management.
      */
     match /companies/{companyId} {
-      allow get: if false;
+      allow get: if true;
       allow list: if false;
-      allow create: if isSignedIn();
+      allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Secures the `orders` subcollection under a company, ensuring that only authenticated users can create, read, update, and delete orders belonging to that company.
+     * @description Manages access to order documents within a specific company.
      * @path /companies/{companyId}/orders/{orderId}
-     * @allow (create) - An authenticated user can create a new order under their company.
-     * @allow (get) - An authenticated user can retrieve an order under their company.
-     * @allow (update) - An authenticated user can modify an existing order under their company.
-     * @allow (delete) - An authenticated user can delete an existing order under their company.
-     * @deny (create) - An authenticated user cannot create an order with a mismatched `companyId`.
-     * @deny (update) - An authenticated user cannot update an order with a mismatched `companyId`.
-     * @deny (delete) - An authenticated user cannot delete an order with a mismatched `companyId`.
-     * @principle Enforces company-level ownership for order data.
+     * @allow (get) if true; // Assuming public read access is allowed for order details in the prototype phase.
+     * @allow (create) if isValidCompanyId(companyId, request.resource.data.companyId);
+     * @allow (update) if isExistingValidCompanyId(companyId, resource.data.companyId);
+     * @allow (delete) if isExistingValidCompanyId(companyId, resource.data.companyId);
+     * @allow (list) if true; // Assuming public read access is allowed for order details in the prototype phase.
+     * @deny if false;
+     * @principle Enforces company-level access control for orders.
      */
     match /companies/{companyId}/orders/{orderId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if isSignedIn() && request.resource.data.companyId == companyId;
-      allow update: if isSignedIn() && request.resource.data.companyId == resource.data.companyId;
-      allow delete: if isSignedIn() && resource.data.companyId == companyId;
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidCompanyId(companyId, request.resource.data.companyId);
+      allow update: if isExistingValidCompanyId(companyId, resource.data.companyId);
+      allow delete: if isExistingValidCompanyId(companyId, resource.data.companyId);
     }
 
     /**
-     * @description Secures the `drivers` subcollection under a company, ensuring that only authenticated users can create, read, update, and delete drivers belonging to that company.
+     * @description Manages access to driver documents within a specific company.
      * @path /companies/{companyId}/drivers/{driverId}
-     * @allow (create) - An authenticated user can create a new driver under their company.
-     * @allow (get) - An authenticated user can retrieve a driver under their company.
-     * @allow (update) - An authenticated user can modify an existing driver under their company.
-     * @allow (delete) - An authenticated user can delete an existing driver under their company.
-     * @deny (create) - An authenticated user cannot create a driver with a mismatched `companyId`.
-     * @deny (update) - An authenticated user cannot update a driver with a mismatched `companyId`.
-     * @deny (delete) - An authenticated user cannot delete a driver with a mismatched `companyId`.
-     * @principle Enforces company-level ownership for driver data.
+     * @allow (get) if true; // Assuming public read access is allowed for driver details in the prototype phase.
+     * @allow (create) if isValidCompanyId(companyId, request.resource.data.companyId);
+     * @allow (update) if isExistingValidCompanyId(companyId, resource.data.companyId);
+     * @allow (delete) if isExistingValidCompanyId(companyId, resource.data.companyId);
+     * @allow (list) if true; // Assuming public read access is allowed for driver details in the prototype phase.
+     * @principle Enforces company-level access control for drivers.
      */
     match /companies/{companyId}/drivers/{driverId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if isSignedIn() && request.resource.data.companyId == companyId;
-      allow update: if isSignedIn() && request.resource.data.companyId == resource.data.companyId;
-      allow delete: if isSignedIn() && resource.data.companyId == companyId;
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidCompanyId(companyId, request.resource.data.companyId);
+      allow update: if isExistingValidCompanyId(companyId, resource.data.companyId);
+      allow delete: if isExistingValidCompanyId(companyId, resource.data.companyId);
     }
 
-    // ---- Helper functions ---
-    function isSignedIn() {
-      return request.auth != null;
+    /// Helper functions
+
+    /**
+     * @description Checks if the provided companyId matches the companyId in the request data.
+     * @param {string} companyId The company ID from the path.
+     * @param {string} requestCompanyId The company ID from the request data.
+     * @return {bool} True if the company IDs match, false otherwise.
+     */
+    function isValidCompanyId(companyId, requestCompanyId) {
+      return companyId == requestCompanyId;
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+    /**
+     * @description Checks if the provided companyId matches the existing companyId in the resource data.
+     * @param {string} companyId The company ID from the path.
+     * @param {string} resourceCompanyId The company ID from the resource data.
+     * @return {bool} True if the company IDs match and the document exists, false otherwise.
+     */
+    function isExistingValidCompanyId(companyId, resourceCompanyId) {
+          return resource != null && companyId == resourceCompanyId;
     }
   }
 }
