@@ -83,6 +83,7 @@ export function NewOrderForm({
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [valorUnitario, setValorUnitario] = React.useState(0);
 
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
@@ -99,6 +100,7 @@ export function NewOrderForm({
   });
   
   const selectedClientId = form.watch('clientId');
+  const quantidadeVolumes = form.watch('quantidadeVolumes');
 
   const addressesQuery = useMemoFirebase(() => {
     if (!firestore || !selectedClientId) return null;
@@ -120,6 +122,11 @@ export function NewOrderForm({
       }
     }
   }, [addresses, form]);
+
+  React.useEffect(() => {
+    const total = valorUnitario * (quantidadeVolumes || 1);
+    form.setValue('valorEntrega', total);
+  }, [valorUnitario, quantidadeVolumes, form]);
 
 
   const handleOpenScanner = async () => {
@@ -439,13 +446,13 @@ export function NewOrderForm({
             name="valorEntrega"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Valor da Entrega *</FormLabel>
+                <FormLabel>Valor Total da Entrega</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
-                    step="0.01"
+                    readOnly
+                    className="bg-muted"
                     {...field}
-                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
                   />
                 </FormControl>
                 <FormMessage />
@@ -454,6 +461,18 @@ export function NewOrderForm({
           />
         </div>
         <div className="grid gap-4 md:grid-cols-3">
+          <FormItem>
+            <FormLabel>Valor por Unidade</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="R$ 0,00"
+                value={valorUnitario}
+                onChange={(e) => setValorUnitario(e.target.valueAsNumber || 0)}
+              />
+            </FormControl>
+          </FormItem>
           <FormField
             control={form.control}
             name="quantidadeVolumes"
@@ -501,33 +520,36 @@ export function NewOrderForm({
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="motoristaId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Motorista</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Atribuir motorista..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {drivers.map((driver) => (
-                      <SelectItem key={driver.id} value={driver.id}>
-                        {driver.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        </div>
+        
+        <div className='grid gap-4 md:grid-cols-3'>
+            <FormField
+                control={form.control}
+                name="motoristaId"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Motorista</FormLabel>
+                    <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    >
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Atribuir motorista..." />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {drivers.map((driver) => (
+                        <SelectItem key={driver.id} value={driver.id}>
+                            {driver.nome}
+                        </SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
         </div>
 
         <FormField
