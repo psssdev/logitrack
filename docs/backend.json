@@ -273,7 +273,7 @@
         "fullAddress": { "type": "string", "description": "The complete, concatenated address string." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress", "createdAt"]
+      "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]
     }
   },
   "auth": {

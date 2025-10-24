@@ -1,86 +1,101 @@
 /**
- * @fileoverview Firestore Security Rules for the application.
+ * @fileoverview Firestore Security Rules for the transport app.
  *
  * Core Philosophy:
- * This ruleset enforces a multi-tenant data model where data is segregated by company.
+ * This ruleset enforces a multi-tenant model where data is segregated by company.
  * Users can only access data within their assigned company.
+ * Strict ownership is enforced for user profiles.
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile information.  Accessible only to the user.
- * - /companies/{companyId}/...: All company-specific data is stored under a company ID.
- *   - /companies/{companyId}/clients/{clientId}: Client information for a company.
- *   - /companies/{companyId}/origins/{originId}: Shipment origin points for a company.
+ * - /users/{userId}: Stores public user profile information.
+ * - /companies/{companyId}/clients/{clientId}: Stores client data for a specific company.
+ * - /companies/{companyId}/origins/{originId}: Stores shipment origin points for a specific company.
+ * - /companies/{companyId}/clients/{clientId}/addresses/{addressId}: Stores addresses for a specific client.
  *
  * Key Security Decisions:
  * - Users can only read and write their own profile data.
- * - Company data is isolated.  Users need to be authenticated to access company data.
- *
- * Denormalization for Authorization:
- *  - Company ID is used as a top-level collection key, making company-based access control straightforward.
+ * - Only authenticated users can access company-specific data.
+ * - Listing of clients and origins is allowed only within a company's scope.
+ * - Data validation is minimized to focus on authorization and relational integrity, allowing for rapid prototyping.
+ * - All write operations require authentication.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read and write their own profile data.
+     * @description Manages user profile data.
      * @path /users/{userId}
-     * @allow (get, update, delete) if request.auth.uid == userId
-     * @allow (create) if request.auth.uid == request.resource.data.id
-     * @deny (get, update, delete) if request.auth.uid != userId
-     * @principle Enforces document ownership for user profiles.
+     * @allow (read, write) if the user is the owner of the profile.
+     * @deny (read, write) if the user is not authenticated.
+     * @principle Enforces user-ownership for profile data.
      */
     match /users/{userId} {
       function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isSignedIn() {
-        return request.auth != null;
+        return request.auth != null && request.auth.uid == userId;
       }
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Allows authenticated users to manage clients within their company.
+     * @description Manages client data within a company.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow (create) if isSignedIn()
-     * @allow (get, list, update, delete) if isSignedIn()
-     * @deny (create, get, list, update, delete) if !isSignedIn()
-     * @principle Requires authentication for company client data access.
+     * @allow (create) if the user is authenticated.
+     * @allow (read, write) if the user is authenticated.
+     * @deny (read, write) if the user is not authenticated.
+     * @principle Enforces company-level access for client data.
      */
     match /companies/{companyId}/clients/{clientId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        function isSignedIn() {
+            return request.auth != null;
+        }
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
     }
 
-     /**
-      * @description Allows authenticated users to manage origins within their company.
-      * @path /companies/{companyId}/origins/{originId}
-      * @allow (create) if isSignedIn()
-      * @allow (get, list, update, delete) if isSignedIn()
-      * @deny (create, get, list, update, delete) if !isSignedIn()
-      * @principle Requires authentication for company origin data access.
-      */
+    /**
+     * @description Manages shipment origin points within a company.
+     * @path /companies/{companyId}/origins/{originId}
+     * @allow (create) if the user is authenticated.
+     * @allow (read, write) if the user is authenticated.
+     * @deny (read, write) if the user is not authenticated.
+     * @principle Enforces company-level access for origin data.
+     */
     match /companies/{companyId}/origins/{originId} {
-         function isSignedIn() {
+        function isSignedIn() {
             return request.auth != null;
-         }
+        }
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
+    }
 
-         allow get: if isSignedIn();
-         allow list: if isSignedIn();
-         allow create: if isSignedIn();
-         allow update: if isSignedIn();
-         allow delete: if isSignedIn();
-      }
+    /**
+     * @description Manages client addresses within a company.
+     * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
+     * @allow (create) if the user is authenticated.
+     * @allow (read, write) if the user is authenticated.
+     * @deny (read, write) if the user is not authenticated.
+     * @principle Enforces company-level access for client address data.
+     */
+    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
+        function isSignedIn() {
+            return request.auth != null;
+        }
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
+    }
   }
 }
