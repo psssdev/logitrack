@@ -73,13 +73,13 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
   });
   
   React.useEffect(() => {
-    const fetchOrigins = async () => {
+    async function fetchOrigins() {
       const fetchedOrigins = await getOrigins();
       setOrigins(fetchedOrigins);
       if (fetchedOrigins.length > 0) {
         form.setValue('origem', fetchedOrigins[0].address);
       }
-    };
+    }
     fetchOrigins();
   }, [form]);
 
@@ -135,6 +135,8 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
       } else {
           setAddresses([]);
           form.setValue('destino', '');
+          form.setValue('nomeCliente', '');
+          form.setValue('telefone', '');
       }
     };
     
@@ -259,6 +261,13 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
                       )) : <SelectItem value="no-address" disabled>Nenhum endereço cadastrado</SelectItem>}
                     </SelectContent>
                 </Select>
+                 {selectedClientId && addresses.length === 0 && !loadingAddresses && (
+                    <Button variant="link" asChild className="p-0 h-auto mt-2 text-sm">
+                        <Link href={`/clientes/${selectedClientId}/enderecos/novo`}>
+                            Cadastrar novo endereço
+                        </Link>
+                    </Button>
+                )}
                 <FormMessage />
                 </FormItem>
             )}
