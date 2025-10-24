@@ -145,7 +145,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                         <TableRow>
                           <TableHead className="w-1/2">Item</TableHead>
                           <TableHead className="text-right">Qtd.</TableHead>
-                          <TableHead className="text-right">Valor</TableHead>
+                          <TableHead className="text-right">Valor Unit.</TableHead>
+                          <TableHead className="text-right">Subtotal</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -158,18 +159,21 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                             <TableCell className="text-right">
                               {formatCurrency(item.value)}
                             </TableCell>
+                             <TableCell className="text-right">
+                              {formatCurrency(item.value * item.quantity)}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                       <TableFooter>
                         <TableRow>
                           <TableCell
-                            colSpan={2}
+                            colSpan={3}
                             className="font-semibold text-right"
                           >
                             Total
                           </TableCell>
-                          <TableCell className="text-right font-bold">
+                          <TableCell className="text-right font-bold text-lg">
                             {formatCurrency(order.valorEntrega)}
                           </TableCell>
                         </TableRow>
