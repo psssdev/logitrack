@@ -1,9 +1,7 @@
-import Link from 'next/link';
-import {
-  PlusCircle,
-  File,
-} from 'lucide-react';
+'use client';
 
+import Link from 'next/link';
+import { PlusCircle, File } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -18,13 +16,25 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { getOrders } from '@/lib/actions';
 import { OrderTable } from '@/components/order-table';
 import type { Order } from '@/lib/types';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default async function EncomendasPage() {
-    const orders = await getOrders();
-    const statuses = ['TODAS', 'PENDENTE', 'EM_ROTA', 'ENTREGUE', 'CANCELADA'];
+export default function EncomendasPage() {
+  const firestore = useFirestore();
+  const statuses = ['TODAS', 'PENDENTE', 'EM_ROTA', 'ENTREGUE', 'CANCELADA'];
+
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+      collection(firestore, 'companies', '1', 'orders'),
+      orderBy('createdAt', 'desc')
+    );
+  }, [firestore]);
+
+  const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,33 +59,37 @@ export default async function EncomendasPage() {
       </div>
       <Tabs defaultValue="TODAS">
         <TabsList>
-            {statuses.map(status => (
-                <TabsTrigger key={status} value={status}>
-                    {status.charAt(0) + status.slice(1).toLowerCase()}
-                </TabsTrigger>
-            ))}
+          {statuses.map((status) => (
+            <TabsTrigger key={status} value={status}>
+              {status.charAt(0) + status.slice(1).toLowerCase()}
+            </TabsTrigger>
+          ))}
         </TabsList>
-        {statuses.map(status => {
-            const filteredOrders = status === 'TODAS' 
-                ? orders 
-                : orders.filter(order => order.status === status);
-            return (
-                <TabsContent key={status} value={status}>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>
-                                {status.charAt(0) + status.slice(1).toLowerCase()}
-                            </CardTitle>
-                            <CardDescription>
-                                {filteredOrders.length} encomenda(s) encontrada(s).
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <OrderTable orders={filteredOrders} />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            );
+        
+        {isLoading && <Card><CardContent><Skeleton className="w-full h-64 mt-4" /></CardContent></Card>}
+
+        {orders && statuses.map((status) => {
+          const filteredOrders =
+            status === 'TODAS'
+              ? orders
+              : orders.filter((order) => order.status === status);
+          return (
+            <TabsContent key={status} value={status}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {status.charAt(0) + status.slice(1).toLowerCase()}
+                  </CardTitle>
+                  <CardDescription>
+                    {filteredOrders.length} encomenda(s) encontrada(s).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <OrderTable orders={filteredOrders} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          );
         })}
       </Tabs>
     </div>

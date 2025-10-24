@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Order } from '@/lib/types';
 import { OrderStatusBadge } from './status-badge';
 import { Input } from './ui/input';
+import { Timestamp } from 'firebase/firestore';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -42,6 +43,14 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       order.codigoRastreio.toLowerCase().includes(filter.toLowerCase()) ||
       order.telefone.includes(filter)
   );
+  
+  const formatDate = (date: Date | Timestamp) => {
+    if (date instanceof Timestamp) {
+      return date.toDate().toLocaleDateString('pt-BR');
+    }
+    return new Date(date).toLocaleDateString('pt-BR');
+  }
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -94,7 +103,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                     </div>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
-                    {new Date(order.createdAt).toLocaleDateString('pt-BR')}
+                    {formatDate(order.createdAt)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-2">

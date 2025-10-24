@@ -75,14 +75,6 @@
       "type": "object",
       "description": "Represents an order in the transport system.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the order."
-        },
-        "companyId": {
-          "type": "string",
-          "description": "Reference to Company. (Relationship: Company 1:N Order)"
-        },
         "codigoRastreio": {
           "type": "string",
           "description": "Unique tracking code for the order (e.g., TR-ABC123)."
@@ -110,7 +102,7 @@
         "formaPagamento": {
           "type": "string",
           "description": "Payment method (pix, dinheiro, cartao, boleto, link).",
-          "format": "enum"
+          "enum": ["pix", "dinheiro", "cartao", "boleto", "link", "haver"]
         },
         "pago": {
           "type": "boolean",
@@ -119,7 +111,7 @@
         "status": {
           "type": "string",
           "description": "Order status (PENDENTE, EM_ROTA, ENTREGUE, CANCELADA).",
-          "format": "enum"
+          "enum": ["PENDENTE", "EM_ROTA", "ENTREGUE", "CANCELADA"]
         },
         "motoristaId": {
           "type": "string",
@@ -138,7 +130,12 @@
           "type": "array",
           "description": "Array of status changes with timestamps and user references.",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+                "status": { "type": "string" },
+                "at": { "type": "string", "format": "date-time" },
+                "userId": { "type": "string" }
+            }
           }
         },
         "messages": {
@@ -159,8 +156,6 @@
         }
       },
       "required": [
-        "id",
-        "companyId",
         "codigoRastreio",
         "nomeCliente",
         "telefone",
@@ -305,6 +300,12 @@
         "$ref": "#/entities/Address"
       },
       "description": "Stores addresses for a specific client."
+    },
+    "/companies/{companyId}/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/Order"
+      },
+      "description": "Stores all orders for a specific company."
     }
   }
 }

@@ -6,6 +6,8 @@ import {
   Truck,
   Timer,
 } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
+
 
 const statusConfig = {
   PENDENTE: { label: 'Pendente', icon: Timer },
@@ -15,7 +17,10 @@ const statusConfig = {
 };
 
 export function OrderTimeline({ timeline }: { timeline: Order['timeline'] }) {
-  const sortedTimeline = [...timeline].sort((a, b) => b.at.getTime() - a.at.getTime());
+    
+  const toDate = (ts: Date | Timestamp): Date => (ts instanceof Timestamp ? ts.toDate() : ts);
+
+  const sortedTimeline = [...timeline].sort((a, b) => toDate(b.at).getTime() - toDate(a.at).getTime());
 
   return (
     <div className="flow-root">
@@ -23,6 +28,7 @@ export function OrderTimeline({ timeline }: { timeline: Order['timeline'] }) {
         {sortedTimeline.map((event, eventIdx) => {
           const config = statusConfig[event.status];
           const isLast = eventIdx === sortedTimeline.length - 1;
+          const eventDate = toDate(event.at);
           
           return (
             <li key={eventIdx}>
@@ -48,8 +54,8 @@ export function OrderTimeline({ timeline }: { timeline: Order['timeline'] }) {
                       </p>
                     </div>
                     <div className="whitespace-nowrap text-right text-sm text-muted-foreground">
-                      <time dateTime={event.at.toISOString()}>
-                        {event.at.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                      <time dateTime={eventDate.toISOString()}>
+                        {eventDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                       </time>
                     </div>
                   </div>

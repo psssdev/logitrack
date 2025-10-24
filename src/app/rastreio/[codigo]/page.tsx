@@ -1,4 +1,7 @@
-import { getOrderByTrackingCode } from '@/lib/actions';
+
+'use client'
+
+import { getFirestoreServer } from '@/lib/actions-public';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,15 +16,65 @@ import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/logo';
 import Link from 'next/link';
 import { Package, Search, AlertCircle, Home } from 'lucide-react';
+import type { Order } from '@/lib/types';
+import { useEffect, useState } from 'react';
+import { collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default async function RastreioPage({
+const COMPANY_ID = '1';
+
+async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | null> {
+    const firestore = getFirestoreServer();
+    const ordersCollection = collection(firestore, `companies/${COMPANY_ID}/orders`);
+    const q = query(
+      ordersCollection,
+      where("codigoRastreio", "==", codigoRastreio.toUpperCase()),
+      limit(1)
+    );
+  
+    try {
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        return null;
+      }
+      const orderDoc = querySnapshot.docs[0];
+      return { id: orderDoc.id, ...orderDoc.data() } as Order;
+    } catch (error) {
+      console.error("Error fetching order by tracking code: ", error);
+      return null;
+    }
+}
+
+
+export default function RastreioPage({
   params,
 }: {
   params: { codigo: string };
 }) {
-  const order = await getOrderByTrackingCode(params.codigo);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  if (!order) {
+  useEffect(() => {
+    async function fetchOrder() {
+        setLoading(true);
+        setError(false);
+        const fetchedOrder = await getOrderByTrackingCode(params.codigo);
+        if(fetchedOrder) {
+            setOrder(fetchedOrder);
+        } else {
+            setError(true);
+        }
+        setLoading(false);
+    }
+    fetchOrder();
+  }, [params.codigo]);
+
+  if(loading) {
+    return <RastreioSkeleton />
+  }
+
+  if (error || !order) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md text-center shadow-lg">
@@ -130,4 +183,51 @@ export default async function RastreioPage({
       </footer>
     </div>
   );
+}
+
+
+function RastreioSkeleton() {
+    return (
+        <div className="flex min-h-screen flex-col items-center bg-muted/40 p-4 sm:p-8 animate-pulse">
+            <div className="w-full max-w-3xl space-y-8">
+                 <div className="text-center">
+                    <Skeleton className="h-16 w-16 rounded-full mx-auto" />
+                    <Skeleton className="h-9 w-3/4 mx-auto mt-4" />
+                </div>
+
+                <Card className="shadow-lg">
+                    <CardHeader>
+                        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-8 w-40 mt-2" />
+                            </div>
+                            <Skeleton className="h-7 w-28 rounded-full" />
+                        </div>
+                    </CardHeader>
+                    <CardContent className="grid gap-6">
+                        <div className="grid gap-4 rounded-lg border p-4">
+                           <Skeleton className="h-5 w-32" />
+                            <div className="space-y-4">
+                               <Skeleton className="h-4 w-full" />
+                               <Skeleton className="h-4 w-full" />
+                               <Skeleton className="h-4 w-full" />
+                            </div>
+                        </div>
+                        <div>
+                             <Skeleton className="h-6 w-24 mb-4" />
+                            <div className="space-y-4">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                 <div className="text-center">
+                    <Skeleton className="h-11 w-52 mx-auto" />
+                </div>
+            </div>
+        </div>
+    )
 }

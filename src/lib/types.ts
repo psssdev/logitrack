@@ -3,7 +3,15 @@ import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newO
 import { Timestamp } from 'firebase/firestore';
 
 // Base Order type from schema
-export type Order = z.infer<typeof orderSchema>;
+export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline'> & {
+    id: string;
+    createdAt: Date | Timestamp;
+    timeline: {
+        status: OrderStatus;
+        at: Date | Timestamp;
+        userId: string;
+    }[];
+};
 
 // NewOrder type for form creation
 export type NewOrder = z.infer<typeof newOrderSchema>;
@@ -17,6 +25,7 @@ export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
 // Base Client type with potential Firestore Timestamp
 export type Client = Omit<z.infer<typeof clientSchema>, 'createdAt'> & {
+    id: string;
     createdAt: Date | Timestamp;
 };
 
@@ -31,6 +40,7 @@ export type NewAddress = z.infer<typeof newAddressFormSchema>;
 
 // Base Origin type with potential Firestore Timestamp
 export type Origin = Omit<z.infer<typeof originSchema>, 'createdAt'> & {
+    id: string;
     createdAt: Date | Timestamp;
 };
 export type NewOrigin = z.infer<typeof newOriginSchema>;

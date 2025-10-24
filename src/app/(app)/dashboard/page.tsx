@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -14,7 +16,6 @@ import {
   CardTitle,
   CardDescription
 } from '@/components/ui/card';
-import { getDashboardSummary, getOrders } from '@/lib/actions';
 import { OrderStatusBadge } from '@/components/status-badge';
 import {
   Table,
@@ -26,11 +27,39 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import type { Order } from '@/lib/types';
+import { useEffect, useState } from 'react';
+import { getDashboardSummary } from '@/lib/actions';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, orderBy, query, limit } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
-export default async function DashboardPage() {
-  const summary = await getDashboardSummary();
-  const recentOrders = (await getOrders()).slice(0, 5);
+export default function DashboardPage() {
+    const [summary, setSummary] = useState({ total: 0, pendentes: 0, emRota: 0, entregues: 0 });
+    const [loadingSummary, setLoadingSummary] = useState(true);
+    const firestore = useFirestore();
+
+    const recentOrdersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, 'companies', '1', 'orders'),
+            orderBy('createdAt', 'desc'),
+            limit(5)
+        );
+    }, [firestore]);
+
+    const { data: recentOrders, isLoading: loadingOrders } = useCollection<Order>(recentOrdersQuery);
+    
+    useEffect(() => {
+        async function fetchSummary() {
+            setLoadingSummary(true);
+            const summaryData = await getDashboardSummary();
+            setSummary(summaryData);
+            setLoadingSummary(false);
+        }
+        fetchSummary();
+    }, []);
+
 
   return (
     <>
@@ -51,7 +80,7 @@ export default async function DashboardPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary.pendentes}</div>
+            {loadingSummary ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.pendentes}</div>}
             <p className="text-xs text-muted-foreground">
               Aguardando para sair para entrega
             </p>
@@ -63,7 +92,7 @@ export default async function DashboardPage() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary.emRota}</div>
+            {loadingSummary ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.emRota}</div>}
             <p className="text-xs text-muted-foreground">
               Encomendas em trânsito
             </p>
@@ -75,7 +104,7 @@ export default async function DashboardPage() {
             <PackageCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary.entregues}</div>
+            {loadingSummary ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.entregues}</div>}
             <p className="text-xs text-muted-foreground">
               Total de entregas concluídas
             </p>
@@ -87,7 +116,7 @@ export default async function DashboardPage() {
              <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary.total}</div>
+             {loadingSummary ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.total}</div>}
             <p className="text-xs text-muted-foreground">
               Total de registros no sistema
             </p>
@@ -101,7 +130,11 @@ export default async function DashboardPage() {
           <CardDescription>As 5 encomendas mais recentes registradas no sistema.</CardDescription>
         </CardHeader>
         <CardContent>
-          <RecentOrdersTable orders={recentOrders} />
+          {loadingOrders && <Skeleton className="h-48 w-full" />}
+          {recentOrders && <RecentOrdersTable orders={recentOrders} />}
+          {!loadingOrders && recentOrders?.length === 0 && (
+             <p className="text-sm text-muted-foreground text-center p-4">Nenhuma encomenda recente encontrada.</p>
+          )}
         </CardContent>
       </Card>
     </>
@@ -109,6 +142,11 @@ export default async function DashboardPage() {
 }
 
 function RecentOrdersTable({ orders }: { orders: Order[] }) {
+  const formatValue = (value: number) => new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+
   return (
     <div className="rounded-md border">
     <Table>
@@ -139,10 +177,7 @@ function RecentOrdersTable({ orders }: { orders: Order[] }) {
               <OrderStatusBadge status={order.status} />
             </TableCell>
             <TableCell className="hidden md:table-cell">
-              {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-              }).format(order.valorEntrega)}
+              {formatValue(order.valorEntrega)}
             </TableCell>
             <TableCell>
               <Button asChild variant="ghost" size="icon">

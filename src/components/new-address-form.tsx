@@ -15,11 +15,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { createAddress } from '@/lib/actions';
+import { triggerRevalidation } from '@/lib/actions';
 import { newAddressFormSchema } from '@/lib/schemas';
 import type { NewAddress } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+
 
 type City = {
   id: number;
@@ -56,9 +59,12 @@ const brazilianStates = [
     { value: 'TO', label: 'Tocantins' },
 ];
 
+const COMPANY_ID = '1';
+
 export function NewAddressForm({ clientId }: { clientId: string }) {
   const { toast } = useToast();
   const router = useRouter();
+  const firestore = useFirestore();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
@@ -162,24 +168,37 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
   };
 
   async function onSubmit(data: NewAddress) {
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, String(value));
-    });
+      if (!firestore) {
+        toast({ variant: 'destructive', title: 'Erro de conexão', description: 'Não foi possível conectar ao banco de dados.' });
+        return;
+    }
 
-    const result = await createAddress(formData);
-    
-    if (result?.message.includes('sucesso')) {
+     try {
+        const addressCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', data.clientId, 'addresses');
+        const { logradouro, numero, bairro, cidade, estado, cep } = data;
+        const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
+
+        await addDoc(addressCollection, {
+            ...data,
+            fullAddress,
+            createdAt: serverTimestamp(),
+        });
+
+        await triggerRevalidation(`/clientes/${data.clientId}`);
+        await triggerRevalidation('/encomendas/nova');
+
         toast({
             title: 'Sucesso!',
             description: 'Novo endereço cadastrado.',
         });
-        router.push(`/clientes/${clientId}`);
-    } else {
+        router.push(`/clientes/${data.clientId}`);
+
+    } catch (error: any) {
+        console.error("Error creating address:", error);
         toast({
             variant: 'destructive',
             title: 'Erro ao cadastrar endereço.',
-            description: result?.message || 'Ocorreu um erro desconhecido.',
+            description: error.message || 'Ocorreu um erro desconhecido.',
         });
     }
   }
@@ -318,7 +337,7 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
         </div>
         <div className="flex justify-end">
             <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Endereço'}
+            {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Endereço'}
             </Button>
         </div>
       </form>

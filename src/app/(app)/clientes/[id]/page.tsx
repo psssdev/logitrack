@@ -9,15 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import AddressList from '@/components/address-list';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import type { Client } from '@/lib/types';
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
+import type { Client, Address } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getAddressesByClientId } from '@/lib/actions'; // This still uses mock data
-import { useEffect, useState } from 'react';
-import type { Address } from '@/lib/types';
+import { Timestamp } from 'firebase/firestore';
 
 export default function ClientDetailPage({
   params,
@@ -30,16 +27,22 @@ export default function ClientDetailPage({
     if (!firestore) return null;
     return doc(firestore, 'companies', '1', 'clients', params.id);
   }, [firestore, params.id]);
+  
+  const addressesQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return collection(firestore, 'companies', '1', 'clients', params.id, 'addresses');
+  }, [firestore, params.id]);
 
-  const { data: client, isLoading } = useDoc<Client>(clientRef);
+  const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
+  const { data: addresses, isLoading: isLoadingAddresses } = useCollection<Address>(addressesQuery);
+  
+  const isLoading = isLoadingClient || isLoadingAddresses;
 
-  // TODO: Migrate addresses to Firestore
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  useEffect(() => {
-    if (client) {
-      getAddressesByClientId(client.id).then(setAddresses);
-    }
-  }, [client]);
+  const formatDate = (date: Date | Timestamp | undefined) => {
+    if (!date) return 'Data desconhecida';
+    const d = date instanceof Timestamp ? date.toDate() : date;
+    return d.toLocaleDateString('pt-BR');
+  }
 
   return (
     <div className="mx-auto grid max-w-4xl flex-1 auto-rows-max gap-4">
@@ -57,7 +60,7 @@ export default function ClientDetailPage({
 
       {isLoading && <ClientDetailSkeleton />}
 
-      {client && (
+      {!isLoading && client && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="grid auto-rows-max items-start gap-4 lg:col-span-3">
             <Card>
@@ -69,12 +72,7 @@ export default function ClientDetailPage({
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Cliente desde{' '}
-                  {client.createdAt
-                    ? new Date(
-                        (client.createdAt as any).seconds * 1000
-                      ).toLocaleDateString('pt-BR')
-                    : 'Data desconhecida'}
+                  Cliente desde {formatDate(client.createdAt)}
                 </p>
               </CardContent>
             </Card>
@@ -95,7 +93,7 @@ export default function ClientDetailPage({
                 </Button>
               </CardHeader>
               <CardContent>
-                <AddressList addresses={addresses} />
+                {addresses && <AddressList addresses={addresses} />}
               </CardContent>
             </Card>
           </div>

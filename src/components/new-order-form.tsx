@@ -23,7 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
 import type { NewOrder, Client, Address, Origin } from '@/lib/types';
-import { createOrder, getAddressesByClientId } from '@/lib/actions';
+import { getAddressesByClientId, triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { drivers } from '@/lib/data';
@@ -40,7 +40,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ChevronsUpDown, Check, Camera } from 'lucide-react';
+import { ChevronsUpDown, Check, Camera, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import {
@@ -54,6 +54,8 @@ import {
   DialogClose,
 } from './ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { useAuth, useFirestore, useUser } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 const paymentMethodLabels = {
   pix: 'PIX',
@@ -64,6 +66,8 @@ const paymentMethodLabels = {
   haver: 'A Haver',
 };
 
+const COMPANY_ID = '1';
+
 export function NewOrderForm({
   clients,
   origins,
@@ -73,6 +77,8 @@ export function NewOrderForm({
 }) {
   const { toast } = useToast();
   const router = useRouter();
+  const firestore = useFirestore();
+  const { user } = useUser();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = React.useState(false);
@@ -87,8 +93,6 @@ export function NewOrderForm({
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-      // NOTE: In a real implementation, you would integrate a barcode scanning library here
-      // to process the video stream and decode barcodes. For now, the video feed is displayed.
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
@@ -121,27 +125,55 @@ export function NewOrderForm({
   }, [origins, form]);
 
   async function onSubmit(data: NewOrder) {
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        formData.append(key, String(value));
-      }
-    });
+     if (!firestore || !user) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não autenticado ou falha na conexão.' });
+        return;
+    }
 
-    const result = await createOrder(formData);
+    try {
+        const client = clients.find(c => c.id === data.clientId);
+        if (!client) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado.' });
+            return;
+        }
 
-    if (result?.message.includes('sucesso')) {
-      toast({
-        title: 'Sucesso!',
-        description: 'Encomenda criada e cliente notificado.',
-      });
-      router.push('/encomendas');
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao criar encomenda.',
-        description: result?.message || 'Ocorreu um erro desconhecido.',
-      });
+        const ordersCollection = collection(firestore, 'companies', COMPANY_ID, 'orders');
+        await addDoc(ordersCollection, {
+            ...data,
+            nomeCliente: client.nome,
+            telefone: client.telefone,
+            codigoRastreio: `TR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+            status: 'PENDENTE',
+            pago: false, // Default value
+            createdAt: serverTimestamp(),
+            createdBy: user.uid,
+            timeline: [{ status: 'PENDENTE', at: serverTimestamp(), userId: user.uid }],
+            messages: [],
+        });
+
+        // Simulate sending a WhatsApp notification
+        let notificationMessage = `WHATSAPP: Notificação "recebido" para ${client.nome}.`;
+        if(data.formaPagamento === 'haver'){
+            notificationMessage += ` Valor a pagar: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.valorEntrega as number)}.`
+        }
+        console.log(notificationMessage);
+
+        await triggerRevalidation('/encomendas');
+        await triggerRevalidation('/dashboard');
+
+        toast({
+            title: 'Sucesso!',
+            description: 'Encomenda criada e cliente notificado.',
+        });
+        router.push('/encomendas');
+
+    } catch (error: any) {
+        console.error("Error creating order:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao criar encomenda.',
+            description: error.message || 'Ocorreu um erro desconhecido.',
+        });
     }
   }
 
@@ -152,9 +184,6 @@ export function NewOrderForm({
       if (selectedClientId) {
         const client = clients.find((c) => c.id === selectedClientId);
         if (client) {
-          form.setValue('nomeCliente', client.nome, { shouldValidate: true });
-          form.setValue('telefone', client.telefone, { shouldValidate: true });
-
           setLoadingAddresses(true);
           const clientAddresses = await getAddressesByClientId(client.id);
           setAddresses(clientAddresses);
@@ -172,8 +201,6 @@ export function NewOrderForm({
       } else {
         setAddresses([]);
         form.setValue('destino', '');
-        form.setValue('nomeCliente', '');
-        form.setValue('telefone', '');
       }
     };
 
@@ -357,7 +384,6 @@ export function NewOrderForm({
                       placeholder="Nº da nota fiscal"
                       {...field}
                       value={field.value ?? ''}
-                      onChange={field.onChange}
                     />
                   </FormControl>
                   <Dialog>
@@ -512,7 +538,7 @@ export function NewOrderForm({
             disabled={form.formState.isSubmitting}
           >
             {form.formState.isSubmitting
-              ? 'Salvando...'
+              ? <Loader2 className="animate-spin" />
               : 'Salvar & Notificar WhatsApp'}
           </Button>
         </div>
