@@ -62,7 +62,7 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
     defaultValues: {
-      origem: '',
+      origem: 'LogiTrack - Matriz', // Default origin address
       destino: '',
       valorEntrega: 0,
       formaPagamento: 'pix',
@@ -109,6 +109,8 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
             setLoadingAddresses(true);
             const clientAddresses = await getAddressesByClientId(client.id);
             setAddresses(clientAddresses);
+            // Reset destination when client changes
+            form.setValue('destino', '');
             setLoadingAddresses(false);
         }
         fetchAddresses();
@@ -193,28 +195,17 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
 
         <div className="grid gap-4 md:grid-cols-2">
             <FormField
-            control={form.control}
-            name="origem"
-            render={({ field }) => (
+              control={form.control}
+              name="origem"
+              render={({ field }) => (
                 <FormItem>
-                <FormLabel>Endereço de Origem *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedClientId || loadingAddresses}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder={loadingAddresses ? "Carregando..." : "Selecione um endereço"} />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                    {addresses.map(address => (
-                        <SelectItem key={address.id} value={address.fullAddress}>
-                        {address.label} - {address.fullAddress}
-                        </SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
+                  <FormLabel>Endereço de Origem *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: LogiTrack - Matriz" {...field} />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
-            )}
+              )}
             />
             <FormField
             control={form.control}
@@ -222,18 +213,18 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Endereço de Destino *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedClientId || loadingAddresses}>
+                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedClientId || loadingAddresses}>
                     <FormControl>
                     <SelectTrigger>
-                        <SelectValue placeholder={loadingAddresses ? "Carregando..." : "Selecione um endereço"} />
+                        <SelectValue placeholder={loadingAddresses ? "Carregando..." : "Selecione um endereço de destino"} />
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                    {addresses.map(address => (
+                      {addresses.length > 0 ? addresses.map(address => (
                         <SelectItem key={address.id} value={address.fullAddress}>
                          {address.label} - {address.fullAddress}
                         </SelectItem>
-                    ))}
+                      )) : <SelectItem value="no-address" disabled>Nenhum endereço cadastrado</SelectItem>}
                     </SelectContent>
                 </Select>
                 <FormMessage />
