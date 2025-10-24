@@ -20,11 +20,16 @@ import { getDrivers } from '@/lib/actions';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 
+
 export default function MotoristaDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
+    return <MotoristaDetailContent driverId={params.id} />
+}
+
+function MotoristaDetailContent({ driverId }: { driverId: string }) {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [isLoadingDriver, setIsLoadingDriver] = useState(true);
   const firestore = useFirestore();
@@ -33,9 +38,9 @@ export default function MotoristaDetailPage({
     if (!firestore) return null;
     return query(
       collection(firestore, 'companies', '1', 'orders'),
-      where('motoristaId', '==', params.id)
+      where('motoristaId', '==', driverId)
     );
-  }, [firestore, params.id]);
+  }, [firestore, driverId]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(driverOrdersQuery);
 
@@ -45,12 +50,12 @@ export default function MotoristaDetailPage({
       // In a real app, you'd fetch a single driver by ID.
       // Here, we filter the mock data.
       const allDrivers = await getDrivers();
-      const foundDriver = allDrivers.find((d) => d.id === params.id) || null;
+      const foundDriver = allDrivers.find((d) => d.id === driverId) || null;
       setDriver(foundDriver);
       setIsLoadingDriver(false);
     }
     fetchDriver();
-  }, [params.id]);
+  }, [driverId]);
 
   if (!isLoadingDriver && !driver) {
     notFound();

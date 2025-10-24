@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import Link from 'next/link';
@@ -8,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -53,23 +50,24 @@ const formatDate = (date: Date | Timestamp | undefined) => {
 };
 
 const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+};
+
+export default function OrderDetailPage({ params }: { params: { id: string } }) {
+  return <OrderDetailContent orderId={params.id} />;
 }
 
-export default function OrderDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+
+function OrderDetailContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
 
   const orderRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'companies', '1', 'orders', params.id);
-  }, [firestore, params.id]);
+    return doc(firestore, 'companies', '1', 'orders', orderId);
+  }, [firestore, orderId]);
 
   const { data: order, isLoading } = useDoc<Order>(orderRef);
 
@@ -82,7 +80,6 @@ export default function OrderDetailPage({
   }
 
   if (order) {
-
     return (
       <div className="mx-auto grid max-w-6xl flex-1 auto-rows-max gap-4">
         <div className="flex items-center gap-4">
@@ -142,28 +139,39 @@ export default function OrderDetailPage({
                   <div className="grid gap-3">
                     <div className="font-semibold">Itens da Encomenda</div>
                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-1/2">Item</TableHead>
-                                <TableHead className="text-right">Qtd.</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {order.items.map((item, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>{item.description}</TableCell>
-                                    <TableCell className="text-right">{item.quantity}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(item.value)}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                        <TableFooter>
-                            <TableRow>
-                                <TableCell colSpan={2} className="font-semibold text-right">Total</TableCell>
-                                <TableCell className="text-right font-bold">{formatCurrency(order.valorEntrega)}</TableCell>
-                            </TableRow>
-                        </TableFooter>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-1/2">Item</TableHead>
+                          <TableHead className="text-right">Qtd.</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {order.items.map((item, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell className="text-right">
+                              {item.quantity}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(item.value)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                      <TableFooter>
+                        <TableRow>
+                          <TableCell
+                            colSpan={2}
+                            className="font-semibold text-right"
+                          >
+                            Total
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatCurrency(order.valorEntrega)}
+                          </TableCell>
+                        </TableRow>
+                      </TableFooter>
                     </Table>
                   </div>
                   <Separator />
@@ -281,5 +289,3 @@ function OrderDetailsSkeleton() {
     </div>
   );
 }
-
-    

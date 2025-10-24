@@ -16,22 +16,27 @@ import type { Client, Address } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
 
+
 export default function ClientDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
+    return <ClientDetailContent clientId={params.id} />
+}
+
+function ClientDetailContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
 
   const clientRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'companies', '1', 'clients', params.id);
-  }, [firestore, params.id]);
+    return doc(firestore, 'companies', '1', 'clients', clientId);
+  }, [firestore, clientId]);
   
   const addressesQuery = useMemoFirebase(() => {
       if (!firestore) return null;
-      return collection(firestore, 'companies', '1', 'clients', params.id, 'addresses');
-  }, [firestore, params.id]);
+      return collection(firestore, 'companies', '1', 'clients', clientId, 'addresses');
+  }, [firestore, clientId]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: addresses, isLoading: isLoadingAddresses } = useCollection<Address>(addressesQuery);
@@ -86,7 +91,7 @@ export default function ClientDetailPage({
                   </CardDescription>
                 </div>
                 <Button size="sm" asChild>
-                  <Link href={`/clientes/${client.id}/enderecos/novo`}>
+                  <Link href={`/clientes/${clientId}/enderecos/novo`}>
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Novo Endereço
                   </Link>

@@ -22,12 +22,16 @@ export default function NewAddressPage({
 }: {
   params: { id: string };
 }) {
+  return <NewAddressContent clientId={params.id} />
+}
+
+function NewAddressContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
 
   const clientRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'companies', '1', 'clients', params.id);
-  }, [firestore, params.id]);
+    return doc(firestore, 'companies', '1', 'clients', clientId);
+  }, [firestore, clientId]);
 
   const { data: client, isLoading } = useDoc<Client>(clientRef);
 
@@ -39,7 +43,7 @@ export default function NewAddressPage({
     <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href={`/clientes/${params.id}`}>
+          <Link href={`/clientes/${clientId}`}>
             <ChevronLeft className="h-4 w-4" />
             <span className="sr-only">Voltar</span>
           </Link>
@@ -67,7 +71,7 @@ export default function NewAddressPage({
           </CardHeader>
         )}
         <CardContent>
-          <NewAddressForm clientId={params.id} />
+          <NewAddressForm clientId={clientId} />
         </CardContent>
       </Card>
     </div>
