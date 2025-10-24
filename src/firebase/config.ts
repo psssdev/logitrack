@@ -4,5 +4,5 @@ export const firebaseConfig = {
   projectId: "studio-7651274200-eb2ae",
   storageBucket: "studio-7651274200-eb2ae.firebasestorage.app",
   messagingSenderId: "356667822231",
-  appId: "1:356667822231:web:9bcb5647d7ed998a5099d2"
+  appId: "1:356667822231:web:b3525c38ab75a7555099d2"
 };
