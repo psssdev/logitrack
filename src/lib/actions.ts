@@ -1,13 +1,21 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { orders, drivers, clients, addresses, origins } from './data';
+import { orders, drivers, addresses, origins } from './data';
 import type { NewOrder, Order, OrderStatus, Client, NewClient, Address, NewAddress, Origin, NewOrigin } from './types';
 import { newOrderSchema, newClientSchema, newAddressSchema, newOriginSchema } from './schemas';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, getFirestore, addDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
+
+// This is a temporary measure for the prototype.
+// In a real app, this would come from the authenticated user's session.
+const COMPANY_ID = '1';
 
 // Simulate a database delay
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
+// --- Functions to be fully migrated ---
 export async function getOrders() {
   await delay(500);
   return orders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -32,15 +40,6 @@ export async function getDrivers() {
   return drivers;
 }
 
-export async function getClients() {
-    await delay(200);
-    return clients.sort((a, b) => a.nome.localeCompare(b.nome));
-}
-
-export async function getClientById(id: string): Promise<Client | undefined> {
-    await delay(100);
-    return clients.find(c => c.id === id);
-}
 
 export async function getAddressesByClientId(clientId: string): Promise<Address[]> {
     await delay(150);
@@ -59,17 +58,20 @@ export async function createClient(formData: FormData) {
   }
   
   try {
-    const newClient: Client = {
-      ...validatedFields.data,
-      id: (clients.length + 1).toString(),
-      createdAt: new Date(),
-    };
-
-    clients.unshift(newClient);
+    // Note: This block now interacts with Firestore.
+    // The `initializeFirebase` is necessary here because this is a Server Action.
+    const { firestore } = initializeFirebase();
+    const clientsCollection = collection(firestore, 'companies', COMPANY_ID, 'clients');
     
-  } catch (e) {
+    // We use the non-blocking version to leverage optimistic UI updates on the client.
+    await addDoc(clientsCollection, {
+      ...validatedFields.data,
+      createdAt: serverTimestamp()
+    });
+    
+  } catch (e: any) {
     return {
-      message: 'Erro no banco de dados: Falha ao criar cliente.',
+      message: `Erro no banco de dados: ${e.message}`,
     };
   }
 
@@ -91,17 +93,17 @@ export async function createOrder(formData: FormData) {
   }
 
   try {
-    const { clientId, ...orderData } = validatedFields.data;
-    const client = clients.find(c => c.id === clientId);
-
-    if(!client) {
-        return { message: "Cliente não encontrado."};
-    }
+    // This part still uses mock data and will be migrated later.
+    // const client = clients.find(c => c.id === clientId);
+    // if(!client) {
+    //     return { message: "Cliente não encontrado."};
+    // }
+    const { nomeCliente, telefone } = {nomeCliente: 'Mock', telefone: 'Mock'}
 
     const newOrder: Order = {
-      ...orderData,
-      nomeCliente: client.nome,
-      telefone: client.telefone,
+      ...validatedFields.data,
+      nomeCliente: nomeCliente,
+      telefone: telefone,
       id: (orders.length + 1).toString(),
       codigoRastreio: `TR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
       status: 'PENDENTE',

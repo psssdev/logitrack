@@ -47,7 +47,7 @@ export const orderSchema = z.object({
       })
     )
     .default([]),
-  createdAt: z.date(),
+  createdAt: z.any(), // Allow Date, string, or Firestore Timestamp
   createdBy: z.string(),
   companyId: z.string(),
 });
@@ -81,7 +81,7 @@ export const clientSchema = z.object({
     id: z.string(),
     nome: z.string().min(1, "Nome é obrigatório"),
     telefone: z.string().min(10, "Telefone inválido"),
-    createdAt: z.date(),
+    createdAt: z.any(), // Allow Date or Firestore Timestamp
 });
 
 export const newClientSchema = clientSchema.omit({

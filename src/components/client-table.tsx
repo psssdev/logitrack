@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from './ui/input';
 import type { Client } from '@/lib/types';
+import { Timestamp } from 'firebase/firestore';
 
 export default function ClientTable({ clients }: { clients: Client[] }) {
   const [filter, setFilter] = React.useState('');
@@ -30,6 +31,13 @@ export default function ClientTable({ clients }: { clients: Client[] }) {
       client.nome.toLowerCase().includes(filter.toLowerCase()) ||
       client.telefone.includes(filter)
   );
+  
+  const formatDate = (date: Date | Timestamp) => {
+    if (date instanceof Timestamp) {
+      return date.toDate().toLocaleDateString('pt-BR');
+    }
+    return new Date(date).toLocaleDateString('pt-BR');
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,7 +69,7 @@ export default function ClientTable({ clients }: { clients: Client[] }) {
                   <TableCell className="font-medium">{client.nome}</TableCell>
                   <TableCell>{client.telefone}</TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {new Date(client.createdAt).toLocaleDateString('pt-BR')}
+                    {formatDate(client.createdAt)}
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">

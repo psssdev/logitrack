@@ -1,0 +1,256 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        }
+      },
+      "required": ["displayName", "email"]
+    },
+     "Company": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Company",
+      "type": "object",
+      "description": "Represents a transport company using the system. Enables multi-tenant support.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the company."
+        },
+        "nomeFantasia": {
+          "type": "string",
+          "description": "The trade name of the company."
+        },
+        "cnpj": {
+          "type": "string",
+          "description": "The company's CNPJ (optional)."
+        },
+        "logoUrl": {
+          "type": "string",
+          "description": "URL of the company's logo image."
+        },
+        "whatsappProvider": {
+          "type": "string",
+          "description": "JSON string containing the configuration for the WhatsApp provider (type, baseUrl, token, sender).",
+          "format": "json-string"
+        },
+        "msgTemplates": {
+          "type": "string",
+          "description": "JSON string containing templates for WhatsApp messages (recebido, emRota, entregue).",
+          "format": "json-string"
+        },
+        "codigoPrefixo": {
+          "type": "string",
+          "description": "Prefix for the tracking code (e.g., 'TR-')."
+        },
+        "linkBaseRastreio": {
+          "type": "string",
+          "description": "Base URL for tracking links.  The tracking code will be appended to this URL.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "nomeFantasia",
+        "whatsappProvider",
+        "msgTemplates",
+        "codigoPrefixo",
+        "linkBaseRastreio"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents an order in the transport system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the order."
+        },
+        "companyId": {
+          "type": "string",
+          "description": "Reference to Company. (Relationship: Company 1:N Order)"
+        },
+        "codigoRastreio": {
+          "type": "string",
+          "description": "Unique tracking code for the order (e.g., TR-ABC123)."
+        },
+        "nomeCliente": {
+          "type": "string",
+          "description": "Name of the customer."
+        },
+        "telefone": {
+          "type": "string",
+          "description": "Customer's phone number (E.164 format)."
+        },
+        "origem": {
+          "type": "string",
+          "description": "Origin of the shipment."
+        },
+        "destino": {
+          "type": "string",
+          "description": "Destination of the shipment."
+        },
+        "valorEntrega": {
+          "type": "number",
+          "description": "Delivery value."
+        },
+        "formaPagamento": {
+          "type": "string",
+          "description": "Payment method (pix, dinheiro, cartao, boleto, link).",
+          "format": "enum"
+        },
+        "pago": {
+          "type": "boolean",
+          "description": "Indicates if the order is paid."
+        },
+        "status": {
+          "type": "string",
+          "description": "Order status (PENDENTE, EM_ROTA, ENTREGUE, CANCELADA).",
+          "format": "enum"
+        },
+        "motoristaId": {
+          "type": "string",
+          "description": "Reference to Driver. (Relationship: Driver 1:N Order) (Optional)",
+          "format": "uuid"
+        },
+        "observacao": {
+          "type": "string",
+          "description": "Optional notes about the order."
+        },
+        "timeline": {
+          "type": "array",
+          "description": "Array of status changes with timestamps and user references.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "messages": {
+          "type": "array",
+          "description": "Array of messages sent related to the order.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of when the order was created.",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "User who created the order."
+        }
+      },
+      "required": [
+        "id",
+        "companyId",
+        "codigoRastreio",
+        "nomeCliente",
+        "telefone",
+        "origem",
+        "destino",
+        "valorEntrega",
+        "formaPagamento",
+        "pago",
+        "status",
+        "timeline",
+        "messages",
+        "createdAt",
+        "createdBy"
+      ]
+    },
+    "Driver": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Driver",
+      "type": "object",
+      "description": "Represents a driver.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the driver."
+        },
+        "companyId": {
+          "type": "string",
+          "description": "Reference to Company. (Relationship: Company 1:N Driver)"
+        },
+        "nome": {
+          "type": "string",
+          "description": "Driver's name."
+        },
+        "telefone": {
+          "type": "string",
+          "description": "Driver's phone number."
+        },
+        "placa": {
+          "type": "string",
+          "description": "Vehicle license plate."
+        },
+        "ativo": {
+          "type": "boolean",
+          "description": "Indicates if the driver is active."
+        }
+      },
+      "required": [
+        "id",
+        "companyId",
+        "nome",
+        "telefone",
+        "placa",
+        "ativo"
+      ]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Represents a customer who places orders.",
+      "type": "object",
+      "properties": {
+        "nome": {
+          "type": "string",
+          "description": "The full name of the client."
+        },
+        "telefone": {
+          "type": "string",
+          "description": "The client's phone number, preferably in E.164 format."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the client was created."
+        }
+      },
+      "required": ["nome", "telefone", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password"
+    ]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Stores public information about a user."
+    },
+    "/companies/{companyId}/clients/{clientId}": {
+      "schema": {
+        "$ref": "#/entities/Client"
+      },
+      "description": "Stores customer information for a specific company."
+    }
+  }
+}
