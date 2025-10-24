@@ -27,6 +27,11 @@ import {
   SelectValue,
 } from './ui/select';
 
+type City = {
+  id: number;
+  nome: string;
+};
+
 const brazilianStates = [
     { value: 'AC', label: 'Acre' },
     { value: 'AL', label: 'Alagoas' },
@@ -61,6 +66,8 @@ export function NewOriginForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
+  const [cities, setCities] = React.useState<City[]>([]);
+  const [isFetchingCities, setIsFetchingCities] = React.useState(false);
 
   const form = useForm<NewOrigin>({
     resolver: zodResolver(newOriginSchema),
@@ -74,6 +81,37 @@ export function NewOriginForm() {
       cep: '',
     },
   });
+
+  const selectedState = form.watch('estado');
+
+  React.useEffect(() => {
+    const fetchCities = async () => {
+      if (!selectedState) {
+        setCities([]);
+        return;
+      }
+      setIsFetchingCities(true);
+      form.setValue('cidade', ''); // Reset city selection
+      try {
+        const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${selectedState}/municipios`);
+        const data: City[] = await response.json();
+        const sortedCities = data.sort((a, b) => a.nome.localeCompare(b.nome));
+        setCities(sortedCities);
+      } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao buscar cidades',
+            description: 'Não foi possível carregar a lista de cidades para o estado selecionado.'
+        })
+        setCities([]);
+      } finally {
+        setIsFetchingCities(false);
+      }
+    };
+
+    fetchCities();
+  }, [selectedState, form, toast]);
+
 
   const handleCepSearch = async () => {
     const cep = form.getValues('cep').replace(/\D/g, '');
@@ -102,10 +140,14 @@ export function NewOriginForm() {
         form.setValue('cidade', '');
         form.setValue('estado', '');
       } else {
+        form.setValue('estado', data.uf, { shouldValidate: true });
+        // The useEffect for state change will handle fetching cities.
+        // We might need to wait for cities to be loaded before setting the value.
+        setTimeout(() => {
+            form.setValue('cidade', data.localidade, { shouldValidate: true });
+        }, 500); // Small delay to allow cities list to populate
         form.setValue('logradouro', data.logradouro, { shouldValidate: true });
         form.setValue('bairro', data.bairro, { shouldValidate: true });
-        form.setValue('cidade', data.localidade, { shouldValidate: true });
-        form.setValue('estado', data.uf, { shouldValidate: true });
         form.setFocus('numero'); // Move focus to the number field
         toast({
           title: 'Endereço encontrado!',
@@ -229,19 +271,6 @@ export function NewOriginForm() {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="cidade"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cidade *</FormLabel>
-                <FormControl>
-                  <Input placeholder="São Paulo" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
            <FormField
             control={form.control}
             name="estado"
@@ -265,6 +294,30 @@ export function NewOriginForm() {
                 <FormMessage />
                 </FormItem>
             )}
+            />
+             <FormField
+                control={form.control}
+                name="cidade"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Cidade *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState || isFetchingCities}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder={isFetchingCities ? 'Carregando...' : 'Selecione a cidade'} />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {cities.map(city => (
+                                <SelectItem key={city.id} value={city.nome}>
+                                    {city.nome}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
             />
         </div>
 
