@@ -3,19 +3,33 @@
 import { useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import type { Order } from '@/lib/types';
+import type { Order, Company } from '@/lib/types';
 import { PackageCheck, Truck, Loader2 } from 'lucide-react';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { triggerRevalidation } from '@/lib/actions';
 
 const COMPANY_ID = '1';
+
+const openWhatsApp = (phone: string, message: string) => {
+    const cleanedPhone = phone.replace(/\D/g, '');
+    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
+    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+}
 
 export function UpdateStatusButtons({ order }: { order: Order }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user } = useUser();
+  
+  const companyRef = useMemoFirebase(() => {
+    if(!firestore) return null;
+    return doc(firestore, 'companies', COMPANY_ID);
+  }, [firestore]);
+
+  const { data: company } = useDoc<Company>(companyRef);
 
   const handleUpdateStatus = (status: 'EM_ROTA' | 'ENTREGUE') => {
     startTransition(async () => {
@@ -36,12 +50,25 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
                 })
             });
 
-            // Simulate sending a WhatsApp notification
-            if (status === 'EM_ROTA') {
-                console.log(`WHATSAPP: Notificação "em rota" para ${order.nomeCliente}`);
-            } else if (status === 'ENTREGUE') {
-                console.log(`WHATSAPP: Notificação "entregue" para ${order.nomeCliente}`);
+            if (company) {
+                const trackingLink = `${company.linkBaseRastreio || 'https://rastreio.com/'}${order.codigoRastreio}`;
+                let messageTemplate: string | undefined;
+
+                if (status === 'EM_ROTA') {
+                    messageTemplate = company.msgEmRota;
+                } else if (status === 'ENTREGUE') {
+                    messageTemplate = company.msgEntregue;
+                }
+
+                if (messageTemplate) {
+                    let message = messageTemplate;
+                    message = message.replace('{cliente}', order.nomeCliente);
+                    message = message.replace('{codigo}', order.codigoRastreio);
+                    message = message.replace('{link}', trackingLink);
+                    openWhatsApp(order.telefone, message);
+                }
             }
+
 
             // Revalidate paths to reflect changes
             await triggerRevalidation(`/encomendas/${order.id}`);
@@ -50,7 +77,7 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
 
             toast({
                 title: 'Sucesso',
-                description: `Status da encomenda atualizado para ${status}.`,
+                description: `Status da encomenda atualizado. Verifique o WhatsApp para notificar.`,
             });
         } catch (error: any) {
             console.error("Error updating status:", error);

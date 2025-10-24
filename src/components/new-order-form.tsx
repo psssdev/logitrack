@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address, Origin } from '@/lib/types';
+import type { NewOrder, Client, Address, Origin, Company } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -62,8 +62,8 @@ import {
   DialogClose,
 } from './ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { addDoc, collection, query, serverTimestamp } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { addDoc, collection, query, serverTimestamp, doc } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -90,6 +90,13 @@ const formatCurrency = (value: number | undefined) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
+const openWhatsApp = (phone: string, message: string) => {
+    const cleanedPhone = phone.replace(/\D/g, '');
+    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
+    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+}
+
 export function NewOrderForm({
   clients,
   origins,
@@ -104,6 +111,13 @@ export function NewOrderForm({
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  const companyRef = useMemoFirebase(() => {
+    if(!firestore) return null;
+    return doc(firestore, 'companies', COMPANY_ID);
+  }, [firestore]);
+
+  const { data: company } = useDoc<Company>(companyRef);
 
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
@@ -204,6 +218,11 @@ export function NewOrderForm({
         return;
       }
 
+      const trackingCode = `${company?.codigoPrefixo || 'TR'}-${Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase()}`;
+
       const ordersCollection = collection(
         firestore,
         'companies',
@@ -215,10 +234,7 @@ export function NewOrderForm({
         valorEntrega: totalValue,
         nomeCliente: client.nome,
         telefone: client.telefone,
-        codigoRastreio: `TR-${Math.random()
-          .toString(36)
-          .substring(2, 8)
-          .toUpperCase()}`,
+        codigoRastreio: trackingCode,
         status: 'PENDENTE',
         pago: false, // Default value
         createdAt: serverTimestamp(),
@@ -230,19 +246,26 @@ export function NewOrderForm({
       };
 
       await addDoc(ordersCollection, newOrderDoc);
-
-      let notificationMessage = `WHATSAPP: Notificação "recebido" para ${client.nome}.`;
-      if (data.formaPagamento === 'haver') {
-        notificationMessage += ` Valor a pagar: ${formatCurrency(totalValue)}`;
+      
+      if(company?.msgRecebido) {
+          const trackingLink = `${company.linkBaseRastreio || 'https://rastreio.com/'}${trackingCode}`;
+          let message = company.msgRecebido;
+          message = message.replace('{cliente}', client.nome);
+          message = message.replace('{codigo}', trackingCode);
+          message = message.replace('{link}', trackingLink);
+          if (data.formaPagamento === 'haver') {
+              message += `\n\n*Valor a pagar: ${formatCurrency(totalValue)}*`;
+          }
+          openWhatsApp(client.telefone, message);
       }
-      console.log(notificationMessage);
+
 
       await triggerRevalidation('/encomendas');
       await triggerRevalidation('/dashboard');
 
       toast({
         title: 'Sucesso!',
-        description: 'Encomenda criada e cliente notificado.',
+        description: 'Encomenda criada. Verifique o WhatsApp para enviar a notificação.',
       });
       router.push('/encomendas');
     } catch (error: any) {
@@ -424,7 +447,13 @@ export function NewOrderForm({
         </div>
         
         <div className="grid gap-4">
-            <FormLabel>Itens da Encomenda</FormLabel>
+            <div className="flex justify-between items-center">
+                <FormLabel>Itens da Encomenda</FormLabel>
+                <Button type="button" size="sm" variant="outline" onClick={() => append({ description: '', quantity: 1, value: 0 })}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Adicionar Item
+                </Button>
+            </div>
              <div className="rounded-md border">
                 <Table>
                     <TableHeader>
@@ -654,7 +683,7 @@ export function NewOrderForm({
             {form.formState.isSubmitting ? (
               <Loader2 className="animate-spin" />
             ) : (
-              'Salvar & Notificar WhatsApp'
+              'Salvar Encomenda'
             )}
           </Button>
         </div>
@@ -662,5 +691,3 @@ export function NewOrderForm({
     </Form>
   );
 }
-
-    

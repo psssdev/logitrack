@@ -58,8 +58,6 @@ export type Company = {
     bairro?: string;
     cidade?: string;
     estado?: string;
-    whatsappProvider?: string;
-    whatsappToken?: string;
     msgRecebido?: string;
     msgEmRota?: string;
     msgEntregue?: string;
@@ -68,6 +66,3 @@ export type Company = {
     createdAt?: Date | Timestamp;
     updatedAt?: Date | Timestamp;
 }
-
-
-    

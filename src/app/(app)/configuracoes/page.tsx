@@ -441,28 +441,9 @@ export default function ConfiguracoesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Configuração do WhatsApp</CardTitle>
+            <CardTitle>Modelos de Mensagem do WhatsApp</CardTitle>
             <CardDescription>
-              Configure seu provedor de API do WhatsApp para notificações.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="whatsappProvider">Provedor</Label>
-              <Input id="whatsappProvider" value={formValues.whatsappProvider || ''} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="whatsappToken">Token</Label>
-              <Input id="whatsappToken" type="password" value={formValues.whatsappToken || ''} onChange={handleInputChange} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Modelos de Mensagem</CardTitle>
-            <CardDescription>
-              Edite os textos das notificações automáticas do WhatsApp.
+              Edite os textos das notificações. Use {'{cliente}'}, {'{codigo}'} e {'{link}'} como variáveis.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -470,6 +451,7 @@ export default function ConfiguracoesPage() {
               <Label htmlFor="msgRecebido">Encomenda Recebida</Label>
               <Textarea
                 id="msgRecebido"
+                placeholder="Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}"
                 value={formValues.msgRecebido || ''} onChange={handleInputChange}
               />
             </div>
@@ -477,6 +459,7 @@ export default function ConfiguracoesPage() {
               <Label htmlFor="msgEmRota">Saiu para Entrega</Label>
               <Textarea
                 id="msgEmRota"
+                placeholder="Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}"
                 value={formValues.msgEmRota || ''} onChange={handleInputChange}
               />
             </div>
@@ -484,6 +467,7 @@ export default function ConfiguracoesPage() {
               <Label htmlFor="msgEntregue">Entrega Concluída</Label>
               <Textarea
                 id="msgEntregue"
+                placeholder="Olá {cliente}! Sua encomenda {codigo} foi entregue com sucesso! Obrigado por confiar em nossos serviços."
                 value={formValues.msgEntregue || ''} onChange={handleInputChange}
               />
             </div>
@@ -499,6 +483,3 @@ export default function ConfiguracoesPage() {
     </div>
   );
 }
-
-
-    
