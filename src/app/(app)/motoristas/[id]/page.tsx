@@ -15,7 +15,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { notFound } from 'next/navigation';
 import type { Driver, Order } from '@/lib/types';
 import { getDrivers } from '@/lib/actions';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -59,11 +58,35 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
     fetchDriver();
   }, [driverId]);
 
-  if (!isLoadingDriver && !driver) {
-    notFound();
+  const isLoading = isLoadingDriver || isLoadingOrders;
+  
+  if (isLoading) {
+    return <DriverDetailsSkeleton />;
   }
 
-  const isLoading = isLoadingDriver || isLoadingOrders;
+  if (!driver) {
+     return (
+        <div className="mx-auto grid max-w-6xl flex-1 auto-rows-max gap-6">
+            <div className="flex items-center gap-4">
+                <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+                <Link href="/motoristas">
+                    <ChevronLeft className="h-4 w-4" />
+                    <span className="sr-only">Voltar</span>
+                </Link>
+                </Button>
+                <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
+                Motorista não encontrado
+                </h1>
+            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Erro 404</CardTitle>
+                    <CardDescription>O motorista que você está procurando não foi encontrado.</CardDescription>
+                </CardHeader>
+            </Card>
+        </div>
+    )
+  }
 
   return (
     <div className="mx-auto grid max-w-6xl flex-1 auto-rows-max gap-6">
@@ -79,56 +102,52 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
         </h1>
       </div>
 
-      {isLoading && <DriverDetailsSkeleton />}
-
-      {!isLoading && driver && (
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage
-                    src={`https://picsum.photos/seed/${driver.id}/120/120`}
-                    data-ai-hint="person face"
-                  />
-                  <AvatarFallback>{driver.nome.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <CardTitle className="text-3xl">{driver.nome}</CardTitle>
-                  <CardDescription>
-                    {driver.telefone}
-                    {driver.placa && (
-                      <Badge variant="secondary" className="ml-2">
-                        {driver.placa}
-                      </Badge>
-                    )}
-                  </CardDescription>
-                </div>
+      <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                <AvatarImage
+                  src={`https://picsum.photos/seed/${driver.id}/120/120`}
+                  data-ai-hint="person face"
+                />
+                <AvatarFallback>{driver.nome.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-3xl">{driver.nome}</CardTitle>
+                <CardDescription>
+                  {driver.telefone}
+                  {driver.placa && (
+                    <Badge variant="secondary" className="ml-2">
+                      {driver.placa}
+                    </Badge>
+                  )}
+                </CardDescription>
               </div>
-            </CardHeader>
-          </Card>
+            </div>
+          </CardHeader>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Encomendas Atribuídas</CardTitle>
-              <CardDescription>
-                Lista de encomendas sob responsabilidade deste motorista.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {orders && orders.length > 0 ? (
-                <p>{orders.length} encomendas encontradas.</p>
-              ) : (
-                <div className="text-center p-8 border-2 border-dashed rounded-md">
-                  <p className="text-muted-foreground">
-                    Nenhuma encomenda atribuída a este motorista.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Encomendas Atribuídas</CardTitle>
+            <CardDescription>
+              Lista de encomendas sob responsabilidade deste motorista.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {orders && orders.length > 0 ? (
+              <p>{orders.length} encomendas encontradas.</p>
+            ) : (
+              <div className="text-center p-8 border-2 border-dashed rounded-md">
+                <p className="text-muted-foreground">
+                  Nenhuma encomenda atribuída a este motorista.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
