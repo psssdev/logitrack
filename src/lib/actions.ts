@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { orders, drivers, addresses, origins } from './data';
-import type { NewOrder, Order, OrderStatus, Client, NewClient, Address, NewAddress, Origin, NewOrigin } from './types';
+import { orders, drivers, addresses } from './data';
+import type { NewOrder, Order, OrderStatus, NewClient, Address, NewAddress, Origin, NewOrigin } from './types';
 import { newOrderSchema, newClientSchema, newAddressSchema, newOriginSchema } from './schemas';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, getFirestore, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -195,12 +195,6 @@ export async function createAddress(formData: FormData) {
     return { message: 'Endereço criado com sucesso.' };
 }
 
-
-export async function getOrigins() {
-    await delay(200);
-    return origins;
-}
-
 export async function createOrigin(formData: FormData) {
   const values = Object.fromEntries(formData.entries());
   const validatedFields = newOriginSchema.safeParse(values);
@@ -213,20 +207,21 @@ export async function createOrigin(formData: FormData) {
   }
   
   try {
-    const { logradouro, numero, bairro, cidade, estado, cep } = validatedFields.data;
+    const { firestore } = initializeFirebase();
+    const originsCollection = collection(firestore, 'companies', COMPANY_ID, 'origins');
+    
+    const { logradouro, numero, bairro, cidade, estado, cep, name } = validatedFields.data;
     const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 
-    const newOrigin: Origin = {
-      ...validatedFields.data,
-      id: (origins.length + 1).toString(),
+    await addDoc(originsCollection, {
+      name,
       address: fullAddress,
-    };
-
-    origins.unshift(newOrigin);
+      createdAt: serverTimestamp(),
+    });
     
-  } catch (e) {
+  } catch (e: any) {
     return {
-      message: 'Erro no banco de dados: Falha ao criar origem.',
+      message: `Erro no banco de dados: ${e.message}`,
     };
   }
 

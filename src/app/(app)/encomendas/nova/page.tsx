@@ -13,21 +13,31 @@ import { NewOrderForm } from '@/components/new-order-form';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, orderBy, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Client } from '@/lib/types';
+import type { Client, Origin } from '@/lib/types';
 
 export default function NewOrderPage() {
   const firestore = useFirestore();
 
   const clientsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Assuming a 'clients' subcollection under a specific company
     return query(
       collection(firestore, 'companies', '1', 'clients'),
       orderBy('nome', 'asc')
     );
   }, [firestore]);
 
-  const { data: clients, isLoading } = useCollection<Client>(clientsQuery);
+  const originsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+      collection(firestore, 'companies', '1', 'origins'),
+      orderBy('name', 'asc')
+    );
+  }, [firestore]);
+
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
+
+  const isLoading = isLoadingClients || isLoadingOrigins;
 
   return (
     <div className="mx-auto grid w-full max-w-4xl flex-1 auto-rows-max gap-4">
@@ -51,7 +61,7 @@ export default function NewOrderPage() {
         </CardHeader>
         <CardContent>
           {isLoading && <Skeleton className="h-48 w-full" />}
-          {clients && <NewOrderForm clients={clients} />}
+          {clients && origins && <NewOrderForm clients={clients} origins={origins} />}
         </CardContent>
       </Card>
     </div>

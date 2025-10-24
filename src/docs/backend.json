@@ -232,6 +232,27 @@
         }
       },
       "required": ["nome", "telefone", "createdAt"]
+    },
+    "Origin": {
+      "title": "Origin",
+      "description": "Represents a shipment origin point.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A friendly name for the origin, e.g., 'Warehouse A'."
+        },
+        "address": {
+          "type": "string",
+          "description": "The full, concatenated address of the origin."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the origin was created."
+        }
+      },
+      "required": ["name", "address", "createdAt"]
     }
   },
   "auth": {
@@ -251,6 +272,12 @@
         "$ref": "#/entities/Client"
       },
       "description": "Stores customer information for a specific company."
+    },
+    "/companies/{companyId}/origins/{originId}": {
+        "schema": {
+            "$ref": "#/entities/Origin"
+        },
+        "description": "Stores shipment origin points for a specific company."
     }
   }
 }

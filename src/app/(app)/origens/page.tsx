@@ -1,3 +1,4 @@
+'use client';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -7,7 +8,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { PlusCircle, MoreHorizontal } from 'lucide-react';
-import { getOrigins } from '@/lib/actions';
 import type { Origin } from '@/lib/types';
 import Link from 'next/link';
 import {
@@ -24,9 +24,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, orderBy, query } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default async function OrigensPage() {
-  const origins = await getOrigins();
+export default function OrigensPage() {
+  const firestore = useFirestore();
+
+  const originsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+      collection(firestore, 'companies', '1', 'origins'),
+      orderBy('name', 'asc')
+    );
+  }, [firestore]);
+
+  const { data: origins, isLoading } = useCollection<Origin>(originsQuery);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center">
@@ -49,7 +63,8 @@ export default async function OrigensPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <OriginList origins={origins} />
+          {isLoading && <Skeleton className="h-48 w-full" />}
+          {origins && <OriginList origins={origins} />}
         </CardContent>
       </Card>
     </div>

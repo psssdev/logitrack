@@ -27,6 +27,8 @@ export type NewClient = z.infer<typeof newClientSchema>;
 export type Address = z.infer<typeof addressSchema>;
 export type NewAddress = z.infer<typeof newAddressSchema>;
 
-// Origin types
-export type Origin = z.infer<typeof originSchema>;
+// Base Origin type with potential Firestore Timestamp
+export type Origin = Omit<z.infer<typeof originSchema>, 'createdAt'> & {
+    createdAt: Date | Timestamp;
+};
 export type NewOrigin = z.infer<typeof newOriginSchema>;

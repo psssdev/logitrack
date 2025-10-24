@@ -9,9 +9,9 @@ export const clients: Client[] = [
 ];
 
 export const addresses: Address[] = [
-    { id: '1', clientId: '1', label: 'Casa', fullAddress: 'Rua A, 123, Belo Horizonte, MG' },
-    { id: '2', clientId: '1', label: 'Trabalho', fullAddress: 'Av. B, 456, Contagem, MG' },
-    { id: '3', clientId: '2', label: 'Casa', fullAddress: 'Rua C, 789, São Paulo, SP' },
+    { id: '1', clientId: '1', label: 'Casa', fullAddress: 'Rua A, 123, Belo Horizonte, MG', logradouro: 'Rua A', numero: '123', bairro: 'Centro', cidade: 'Belo Horizonte', estado: 'MG', cep: '30130-000' },
+    { id: '2', clientId: '1', label: 'Trabalho', fullAddress: 'Av. B, 456, Contagem, MG', logradouro: 'Av. B', numero: '456', bairro: 'Industrial', cidade: 'Contagem', estado: 'MG', cep: '32220-000' },
+    { id: '3', clientId: '2', label: 'Casa', fullAddress: 'Rua C, 789, São Paulo, SP', logradouro: 'Rua C', numero: '789', bairro: 'Pinheiros', cidade: 'São Paulo', estado: 'SP', cep: '05404-000' },
 ];
 
 export const drivers: Driver[] = [
@@ -239,29 +239,4 @@ export const orders: Order[] = [
     createdBy: 'admin',
     companyId: '1',
   },
-];
-
-export const origins: Origin[] = [
-    { 
-        id: '1', 
-        name: 'LogiTrack - Matriz', 
-        logradouro: 'Rua Principal',
-        numero: '1000',
-        bairro: 'Centro',
-        cidade: 'São Paulo',
-        estado: 'SP',
-        cep: '01000-000',
-        address: 'Rua Principal, 1000, Centro, São Paulo - SP, 01000-000' 
-    },
-    { 
-        id: '2', 
-        name: 'Centro de Distribuição - RJ', 
-        logradouro: 'Avenida Brasil',
-        numero: '500',
-        bairro: 'Benfica',
-        cidade: 'Rio de Janeiro',
-        estado: 'RJ',
-        cep: '20940-000',
-        address: 'Avenida Brasil, 500, Benfica, Rio de Janeiro - RJ, 20940-000'
-    },
 ];

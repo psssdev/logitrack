@@ -23,7 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
 import type { NewOrder, Client, Address, Origin } from '@/lib/types';
-import { createOrder, getAddressesByClientId, getOrigins } from '@/lib/actions';
+import { createOrder, getAddressesByClientId } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { drivers } from '@/lib/data';
@@ -52,18 +52,17 @@ const paymentMethodLabels = {
   link: 'Link de Pagamento',
 };
 
-export function NewOrderForm({ clients }: { clients: Client[] }) {
+export function NewOrderForm({ clients, origins }: { clients: Client[], origins: Origin[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = React.useState(false);
-  const [origins, setOrigins] = React.useState<Origin[]>([]);
-
+  
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
     defaultValues: {
-      origem: '',
+      origem: origins.length > 0 ? origins[0].address : '',
       destino: '',
       valorEntrega: 0,
       formaPagamento: 'pix',
@@ -73,15 +72,10 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
   });
   
   React.useEffect(() => {
-    async function fetchOrigins() {
-      const fetchedOrigins = await getOrigins();
-      setOrigins(fetchedOrigins);
-      if (fetchedOrigins.length > 0) {
-        form.setValue('origem', fetchedOrigins[0].address);
-      }
+    if (origins.length > 0) {
+      form.setValue('origem', origins[0].address);
     }
-    fetchOrigins();
-  }, [form]);
+  }, [origins, form]);
 
   async function onSubmit(data: NewOrder) {
     const formData = new FormData();
