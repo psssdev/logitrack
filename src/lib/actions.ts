@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { drivers } from './data';
 import { getFirestoreServer } from '@/firebase/server-init';
-import { collection, addDoc, getDocs, where, query } from 'firebase/firestore';
-import type { Address } from './types';
+import { collection, getDocs, where, query } from 'firebase/firestore';
 
 
 // This is a temporary measure for the prototype.
@@ -20,48 +19,10 @@ export async function getDrivers() {
   return drivers;
 }
 
-export async function getAddressesByClientId(clientId: string): Promise<Address[]> {
-    const firestore = getFirestoreServer();
-    const addresses: Address[] = [];
-    try {
-        const addressesCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', clientId, 'addresses');
-        const querySnapshot = await getDocs(addressesCollection);
-        querySnapshot.forEach(doc => {
-            addresses.push({ id: doc.id, ...doc.data() } as Address);
-        });
-        return addresses;
-    } catch (error) {
-        console.error("Error fetching addresses:", error);
-        return []; // Return empty array on error
-    }
-}
-
-
 export async function triggerRevalidation(path: string) {
     revalidatePath(path);
 }
 
-
-export async function createOrigin(data: { name: string; address: string; }) {
-  const firestore = getFirestoreServer();
-  const originsCollection = collection(firestore, 'companies', COMPANY_ID, 'origins');
-
-  try {
-    await addDoc(originsCollection, {
-      ...data,
-      createdAt: new Date(),
-    });
-
-    // Revalidate paths to update caches
-    revalidatePath('/origens');
-    revalidatePath('/encomendas/nova'); 
-
-    return { success: true, message: 'Origem criada com sucesso.' };
-  } catch (error: any) {
-    console.error("Error creating origin:", error);
-    return { success: false, message: `Erro no banco de dados: ${error.message}` };
-  }
-}
 
 export async function getDashboardSummary() {
     const firestore = getFirestoreServer();

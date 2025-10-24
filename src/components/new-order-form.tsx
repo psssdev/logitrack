@@ -23,7 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
 import type { NewOrder, Client, Address, Origin } from '@/lib/types';
-import { getAddressesByClientId, triggerRevalidation } from '@/lib/actions';
+import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { drivers } from '@/lib/data';
@@ -54,8 +54,8 @@ import {
   DialogClose,
 } from './ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { useAuth, useFirestore, useUser } from '@/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { addDoc, collection, query, serverTimestamp } from 'firebase/firestore';
 
 const paymentMethodLabels = {
   pix: 'PIX',
@@ -80,10 +80,45 @@ export function NewOrderForm({
   const firestore = useFirestore();
   const { user } = useUser();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
-  const [addresses, setAddresses] = React.useState<Address[]>([]);
-  const [loadingAddresses, setLoadingAddresses] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  const form = useForm<NewOrder>({
+    resolver: zodResolver(newOrderSchema),
+    defaultValues: {
+      origem: origins.length > 0 ? origins[0].address : '',
+      destino: '',
+      valorEntrega: 0,
+      formaPagamento: 'pix',
+      observacao: '',
+      numeroNota: '',
+      motoristaId: undefined,
+    },
+  });
+  
+  const selectedClientId = form.watch('clientId');
+
+  const addressesQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedClientId) return null;
+    return query(
+        collection(firestore, 'companies', COMPANY_ID, 'clients', selectedClientId, 'addresses')
+    );
+  }, [firestore, selectedClientId]);
+
+  const { data: addresses, isLoading: loadingAddresses } = useCollection<Address>(addressesQuery);
+
+  React.useEffect(() => {
+    if (addresses) {
+      if (addresses.length > 0) {
+         if(!form.getValues('destino')) {
+            form.setValue('destino', addresses[0].fullAddress);
+         }
+      } else {
+        form.setValue('destino', '');
+      }
+    }
+  }, [addresses, form]);
+
 
   const handleOpenScanner = async () => {
     try {
@@ -105,18 +140,6 @@ export function NewOrderForm({
     }
   };
 
-  const form = useForm<NewOrder>({
-    resolver: zodResolver(newOrderSchema),
-    defaultValues: {
-      origem: origins.length > 0 ? origins[0].address : '',
-      destino: '',
-      valorEntrega: 0,
-      formaPagamento: 'pix',
-      observacao: '',
-      numeroNota: '',
-      motoristaId: undefined,
-    },
-  });
 
   React.useEffect(() => {
     if (origins.length > 0) {
@@ -138,7 +161,7 @@ export function NewOrderForm({
         }
 
         const ordersCollection = collection(firestore, 'companies', COMPANY_ID, 'orders');
-        await addDoc(ordersCollection, {
+        const newOrderDoc = {
             ...data,
             nomeCliente: client.nome,
             telefone: client.telefone,
@@ -149,9 +172,10 @@ export function NewOrderForm({
             createdBy: user.uid,
             timeline: [{ status: 'PENDENTE', at: serverTimestamp(), userId: user.uid }],
             messages: [],
-        });
+        };
+        
+        await addDoc(ordersCollection, newOrderDoc);
 
-        // Simulate sending a WhatsApp notification
         let notificationMessage = `WHATSAPP: Notificação "recebido" para ${client.nome}.`;
         if(data.formaPagamento === 'haver'){
             notificationMessage += ` Valor a pagar: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.valorEntrega as number)}.`
@@ -177,35 +201,6 @@ export function NewOrderForm({
     }
   }
 
-  const selectedClientId = form.watch('clientId');
-
-  React.useEffect(() => {
-    const handleClientChange = async () => {
-      if (selectedClientId) {
-        const client = clients.find((c) => c.id === selectedClientId);
-        if (client) {
-          setLoadingAddresses(true);
-          const clientAddresses = await getAddressesByClientId(client.id);
-          setAddresses(clientAddresses);
-
-          if (clientAddresses.length > 0) {
-            // Auto-select the first address
-            form.setValue('destino', clientAddresses[0].fullAddress);
-          } else {
-            // Reset destination if no addresses are found
-            form.setValue('destino', '');
-          }
-
-          setLoadingAddresses(false);
-        }
-      } else {
-        setAddresses([]);
-        form.setValue('destino', '');
-      }
-    };
-
-    handleClientChange();
-  }, [selectedClientId, clients, form]);
 
   return (
     <Form {...form}>
@@ -256,6 +251,7 @@ export function NewOrderForm({
                             key={client.id}
                             onSelect={() => {
                               form.setValue('clientId', client.id);
+                              form.setValue('destino', ''); // Reset destination
                               setPopoverOpen(false);
                             }}
                           >
@@ -325,17 +321,17 @@ export function NewOrderForm({
                     <SelectTrigger>
                       <SelectValue
                         placeholder={
-                          loadingAddresses
-                            ? 'Carregando...'
-                            : addresses.length > 0
-                            ? 'Selecione um endereço'
-                            : 'Cadastre um endereço para o cliente'
+                          !selectedClientId
+                            ? 'Selecione um cliente primeiro'
+                            : loadingAddresses
+                            ? 'Carregando endereços...'
+                            : 'Selecione um endereço'
                         }
                       />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {addresses.length > 0 ? (
+                    {addresses && addresses.length > 0 ? (
                       addresses.map((address) => (
                         <SelectItem
                           key={address.id}
@@ -346,14 +342,14 @@ export function NewOrderForm({
                       ))
                     ) : (
                       <SelectItem value="no-address" disabled>
-                        Nenhum endereço cadastrado
+                        {loadingAddresses ? 'Carregando...' : 'Nenhum endereço cadastrado'}
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
                 {selectedClientId &&
-                  addresses.length === 0 &&
-                  !loadingAddresses && (
+                  !loadingAddresses &&
+                  (!addresses || addresses.length === 0) && (
                     <Button
                       variant="link"
                       asChild
