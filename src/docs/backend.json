@@ -97,7 +97,20 @@
         },
         "valorEntrega": {
           "type": "number",
-          "description": "Delivery value."
+          "description": "Total delivery value, calculated from items."
+        },
+        "items": {
+            "type": "array",
+            "description": "Array of items in the order.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "description": { "type": "string" },
+                    "quantity": { "type": "number" },
+                    "value": { "type": "number" }
+                },
+                "required": ["description", "quantity", "value"]
+            }
         },
         "formaPagamento": {
           "type": "string",
@@ -125,10 +138,6 @@
         "numeroNota": {
             "type": "string",
             "description": "The invoice number for the manifest."
-        },
-        "quantidadeVolumes": {
-            "type": "number",
-            "description": "The number of volumes in the order."
         },
         "timeline": {
           "type": "array",
@@ -166,10 +175,10 @@
         "origem",
         "destino",
         "valorEntrega",
+        "items",
         "formaPagamento",
         "pago",
         "status",
-        "quantidadeVolumes",
         "timeline",
         "messages",
         "createdAt",

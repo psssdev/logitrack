@@ -16,6 +16,12 @@ export const paymentMethodSchema = z.enum([
   'haver',
 ]);
 
+const orderItemSchema = z.object({
+    description: z.string().min(1, 'Descrição é obrigatória'),
+    quantity: z.coerce.number().int().min(1, 'Mínimo 1'),
+    value: z.coerce.number().min(0, 'Valor deve ser positivo'),
+});
+
 export const orderSchema = z.object({
   id: z.string(),
   codigoRastreio: z.string().min(1, 'Código de Rastreio é obrigatório'),
@@ -24,13 +30,13 @@ export const orderSchema = z.object({
   origem: z.string().min(1, 'Origem é obrigatória'),
   destino: z.string().min(1, 'Destino é obrigatório'),
   valorEntrega: z.coerce.number().min(0, 'Valor da entrega deve ser positivo'),
+  items: z.array(orderItemSchema).min(1, 'A encomenda deve ter pelo menos um item.'),
   formaPagamento: paymentMethodSchema,
   pago: z.boolean().default(false),
   status: orderStatusSchema.default('PENDENTE'),
   motoristaId: z.string().optional(),
   observacao: z.string().optional(),
   numeroNota: z.string().optional(),
-  quantidadeVolumes: z.coerce.number().int().min(1, 'A quantidade deve ser pelo menos 1'),
   timeline: z
     .array(
       z.object({
@@ -68,6 +74,7 @@ export const newOrderSchema = orderSchema.omit({
   status: true,
   nomeCliente: true, // Will be derived from clientId
   telefone: true, // Will be derived from clientId
+  valorEntrega: true, // Will be calculated from items
 }).extend({
     clientId: z.string({ required_error: 'Selecione um cliente.' }),
 });

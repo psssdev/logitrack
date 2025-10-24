@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,7 +41,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ChevronsUpDown, Check, Camera, Loader2 } from 'lucide-react';
+import {
+  ChevronsUpDown,
+  Check,
+  Camera,
+  Loader2,
+  Trash2,
+  PlusCircle,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import {
@@ -57,6 +64,15 @@ import {
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { addDoc, collection, query, serverTimestamp } from 'firebase/firestore';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './ui/table';
 
 const paymentMethodLabels = {
   pix: 'PIX',
@@ -68,6 +84,11 @@ const paymentMethodLabels = {
 };
 
 const COMPANY_ID = '1';
+
+const formatCurrency = (value: number | undefined) => {
+    if (typeof value !== 'number') return 'R$ 0,00';
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
 
 export function NewOrderForm({
   clients,
@@ -83,50 +104,57 @@ export function NewOrderForm({
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
-  const [valorUnitario, setValorUnitario] = React.useState(0);
 
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
     defaultValues: {
       origem: origins.length > 0 ? origins[0].address : '',
       destino: '',
-      valorEntrega: 0,
-      quantidadeVolumes: 1,
+      items: [{ description: '', quantity: 1, value: 0 }],
       formaPagamento: 'pix',
       observacao: '',
       numeroNota: '',
       motoristaId: undefined,
     },
   });
-  
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'items',
+  });
+
   const selectedClientId = form.watch('clientId');
-  const quantidadeVolumes = form.watch('quantidadeVolumes');
+  const items = form.watch('items');
+  const totalValue = items.reduce((acc, item) => acc + (item.value || 0), 0);
 
   const addressesQuery = useMemoFirebase(() => {
     if (!firestore || !selectedClientId) return null;
     return query(
-        collection(firestore, 'companies', COMPANY_ID, 'clients', selectedClientId, 'addresses')
+      collection(
+        firestore,
+        'companies',
+        COMPANY_ID,
+        'clients',
+        selectedClientId,
+        'addresses'
+      )
     );
   }, [firestore, selectedClientId]);
 
-  const { data: addresses, isLoading: loadingAddresses } = useCollection<Address>(addressesQuery);
+  const { data: addresses, isLoading: loadingAddresses } =
+    useCollection<Address>(addressesQuery);
 
   React.useEffect(() => {
     if (addresses) {
       if (addresses.length > 0) {
-         if(!form.getValues('destino')) {
-            form.setValue('destino', addresses[0].fullAddress);
-         }
+        if (!form.getValues('destino')) {
+          form.setValue('destino', addresses[0].fullAddress);
+        }
       } else {
         form.setValue('destino', '');
       }
     }
   }, [addresses, form]);
-
-  React.useEffect(() => {
-    const total = valorUnitario * (quantidadeVolumes || 1);
-    form.setValue('valorEntrega', total);
-  }, [valorUnitario, quantidadeVolumes, form]);
 
 
   const handleOpenScanner = async () => {
@@ -149,7 +177,6 @@ export function NewOrderForm({
     }
   };
 
-
   React.useEffect(() => {
     if (origins.length > 0) {
       form.setValue('origem', origins[0].address);
@@ -157,59 +184,76 @@ export function NewOrderForm({
   }, [origins, form]);
 
   async function onSubmit(data: NewOrder) {
-     if (!firestore || !user) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não autenticado ou falha na conexão.' });
-        return;
+    if (!firestore || !user) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Usuário não autenticado ou falha na conexão.',
+      });
+      return;
     }
 
     try {
-        const client = clients.find(c => c.id === data.clientId);
-        if (!client) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado.' });
-            return;
-        }
-
-        const ordersCollection = collection(firestore, 'companies', COMPANY_ID, 'orders');
-        const newOrderDoc = {
-            ...data,
-            nomeCliente: client.nome,
-            telefone: client.telefone,
-            codigoRastreio: `TR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-            status: 'PENDENTE',
-            pago: false, // Default value
-            createdAt: serverTimestamp(),
-            createdBy: user.uid,
-            timeline: [{ status: 'PENDENTE', at: serverTimestamp(), userId: user.uid }],
-            messages: [],
-        };
-        
-        await addDoc(ordersCollection, newOrderDoc);
-
-        let notificationMessage = `WHATSAPP: Notificação "recebido" para ${client.nome}.`;
-        if(data.formaPagamento === 'haver'){
-            notificationMessage += ` Valor a pagar: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.valorEntrega as number)}.`
-        }
-        console.log(notificationMessage);
-
-        await triggerRevalidation('/encomendas');
-        await triggerRevalidation('/dashboard');
-
+      const client = clients.find((c) => c.id === data.clientId);
+      if (!client) {
         toast({
-            title: 'Sucesso!',
-            description: 'Encomenda criada e cliente notificado.',
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'Cliente não encontrado.',
         });
-        router.push('/encomendas');
+        return;
+      }
 
+      const ordersCollection = collection(
+        firestore,
+        'companies',
+        COMPANY_ID,
+        'orders'
+      );
+      const newOrderDoc = {
+        ...data,
+        valorEntrega: totalValue,
+        nomeCliente: client.nome,
+        telefone: client.telefone,
+        codigoRastreio: `TR-${Math.random()
+          .toString(36)
+          .substring(2, 8)
+          .toUpperCase()}`,
+        status: 'PENDENTE',
+        pago: false, // Default value
+        createdAt: serverTimestamp(),
+        createdBy: user.uid,
+        timeline: [
+          { status: 'PENDENTE', at: serverTimestamp(), userId: user.uid },
+        ],
+        messages: [],
+      };
+
+      await addDoc(ordersCollection, newOrderDoc);
+
+      let notificationMessage = `WHATSAPP: Notificação "recebido" para ${client.nome}.`;
+      if (data.formaPagamento === 'haver') {
+        notificationMessage += ` Valor a pagar: ${formatCurrency(totalValue)}`;
+      }
+      console.log(notificationMessage);
+
+      await triggerRevalidation('/encomendas');
+      await triggerRevalidation('/dashboard');
+
+      toast({
+        title: 'Sucesso!',
+        description: 'Encomenda criada e cliente notificado.',
+      });
+      router.push('/encomendas');
     } catch (error: any) {
-        console.error("Error creating order:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Erro ao criar encomenda.',
-            description: error.message || 'Ocorreu um erro desconhecido.',
-        });
+      console.error('Error creating order:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao criar encomenda.',
+        description: error.message || 'Ocorreu um erro desconhecido.',
+      });
     }
   }
-
 
   return (
     <Form {...form}>
@@ -351,7 +395,9 @@ export function NewOrderForm({
                       ))
                     ) : (
                       <SelectItem value="no-address" disabled>
-                        {loadingAddresses ? 'Carregando...' : 'Nenhum endereço cadastrado'}
+                        {loadingAddresses
+                          ? 'Carregando...'
+                          : 'Nenhum endereço cadastrado'}
                       </SelectItem>
                     )}
                   </SelectContent>
@@ -376,6 +422,93 @@ export function NewOrderForm({
             )}
           />
         </div>
+        
+        <div className="grid gap-4">
+            <FormLabel>Itens da Encomenda</FormLabel>
+             <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-1/2">Descrição</TableHead>
+                            <TableHead>Qtd.</TableHead>
+                            <TableHead>Valor Unit.</TableHead>
+                            <TableHead className="text-right">Subtotal</TableHead>
+                            <TableHead><span className="sr-only">Ações</span></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {fields.map((field, index) => {
+                             const item = items[index];
+                             const subtotal = (item?.quantity || 0) * (item?.value || 0);
+
+                            return (
+                            <TableRow key={field.id}>
+                                <TableCell>
+                                    <FormField
+                                        control={form.control}
+                                        name={`items.${index}.description`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                    <Input {...field} placeholder="Descrição do item"/>
+                                                </FormControl>
+                                                 <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <FormField
+                                        control={form.control}
+                                        name={`items.${index}.quantity`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                    <Input type="number" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 1)} className="w-20" />
+                                                </FormControl>
+                                                 <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <FormField
+                                        control={form.control}
+                                        name={`items.${index}.value`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                    <Input type="number" {...field}  onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="w-24" />
+                                                </FormControl>
+                                                 <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </TableCell>
+                                <TableCell className="text-right font-medium">{formatCurrency(subtotal)}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        )})}
+                    </TableBody>
+                    <TableFooter>
+                        <TableRow>
+                            <TableCell colSpan={4}>
+                                <Button type="button" size="sm" variant="ghost" onClick={() => append({ description: '', quantity: 1, value: 0 })}>
+                                    <PlusCircle className="mr-2 h-4 w-4"/>
+                                    Adicionar Item
+                                </Button>
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-lg">{formatCurrency(totalValue)}</TableCell>
+                        </TableRow>
+                    </TableFooter>
+                </Table>
+             </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
@@ -443,56 +576,6 @@ export function NewOrderForm({
           />
            <FormField
             control={form.control}
-            name="valorEntrega"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Valor Total da Entrega</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    readOnly
-                    className="bg-muted"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <FormItem>
-            <FormLabel>Valor por Unidade</FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="R$ 0,00"
-                value={valorUnitario}
-                onChange={(e) => setValorUnitario(e.target.valueAsNumber || 0)}
-              />
-            </FormControl>
-          </FormItem>
-          <FormField
-            control={form.control}
-            name="quantidadeVolumes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Qtd. Volumes *</FormLabel>
-                <FormControl>
-                   <Input
-                    type="number"
-                    step="1"
-                    {...field}
-                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
             name="formaPagamento"
             render={({ field }) => (
               <FormItem>
@@ -522,34 +605,31 @@ export function NewOrderForm({
           />
         </div>
         
-        <div className='grid gap-4 md:grid-cols-3'>
-            <FormField
-                control={form.control}
-                name="motoristaId"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Motorista</FormLabel>
-                    <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    >
-                    <FormControl>
-                        <SelectTrigger>
-                        <SelectValue placeholder="Atribuir motorista..." />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {drivers.map((driver) => (
-                        <SelectItem key={driver.id} value={driver.id}>
-                            {driver.nome}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
+        <div className="grid gap-4 md:grid-cols-3">
+          <FormField
+            control={form.control}
+            name="motoristaId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Motorista</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Atribuir motorista..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {drivers.map((driver) => (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        {driver.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <FormField
@@ -575,9 +655,11 @@ export function NewOrderForm({
             size="lg"
             disabled={form.formState.isSubmitting}
           >
-            {form.formState.isSubmitting
-              ? <Loader2 className="animate-spin" />
-              : 'Salvar & Notificar WhatsApp'}
+            {form.formState.isSubmitting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              'Salvar & Notificar WhatsApp'
+            )}
           </Button>
         </div>
       </form>

@@ -4,8 +4,9 @@ import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newO
 import { Timestamp } from 'firebase/firestore';
 
 // Base Order type from schema
-export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline'> & {
+export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' | 'valorEntrega'> & {
     id: string;
+    valorEntrega: number;
     createdAt: Date | Timestamp;
     timeline: {
         status: OrderStatus;
