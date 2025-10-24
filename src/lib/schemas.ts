@@ -27,6 +27,7 @@ export const orderSchema = z.object({
   status: orderStatusSchema.default('PENDENTE'),
   motoristaId: z.string().optional(),
   observacao: z.string().optional(),
+  numeroNota: z.string().optional(),
   timeline: z
     .array(
       z.object({

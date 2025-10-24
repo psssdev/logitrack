@@ -130,6 +130,10 @@
           "type": "string",
           "description": "Optional notes about the order."
         },
+        "numeroNota": {
+            "type": "string",
+            "description": "The invoice number for the manifest."
+        },
         "timeline": {
           "type": "array",
           "description": "Array of status changes with timestamps and user references.",

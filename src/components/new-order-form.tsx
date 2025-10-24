@@ -67,6 +67,7 @@ export function NewOrderForm({ clients, origins }: { clients: Client[], origins:
       valorEntrega: 0,
       formaPagamento: 'pix',
       observacao: '',
+      numeroNota: '',
       motoristaId: undefined,
     },
   });
@@ -267,20 +268,35 @@ export function NewOrderForm({ clients, origins }: { clients: Client[], origins:
             )}
             />
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <FormField
-            control={form.control}
-            name="valorEntrega"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Valor da Entrega *</FormLabel>
-                <FormControl>
-                  <Input type="number" step="0.01" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+                control={form.control}
+                name="numeroNota"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Número da Nota</FormLabel>
+                    <FormControl>
+                    <Input placeholder="Nº da nota fiscal" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="valorEntrega"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Valor da Entrega *</FormLabel>
+                    <FormControl>
+                    <Input type="number" step="0.01" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
             name="formaPagamento"
