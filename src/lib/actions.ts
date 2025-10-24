@@ -1,9 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { orders, drivers, clients, addresses } from './data';
-import type { NewOrder, Order, OrderStatus, Client, NewClient, Address, NewAddress } from './types';
-import { newOrderSchema, newClientSchema, newAddressSchema } from './schemas';
+import { orders, drivers, clients, addresses, origins } from './data';
+import type { NewOrder, Order, OrderStatus, Client, NewClient, Address, NewAddress, Origin, NewOrigin } from './types';
+import { newOrderSchema, newClientSchema, newAddressSchema, newOriginSchema } from './schemas';
 
 // Simulate a database delay
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -187,4 +187,39 @@ export async function createAddress(formData: FormData) {
 
     revalidatePath(`/clientes/${validatedFields.data.clientId}`);
     return { message: 'Endereço criado com sucesso.' };
+}
+
+
+export async function getOrigins() {
+    await delay(200);
+    return origins;
+}
+
+export async function createOrigin(formData: FormData) {
+  const values = Object.fromEntries(formData.entries());
+  const validatedFields = newOriginSchema.safeParse(values);
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Erro de validação.',
+    };
+  }
+  
+  try {
+    const newOrigin: Origin = {
+      ...validatedFields.data,
+      id: (origins.length + 1).toString(),
+    };
+
+    origins.unshift(newOrigin);
+    
+  } catch (e) {
+    return {
+      message: 'Erro no banco de dados: Falha ao criar origem.',
+    };
+  }
+
+  revalidatePath('/origens');
+  return { message: 'Origem criada com sucesso.' };
 }

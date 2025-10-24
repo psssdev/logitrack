@@ -1,4 +1,4 @@
-import type { Client, Driver, Order, Address } from './types';
+import type { Client, Driver, Order, Address, Origin } from './types';
 
 export const clients: Client[] = [
   { id: '1', nome: 'Ana Costa', telefone: '+5531999998888', createdAt: new Date() },
@@ -239,4 +239,9 @@ export const orders: Order[] = [
     createdBy: 'admin',
     companyId: '1',
   },
+];
+
+export const origins: Origin[] = [
+    { id: '1', name: 'LogiTrack - Matriz', address: 'Rua Principal, 1000, Centro, São Paulo, SP' },
+    { id: '2', name: 'Centro de Distribuição - RJ', address: 'Avenida Brasil, 500, Rio de Janeiro, RJ' },
 ];

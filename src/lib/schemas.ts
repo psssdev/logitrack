@@ -99,3 +99,13 @@ export const addressSchema = z.object({
 export const newAddressSchema = addressSchema.omit({
   id: true,
 });
+
+export const originSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'O nome é obrigatório'),
+  address: z.string().min(1, 'O endereço é obrigatório'),
+});
+
+export const newOriginSchema = originSchema.omit({
+  id: true,
+});

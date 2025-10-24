@@ -22,8 +22,8 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address } from '@/lib/types';
-import { createOrder, getAddressesByClientId } from '@/lib/actions';
+import type { NewOrder, Client, Address, Origin } from '@/lib/types';
+import { createOrder, getAddressesByClientId, getOrigins } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { drivers } from '@/lib/data';
@@ -58,11 +58,12 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = React.useState(false);
+  const [origins, setOrigins] = React.useState<Origin[]>([]);
 
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
     defaultValues: {
-      origem: 'LogiTrack - Matriz', // Default origin address
+      origem: '',
       destino: '',
       valorEntrega: 0,
       formaPagamento: 'pix',
@@ -70,6 +71,17 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
       motoristaId: undefined,
     },
   });
+  
+  React.useEffect(() => {
+    const fetchOrigins = async () => {
+      const fetchedOrigins = await getOrigins();
+      setOrigins(fetchedOrigins);
+      if (fetchedOrigins.length > 0) {
+        form.setValue('origem', fetchedOrigins[0].address);
+      }
+    };
+    fetchOrigins();
+  }, [form]);
 
   async function onSubmit(data: NewOrder) {
     const formData = new FormData();
@@ -200,9 +212,20 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Endereço de Origem *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: LogiTrack - Matriz" {...field} />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Selecione um endereço de origem" />
+                    </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {origins.map(origin => (
+                        <SelectItem key={origin.id} value={origin.address}>
+                         {origin.name} - {origin.address}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                </Select>
                   <FormMessage />
                 </FormItem>
               )}
