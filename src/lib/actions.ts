@@ -207,9 +207,13 @@ export async function createOrigin(formData: FormData) {
   }
   
   try {
+    const { logradouro, numero, bairro, cidade, estado, cep } = validatedFields.data;
+    const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
+
     const newOrigin: Origin = {
       ...validatedFields.data,
       id: (origins.length + 1).toString(),
+      address: fullAddress,
     };
 
     origins.unshift(newOrigin);

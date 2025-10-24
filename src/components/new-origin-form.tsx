@@ -12,7 +12,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { createOrigin } from '@/lib/actions';
@@ -26,7 +25,12 @@ export function NewOriginForm() {
     resolver: zodResolver(newOriginSchema),
     defaultValues: {
       name: '',
-      address: '',
+      logradouro: '',
+      numero: '',
+      bairro: '',
+      cidade: '',
+      estado: '',
+      cep: '',
     },
   });
 
@@ -69,22 +73,91 @@ export function NewOriginForm() {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="address"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Endereço Completo *</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Rua, Número, Bairro, Cidade, Estado, CEP"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
+            <FormField
+            control={form.control}
+            name="logradouro"
+            render={({ field }) => (
+                <FormItem className='md:col-span-4'>
+                <FormLabel>Logradouro *</FormLabel>
+                <FormControl>
+                    <Input placeholder="Rua, Avenida, etc." {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+             <FormField
+            control={form.control}
+            name="numero"
+            render={({ field }) => (
+                <FormItem className='md:col-span-2'>
+                <FormLabel>Número *</FormLabel>
+                <FormControl>
+                    <Input placeholder="123" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
+         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField
+            control={form.control}
+            name="bairro"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Bairro *</FormLabel>
+                <FormControl>
+                    <Input placeholder="Centro" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+            control={form.control}
+            name="cep"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>CEP *</FormLabel>
+                <FormControl>
+                    <Input placeholder="00000-000" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
+            <FormField
+            control={form.control}
+            name="cidade"
+            render={({ field }) => (
+                <FormItem className='md:col-span-4'>
+                <FormLabel>Cidade *</FormLabel>
+                <FormControl>
+                    <Input placeholder="São Paulo" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+            control={form.control}
+            name="estado"
+            render={({ field }) => (
+                <FormItem className='md:col-span-2'>
+                <FormLabel>Estado (UF) *</FormLabel>
+                <FormControl>
+                    <Input placeholder="SP" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
+        
         <div className="flex justify-end">
           <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Origem'}
