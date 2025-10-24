@@ -5,8 +5,8 @@ import { orders, drivers, addresses } from './data';
 import type { NewOrder, Order, OrderStatus, NewClient, Address, NewAddress, Origin, NewOrigin } from './types';
 import { newOrderSchema, newClientSchema, newAddressSchema, newOriginSchema } from './schemas';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, getFirestore, addDoc, serverTimestamp } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestoreServer } from '@/firebase/server-init';
 
 // This is a temporary measure for the prototype.
 // In a real app, this would come from the authenticated user's session.
@@ -58,12 +58,9 @@ export async function createClient(formData: FormData) {
   }
   
   try {
-    // Note: This block now interacts with Firestore.
-    // The `initializeFirebase` is necessary here because this is a Server Action.
-    const { firestore } = initializeFirebase();
+    const firestore = getFirestoreServer();
     const clientsCollection = collection(firestore, 'companies', COMPANY_ID, 'clients');
     
-    // We use the non-blocking version to leverage optimistic UI updates on the client.
     await addDoc(clientsCollection, {
       ...validatedFields.data,
       createdAt: serverTimestamp()
@@ -207,7 +204,7 @@ export async function createOrigin(formData: FormData) {
   }
   
   try {
-    const { firestore } = initializeFirebase();
+    const firestore = getFirestoreServer();
     const originsCollection = collection(firestore, 'companies', COMPANY_ID, 'origins');
     
     const { logradouro, numero, bairro, cidade, estado, cep, name } = validatedFields.data;
