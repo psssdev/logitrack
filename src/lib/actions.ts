@@ -1,9 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { orders, drivers, clients } from './data';
-import type { NewOrder, Order, OrderStatus, Client, NewClient } from './types';
-import { newOrderSchema, newClientSchema } from './schemas';
+import { orders, drivers, clients, addresses } from './data';
+import type { NewOrder, Order, OrderStatus, Client, NewClient, Address, NewAddress } from './types';
+import { newOrderSchema, newClientSchema, newAddressSchema } from './schemas';
 
 // Simulate a database delay
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -34,7 +34,17 @@ export async function getDrivers() {
 
 export async function getClients() {
     await delay(200);
-    return clients;
+    return clients.sort((a, b) => a.nome.localeCompare(b.nome));
+}
+
+export async function getClientById(id: string): Promise<Client | undefined> {
+    await delay(100);
+    return clients.find(c => c.id === id);
+}
+
+export async function getAddressesByClientId(clientId: string): Promise<Address[]> {
+    await delay(150);
+    return addresses.filter(a => a.clientId === clientId);
 }
 
 export async function createClient(formData: FormData) {
@@ -148,4 +158,33 @@ export async function getDashboardSummary() {
     const entregues = orders.filter(o => o.status === 'ENTREGUE').length;
 
     return { total, pendentes, emRota, entregues };
+}
+
+export async function createAddress(formData: FormData) {
+    const values = Object.fromEntries(formData.entries());
+    const validatedFields = newAddressSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Erro de validação.',
+        };
+    }
+    
+    try {
+        const newAddress: Address = {
+            ...validatedFields.data,
+            id: (addresses.length + 1).toString(),
+        };
+
+        addresses.push(newAddress);
+        
+    } catch (e) {
+        return {
+            message: 'Erro no banco de dados: Falha ao criar endereço.',
+        };
+    }
+
+    revalidatePath(`/clientes/${validatedFields.data.clientId}`);
+    return { message: 'Endereço criado com sucesso.' };
 }

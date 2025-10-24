@@ -22,8 +22,8 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client } from '@/lib/types';
-import { createOrder } from '@/lib/actions';
+import type { NewOrder, Client, Address } from '@/lib/types';
+import { createOrder, getAddressesByClientId } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { drivers } from '@/lib/data';
@@ -56,12 +56,12 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
+  const [addresses, setAddresses] = React.useState<Address[]>([]);
+  const [loadingAddresses, setLoadingAddresses] = React.useState(false);
 
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
     defaultValues: {
-      nomeCliente: '',
-      telefone: '',
       origem: '',
       destino: '',
       valorEntrega: 0,
@@ -104,7 +104,17 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
       if (client) {
         form.setValue('nomeCliente', client.nome, { shouldValidate: true });
         form.setValue('telefone', client.telefone, { shouldValidate: true });
+
+        const fetchAddresses = async () => {
+            setLoadingAddresses(true);
+            const clientAddresses = await getAddressesByClientId(client.id);
+            setAddresses(clientAddresses);
+            setLoadingAddresses(false);
+        }
+        fetchAddresses();
       }
+    } else {
+        setAddresses([]);
     }
   }, [selectedClientId, clients, form]);
 
@@ -182,32 +192,54 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
         />
 
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField
+            <FormField
             control={form.control}
             name="origem"
             render={({ field }) => (
-              <FormItem>
+                <FormItem>
                 <FormLabel>Endereço de Origem *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Rua de partida, 123" {...field} />
-                </FormControl>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedClientId || loadingAddresses}>
+                    <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder={loadingAddresses ? "Carregando..." : "Selecione um endereço"} />
+                    </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                    {addresses.map(address => (
+                        <SelectItem key={address.id} value={address.fullAddress}>
+                        {address.label} - {address.fullAddress}
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
                 <FormMessage />
-              </FormItem>
+                </FormItem>
             )}
-          />
-          <FormField
+            />
+            <FormField
             control={form.control}
             name="destino"
             render={({ field }) => (
-              <FormItem>
+                <FormItem>
                 <FormLabel>Endereço de Destino *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Avenida de chegada, 456" {...field} />
-                </FormControl>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedClientId || loadingAddresses}>
+                    <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder={loadingAddresses ? "Carregando..." : "Selecione um endereço"} />
+                    </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                    {addresses.map(address => (
+                        <SelectItem key={address.id} value={address.fullAddress}>
+                         {address.label} - {address.fullAddress}
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
                 <FormMessage />
-              </FormItem>
+                </FormItem>
             )}
-          />
+            />
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <FormField

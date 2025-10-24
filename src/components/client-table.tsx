@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal } from 'lucide-react';
+import Link from 'next/link';
+import { MoreHorizontal, ArrowRight } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -63,7 +64,12 @@ export default function ClientTable({ clients }: { clients: Client[] }) {
                     {new Date(client.createdAt).toLocaleDateString('pt-BR')}
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                       <Button asChild variant="ghost" size="icon">
+                            <Link href={`/clientes/${client.id}`}>
+                                <ArrowRight className="h-4 w-4" />
+                            </Link>
+                        </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -77,6 +83,9 @@ export default function ClientTable({ clients }: { clients: Client[] }) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/clientes/${client.id}`}>Ver Detalhes</Link>
+                          </DropdownMenuItem>
                           <DropdownMenuItem>Editar</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive">
                             Excluir

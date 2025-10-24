@@ -1,4 +1,4 @@
-import type { Client, Driver, Order } from './types';
+import type { Client, Driver, Order, Address } from './types';
 
 export const clients: Client[] = [
   { id: '1', nome: 'Ana Costa', telefone: '+5531999998888', createdAt: new Date() },
@@ -6,6 +6,12 @@ export const clients: Client[] = [
   { id: '3', nome: 'Carla Dias', telefone: '+5521977776666', createdAt: new Date() },
   { id: '4', nome: 'Daniel Alves', telefone: '+5541966665555', createdAt: new Date() },
   { id: '5', nome: 'Eduarda Martins', telefone: '+5551955554444', createdAt: new Date() },
+];
+
+export const addresses: Address[] = [
+    { id: '1', clientId: '1', label: 'Casa', fullAddress: 'Rua A, 123, Belo Horizonte, MG' },
+    { id: '2', clientId: '1', label: 'Trabalho', fullAddress: 'Av. B, 456, Contagem, MG' },
+    { id: '3', clientId: '2', label: 'Casa', fullAddress: 'Rua C, 789, São Paulo, SP' },
 ];
 
 export const drivers: Driver[] = [

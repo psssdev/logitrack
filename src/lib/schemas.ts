@@ -88,3 +88,14 @@ export const newClientSchema = clientSchema.omit({
     id: true,
     createdAt: true,
 });
+
+export const addressSchema = z.object({
+  id: z.string(),
+  clientId: z.string(),
+  label: z.string().min(1, 'O rótulo é obrigatório'),
+  fullAddress: z.string().min(1, 'O endereço é obrigatório'),
+});
+
+export const newAddressSchema = addressSchema.omit({
+  id: true,
+});
