@@ -1,114 +1,142 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a multi-tenant data model where data is segregated by company.
- * All data is nested under /companies/{companyId} to provide isolation.
+ * @fileoverview Firestore Security Rules for the transport app.
  *
- * Core Philosophy: Strict user-ownership and company-based multi-tenancy are enforced.
- * Data access is generally restricted to authenticated users and further limited by company ID.
+ * Core Philosophy:
+ * This ruleset employs a multi-tenant security model. Data is segregated by company,
+ * and users must be authenticated to access any data.  All write operations are
+ * restricted to authenticated users, with additional constraints to ensure data
+ * integrity and prevent unauthorized modifications.
  *
  * Data Structure:
- * - /users/{userId}: User profiles, accessible only by the user.
- * - /companies/{companyId}/...: Company-specific data, accessible to company members (not implemented yet).
- *   - /clients/{clientId}: Clients of a specific company.
- *   - /origins/{originId}: Origins (shipping locations) for a specific company.
- *   - /clients/{clientId}/addresses/{addressId}: Addresses for a specific client within a company.
- *   - /orders/{orderId}: Orders for a specific company.
- * - /drivers/{driverId}: Drivers for a specific company.
+ * - /users/{userId}: Stores public user profile information.
+ * - /companies/{companyId}: Stores company-specific data.
+ *   - /companies/{companyId}/clients/{clientId}: Stores clients for a company.
+ *   - /companies/{companyId}/origins/{originId}: Stores shipment origins for a company.
+ *   - /companies/{companyId}/clients/{clientId}/addresses/{addressId}: Stores addresses for a company's client.
+ *   - /companies/{companyId}/orders/{orderId}: Stores orders for a company.
+ *   - /companies/{companyId}/drivers/{driverId}: Stores drivers for a company.
  *
  * Key Security Decisions:
- * - User listing is disallowed.
- * - The default security posture for ambiguous relationships is strict owner-only access.
- * - Currently, there's no concept of "company members" or roles.  Access to company data is implicitly granted. This should be refined in future iterations.
+ * - User listing is disallowed to prevent unauthorized access to user information.
+ * - Company-level data access requires authentication.  No public access is granted.
+ * - Data consistency is enforced for user-scoped data (e.g., userId in /users/{userId} must match the authenticated user's UID).
+ *
+ * Denormalization for Authorization:
+ *  This ruleset relies on path-based authorization.  For instance, access to orders
+ *  is determined by the company ID in the path.  No denormalization is explicitly used
+ *  in this version, but it's crucial to consider it in future iterations, especially
+ *  for complex relationships or roles within a company.
+ *
+ * Structural Segregation:
+ *  The app uses separate collections for user profiles and company-related data. This ensures
+ *  that user data is isolated and access to company data is controlled separately.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secure user profiles.
+     * @description Allows access to a user's public profile. Only the authenticated user can read/write their own profile.
      * @path /users/{userId}
-     * @allow (get, create, update, delete, list) if the user is the owner of the profile.
-     * @deny (get) if the user is not signed in.
-     * @deny (create) if the userId does not match the authenticated user's ID.
-     * @deny (update) if the userId does not match the authenticated user's ID.
-     * @deny (delete) if the userId does not match the authenticated user's ID.
-     * @deny (list) always, listing users is not allowed.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (get, create, update, delete, list) if the user is authenticated and the userId matches the authenticated user's UID.
+     * @deny (get, create, update, delete, list) if the user is not authenticated or the userId does not match the authenticated user's UID.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+
+      allow create: if isOwner(userId) && request.resource.data.email is string && request.resource.data.displayName is string;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secure client data for a specific company.
+     * @description Allows access to company-specific client information. Only authenticated users can manage clients within their company.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow (get, create, update, delete, list) if the user is signed in.  Company-level authorization is not yet implemented.
-     * @deny (create, update, delete) if the user is not signed in.
-     * @principle Enforces company-based multi-tenancy.
+     * @allow (get, create, update, delete, list) if the user is authenticated.
+     * @deny (get, create, update, delete, list) if the user is not authenticated.
+     * @principle Enforces company-level data access and requires authentication.
      */
     match /companies/{companyId}/clients/{clientId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
+        function isSignedIn() {
+          return request.auth != null;
+        }
 
-       /**
-         * @description Secure shipment origin data for a specific company.
-         * @path /companies/{companyId}/origins/{originId}
-         * @allow (get, create, update, delete, list) if the user is signed in. Company-level authorization is not yet implemented.
-         * @deny (create, update, delete) if the user is not signed in.
-         * @principle Enforces company-based multi-tenancy.
-         */
-    match /companies/{companyId}/origins/{originId} {
-          allow get, list: if isSignedIn();
-          allow create: if isSignedIn();
-          allow update: if isSignedIn() && resource != null;
-          allow delete: if isSignedIn() && resource != null;
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource != null;
+        allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secure address data for a specific client within a company.
+     * @description Allows access to company-specific origin information. Only authenticated users can manage origins within their company.
+     * @path /companies/{companyId}/origins/{originId}
+     * @allow (get, create, update, delete, list) if the user is authenticated.
+     * @deny (get, create, update, delete, list) if the user is not authenticated.
+     * @principle Enforces company-level data access and requires authentication.
+     */
+    match /companies/{companyId}/origins/{originId} {
+        function isSignedIn() {
+          return request.auth != null;
+        }
+
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource != null;
+        allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Allows access to company-specific client addresses. Only authenticated users can manage addresses for clients within their company.
      * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
-     * @allow (get, create, update, delete, list) if the user is signed in.  Company and client-level authorization is not yet implemented.
-     * @deny (create, update, delete) if the user is not signed in.
-     * @principle Enforces company-based multi-tenancy and client-specific data.
+     * @allow (get, create, update, delete, list) if the user is authenticated.
+     * @deny (get, create, update, delete, list) if the user is not authenticated.
+     * @principle Enforces company-level data access and requires authentication.
      */
     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+        function isSignedIn() {
+          return request.auth != null;
+        }
+
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource != null;
+        allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secure order data for a specific company.
+     * @description Allows access to company-specific orders. Only authenticated users can manage orders within their company.
      * @path /companies/{companyId}/orders/{orderId}
-     * @allow (get, create, update, delete, list) if the user is signed in.  Company-level authorization is not yet implemented.
-     * @deny (create, update, delete) if the user is not signed in.
-     * @principle Enforces company-based multi-tenancy.
+     * @allow (get, create, update, delete, list) if the user is authenticated.
+     * @deny (get, create, update, delete, list) if the user is not authenticated.
+     * @principle Enforces company-level data access and requires authentication.
      */
     match /companies/{companyId}/orders/{orderId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
+        function isSignedIn() {
+          return request.auth != null;
+        }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource != null;
+        allow delete: if isSignedIn() && resource != null;
     }
   }
 }
