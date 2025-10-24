@@ -1,71 +1,59 @@
 /**
- * @fileoverview Firestore Security Rules for Transport App
- *
- * Core Philosophy:
- * This ruleset implements a multi-tenant security model where data is segregated by company.
- * Users are associated with a single company and have roles (viewer, editor, admin) within that company.
- * Access to company-specific data (clients, origins, orders) is controlled based on the user's company membership and role.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profile information, including companyId and role.
- * - /companies/{companyId}: Stores company information (currently read/write restricted to admins).
- * - /companies/{companyId}/clients/{clientId}: Stores client information for a specific company.
- * - /companies/{companyId}/origins/{originId}: Stores origin information for a specific company.
- * - /companies/{companyId}/clients/{clientId}/addresses/{addressId}: Stores addresses for a specific client.
- * - /companies/{companyId}/orders/{orderId}: Stores order information for a specific company.
- *
- * Key Security Decisions:
- * - User listing is disabled.
- * - Company-specific data access requires both company membership and a sufficient role.
- * - The rules rely on the existence of a user document under `/users/{userId}` with a valid `companyId` and `role`.
- *
- * Denormalization for Authorization:
- * - User's `companyId` and `role` are stored directly within the `/users/{userId}` document to avoid costly `get()` calls when authorizing access to company-specific data.
+ * @description This ruleset enforces a multi-tenant security model based on company membership and roles.
+ *              Users are associated with a single company and have a defined role within that company (viewer, editor, or admin).
+ *              Access to company-specific data (clients, origins, orders, etc.) is controlled by these roles.
+ * @dataStructure Data is organized hierarchically under the `/companies/{companyId}` path.
+ *                User profiles are stored in the `/users/{userId}` collection.  Each user document contains their `companyId` and `role`.
+ * @keySecurityDecisions
+ *   - Users can only read their own profile. User listing is disabled.
+ *   - Company documents can only be read by members with at least "viewer" role and only modified by "admins".
+ *   - Subcollections under `/companies/{companyId}` inherit company membership and role requirements.
+ *   - A catch-all rule is implemented for subcollections under `/companies/{companyId}` to provide a baseline level of security without schema validation.
+ * @denormalization User's `companyId` and `role` are stored directly in the `/users/{userId}` document to avoid costly `get()` calls in rules.
  */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---------- Utils ----------
-    function isSignedIn() {
-      return request.auth != null;
-    }
+    // -------- Utils --------
+    function isSignedIn() { return request.auth != null; }
+
     function userDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
+
     function userCompanyId() {
       return isSignedIn() ? userDoc().data.companyId : null;
     }
+
     function userRole() {
       return isSignedIn() ? userDoc().data.role : null;
     }
+
     function isViewer() { return isSignedIn() && (userRole() == "viewer" || userRole() == "editor" || userRole() == "admin"); }
     function isEditor() { return isSignedIn() && (userRole() == "editor" || userRole() == "admin"); }
     function isAdmin()  { return isSignedIn() && (userRole() == "admin"); }
+
     function isCompanyMember(companyId) {
       return isSignedIn() && userCompanyId() == companyId;
     }
 
+    // -------- USERS (/users/{uid}) --------
     /**
-     * @description Manages user profile data, allowing users to read their own profile and admins to manage all profiles.
+     * @description Allows a user to read, create, update, and delete their own profile.
      * @path /users/{userId}
-     * @allow (get) User with UID 'user123' reading their own profile.
-     * @deny (get) User with UID 'user456' attempting to read profile of 'user123'.
-     * @allow (create) User with UID 'user123' creating their own profile with valid data.
-     * @deny (create) User with UID 'user123' creating their own profile with invalid data (missing 'displayName').
-     * @principle Enforces document ownership for reads and writes, and validates basic user data.
+     * @allow (get) User with UID "user123" reading /users/user123
+     * @allow (create) User with UID "user123" creating /users/user123
+     * @deny (get) User with UID "user123" reading /users/otherUser
+     * @deny (list) Any user trying to list users.
+     * @principle Enforces user-ownership for profile data.
      */
     match /users/{userId} {
       allow get: if isSignedIn() && request.auth.uid == userId;
       allow list: if false;
 
       function baseUserValid() {
-        return request.resource.data.keys().hasAll(["displayName", "email", "companyId", "role"]) &&
-               request.resource.data.displayName is string &&
-               request.resource.data.displayName.size() > 0 &&
-               request.resource.data.email is string &&
-               request.resource.data.email.size() > 0 &&
+        return request.resource.data.keys().hasAll(["companyId", "role"]) &&
                request.resource.data.companyId is string &&
                request.resource.data.companyId.size() > 0 &&
                request.resource.data.role in ["viewer", "editor", "admin"];
@@ -76,152 +64,136 @@ service cloud.firestore {
       allow delete: if isSignedIn() && request.auth.uid == userId && resource != null;
     }
 
+    // -------- COMPANIES (doc raiz) --------
     /**
-     * @description Manages company data, allowing only admins to create, update, and delete companies.
+     * @description Controls access to company documents.
      * @path /companies/{companyId}
-     * @allow (get) User with role 'viewer' in company 'company1' reading the company's data.
-     * @deny (get) User not in company 'company1' attempting to read the company's data.
-     * @allow (create) User with role 'admin' in company 'company1' creating a new company.
-     * @deny (create) User with role 'editor' in company 'company1' attempting to create a new company.
-     * @principle Restricts company management to company administrators.
+     * @allow (get) User with companyId "company1" and role "viewer" reading /companies/company1
+     * @allow (create) User with companyId "company1" and role "admin" creating /companies/company1
+     * @deny (get) User with companyId "company2" and role "viewer" reading /companies/company1
+     * @deny (list) Any user attempting to list companies.
+     * @principle Enforces company-based access control.
      */
     match /companies/{companyId} {
+      // leitura do doc da company: membros (viewer+)
       allow get: if isCompanyMember(companyId) && isViewer();
+      // nunca listar companies
       allow list: if false;
+      // escrever company só admin
       allow create, update, delete: if isCompanyMember(companyId) && isAdmin();
     }
 
+    // -------- Subcoleções específicas com validação (exemplos) --------
     /**
-     * @description Manages client data for a specific company, allowing viewers to read and editors to manage.
+     * @description Controls access to client documents within a company.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow (get) User with role 'viewer' in company 'company1' reading a client's data.
-     * @deny (get) User not in company 'company1' attempting to read a client's data.
-     * @allow (create) User with role 'editor' in company 'company1' creating a new client with valid data.
-     * @deny (create) User with role 'editor' in company 'company1' creating a new client with invalid data (missing 'nome').
-     * @principle Enforces company membership and role-based access control for client data.
+     * @allow (get) User with companyId "company1" and role "viewer" reading /companies/company1/clients/client1
+     * @allow (list) User with companyId "company1" and role "viewer" listing /companies/company1/clients
+     * @allow (create) User with companyId "company1" and role "editor" creating /companies/company1/clients/client1
+     * @deny (get) User with companyId "company2" and role "viewer" reading /companies/company1/clients/client1
+     * @principle Enforces company membership and role-based access for client data.
      */
     match /companies/{companyId}/clients/{clientId} {
       allow get, list: if isCompanyMember(companyId) && isViewer();
       allow create, update, delete: if isCompanyMember(companyId) && isEditor() && validClient();
 
       function validClient() {
-        return request.resource.data.keys().hasAll(["nome", "telefone", "createdAt"]) &&
-               request.resource.data.nome is string &&
-               request.resource.data.nome.size() > 0 &&
-               request.resource.data.telefone is string &&
-               request.resource.data.telefone.size() > 0 &&
-               request.resource.data.createdAt is string &&
-               request.resource.data.createdAt.size() > 0;
+        return request.resource.data.name is string &&
+               request.resource.data.name.size() > 0 &&
+               (!("phone" in request.resource.data) || request.resource.data.phone is string) &&
+               (!("email" in request.resource.data) || request.resource.data.email is string) &&
+               (!("createdAt" in request.resource.data) || request.resource.data.createdAt is timestamp) &&
+               (!("updatedAt" in request.resource.data) || request.resource.data.updatedAt is timestamp);
       }
     }
 
     /**
-     * @description Manages origin data for a specific company, allowing viewers to read and editors to manage.
+     * @description Controls access to origin documents within a company.
      * @path /companies/{companyId}/origins/{originId}
-     * @allow (get) User with role 'viewer' in company 'company1' reading an origin's data.
-     * @deny (get) User not in company 'company1' attempting to read an origin's data.
-     * @allow (create) User with role 'editor' in company 'company1' creating a new origin with valid data.
-     * @deny (create) User with role 'editor' in company 'company1' creating a new origin with invalid data (missing 'name').
-     * @principle Enforces company membership and role-based access control for origin data.
+     * @allow (get) User with companyId "company1" and role "viewer" reading /companies/company1/origins/origin1
+     * @allow (list) User with companyId "company1" and role "viewer" listing /companies/company1/origins
+     * @allow (create) User with companyId "company1" and role "editor" creating /companies/company1/origins/origin1
+     * @deny (get) User with companyId "company2" and role "viewer" reading /companies/company1/origins/origin1
+     * @principle Enforces company membership and role-based access for origin data.
      */
     match /companies/{companyId}/origins/{originId} {
       allow get, list: if isCompanyMember(companyId) && isViewer();
       allow create, update, delete: if isCompanyMember(companyId) && isEditor() && validOrigin();
 
       function validOrigin() {
-        return request.resource.data.keys().hasAll(["name", "address", "createdAt"]) &&
-               request.resource.data.name is string &&
+        return request.resource.data.name is string &&
                request.resource.data.name.size() > 0 &&
-               request.resource.data.address is string &&
-               request.resource.data.address.size() > 0 &&
-               request.resource.data.createdAt is string &&
-               request.resource.data.createdAt.size() > 0;
-      }
-    }
-
-     /**
-     * @description Manages address data for a specific client, allowing viewers to read and editors to manage.
-     * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
-     * @allow (get) User with role 'viewer' in company 'company1' reading an address's data.
-     * @deny (get) User not in company 'company1' attempting to read an address's data.
-     * @allow (create) User with role 'editor' in company 'company1' creating a new address with valid data.
-     * @deny (create) User with role 'editor' in company 'company1' creating a new address with invalid data (missing 'label').
-     * @principle Enforces company membership and role-based access control for client address data.
-     */
-    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-      allow get, list: if isCompanyMember(companyId) && isViewer();
-      allow create, update, delete: if isCompanyMember(companyId) && isEditor() && validAddress();
-
-      function validAddress() {
-        return request.resource.data.keys().hasAll(["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]) &&
-               request.resource.data.label is string &&
-               request.resource.data.label.size() > 0 &&
-               request.resource.data.logradouro is string &&
-               request.resource.data.logradouro.size() > 0 &&
-               request.resource.data.numero is string &&
-               request.resource.data.numero.size() > 0 &&
-               request.resource.data.bairro is string &&
-               request.resource.data.bairro.size() > 0 &&
-               request.resource.data.cidade is string &&
-               request.resource.data.cidade.size() > 0 &&
-               request.resource.data.estado is string &&
-               request.resource.data.estado.size() > 0 &&
-               request.resource.data.cep is string &&
-               request.resource.data.cep.size() > 0 &&
-               request.resource.data.fullAddress is string &&
-               request.resource.data.fullAddress.size() > 0;
+               (!("description" in request.resource.data) || request.resource.data.description is string) &&
+               (!("active" in request.resource.data) || request.resource.data.active is bool) &&
+               (!("createdAt" in request.resource.data) || request.resource.data.createdAt is timestamp) &&
+               (!("updatedAt" in request.resource.data) || request.resource.data.updatedAt is timestamp);
       }
     }
 
     /**
-     * @description Manages order data for a specific company, allowing viewers to read and editors to manage.
+     * @description Controls access to order documents within a company.
      * @path /companies/{companyId}/orders/{orderId}
-     * @allow (get) User with role 'viewer' in company 'company1' reading an order's data.
-     * @deny (get) User not in company 'company1' attempting to read an order's data.
-     * @allow (create) User with role 'editor' in company 'company1' creating a new order with valid data.
-     * @deny (create) User with role 'editor' in company 'company1' creating a new order with invalid data (missing 'codigoRastreio').
-     * @principle Enforces company membership and role-based access control for order data.
+     * @allow (get) User with companyId "company1" and role "viewer" reading /companies/company1/orders/order1
+     * @allow (list) User with companyId "company1" and role "viewer" listing /companies/company1/orders
+     * @allow (create) User with companyId "company1" and role "editor" creating /companies/company1/orders/order1
+     * @deny (get) User with companyId "company2" and role "viewer" reading /companies/company1/orders/order1
+     * @principle Enforces company membership and role-based access for order data.
      */
     match /companies/{companyId}/orders/{orderId} {
       allow get, list: if isCompanyMember(companyId) && isViewer();
       allow create, update, delete: if isCompanyMember(companyId) && isEditor() && validOrder();
 
       function validOrder() {
-          return request.resource.data.keys().hasAll([
-            "codigoRastreio",
-            "nomeCliente",
-            "telefone",
-            "origem",
-            "destino",
-            "valorEntrega",
-            "formaPagamento",
-            "pago",
-            "status",
-            "timeline",
-            "messages",
-            "createdAt",
-            "createdBy"
-          ]) &&
-          request.resource.data.codigoRastreio is string &&
-          request.resource.data.codigoRastreio.size() > 0 &&
-          request.resource.data.nomeCliente is string &&
-          request.resource.data.nomeCliente.size() > 0 &&
-          request.resource.data.telefone is string &&
-          request.resource.data.telefone.size() > 0 &&
-          request.resource.data.origem is string &&
-          request.resource.data.origem.size() > 0 &&
-          request.resource.data.destino is string &&
-          request.resource.data.destino.size() > 0 &&
-          request.resource.data.valorEntrega is number &&
-          request.resource.data.formaPagamento in ["pix", "dinheiro", "cartao", "boleto", "link", "haver"] &&
-          request.resource.data.pago is bool &&
-          request.resource.data.status in ["PENDENTE", "EM_ROTA", "ENTREGUE", "CANCELADA"] &&
-          request.resource.data.createdAt is string &&
-          request.resource.data.createdBy is string;
+        return
+          request.resource.data.keys().hasAll(["status", "total", "items"]) &&
+          request.resource.data.status in ["pending", "approved", "paid", "canceled", "delivered"] &&
+          request.resource.data.total is number &&
+          request.resource.data.total >= 0 &&
+          request.resource.data.items is list &&
+          (!("customerId" in request.resource.data) || request.resource.data.customerId is string) &&
+          (!("createdAt" in request.resource.data) || request.resource.data.createdAt is timestamp) &&
+          (!("updatedAt" in request.resource.data) || request.resource.data.updatedAt is timestamp);
       }
     }
 
-    // ---------- Bloqueio padrão ----------
+    /**
+     * @description Provides a catch-all rule for any other subcollection under /companies/{companyId}.
+     *              This maintains company membership and role security without enforcing specific schema validation.
+     * @path /companies/{companyId}/{anySubcoll}/{docId}
+     * @allow (get) User with companyId "company1" and role "viewer" reading /companies/company1/products/product1
+     * @allow (list) User with companyId "company1" and role "viewer" listing /companies/company1/products
+     * @allow (create) User with companyId "company1" and role "editor" creating /companies/company1/products/product1
+     * @deny (get) User with companyId "company2" and role "viewer" reading /companies/company1/products/product1
+     * @principle Enforces company membership and role-based access for all company subcollections.
+     */
+    match /companies/{companyId}/{anySubcoll}/{docId} {
+      allow get, list: if isCompanyMember(companyId) && isViewer();
+      allow create, update, delete: if isCompanyMember(companyId) && isEditor();
+    }
+
+      /**
+     * @description Controls access to address documents within a company and client.
+     * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
+     * @allow (get) User with companyId "company1" and role "viewer" reading /companies/company1/clients/client1/addresses/address1
+     * @allow (list) User with companyId "company1" and role "viewer" listing /companies/company1/clients/client1/addresses
+     * @allow (create) User with companyId "company1" and role "editor" creating /companies/company1/clients/client1/addresses/address1
+     * @deny (get) User with companyId "company2" and role "viewer" reading /companies/company1/clients/client1/addresses/address1
+     * @principle Enforces company membership and role-based access for client address data.
+     */
+    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
+      allow get, list: if isCompanyMember(companyId) && isViewer();
+      allow create, update, delete: if isCompanyMember(companyId) && isEditor();
+    }
+
+
+    // -------- Bloqueio padrão --------
+    /**
+     * @description Default rule that blocks all read and write access to any document not explicitly matched by other rules.
+     * @path /{document=**}
+     * @deny (get) Any user trying to access any unmatched document.
+     * @deny (write) Any user trying to write to any unmatched document.
+     * @principle Default-deny security posture.  All access must be explicitly allowed.
+     */
     match /{document=**} {
       allow read, write: if false;
     }

@@ -19,6 +19,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     // If a user is logged in, ensure their profile document exists.
+    // This is the "seeding" logic required by the security rules.
     if (firestore && user) {
       const userRef = doc(firestore, 'users', user.uid);
       getDoc(userRef).then((docSnap) => {
@@ -26,7 +27,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           // Document doesn't exist, so create it with default values.
           // This is crucial for Firestore security rules to work.
           setDoc(userRef, {
-            companyId: '1', // Default company ID
+            companyId: '1', // Default company ID (as a string)
             role: 'admin',      // Default role
             email: user.email,
             displayName: user.displayName || user.email,
