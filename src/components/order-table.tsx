@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ import type { Order } from '@/lib/types';
 import { OrderStatusBadge } from './status-badge';
 import { Input } from './ui/input';
 import { Timestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -36,7 +38,8 @@ const paymentMethodLabels: Record<string, string> = {
 
 export function OrderTable({ orders }: { orders: Order[] }) {
   const [filter, setFilter] = React.useState('');
-  
+  const { toast } = useToast();
+
   const filteredOrders = orders.filter(
     (order) =>
       order.nomeCliente.toLowerCase().includes(filter.toLowerCase()) ||
@@ -49,6 +52,24 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       return date.toDate().toLocaleDateString('pt-BR');
     }
     return new Date(date).toLocaleDateString('pt-BR');
+  }
+
+  const handleSendReceipt = (order: Order) => {
+    const message = `WHATSAPP: Enviando comprovante de dívida no valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.valorEntrega)} para ${order.nomeCliente}.`;
+    console.log(message);
+    toast({
+      title: 'Ação Simulada',
+      description: 'Comprovante de dívida enviado para o cliente.',
+    });
+  };
+
+  const handleResendNotification = (order: Order) => {
+     const message = `WHATSAPP: Reenviando notificação de "recebido" para ${order.nomeCliente}.`;
+    console.log(message);
+    toast({
+      title: 'Ação Simulada',
+      description: 'Notificação de recebimento reenviada para o cliente.',
+    });
   }
 
 
@@ -123,7 +144,17 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
                             <DropdownMenuItem>Editar</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">Cancelar</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                             <DropdownMenuItem onClick={() => handleResendNotification(order)}>
+                              Reenviar Notificação
+                            </DropdownMenuItem>
+                            {order.formaPagamento === 'haver' && !order.pago && (
+                                <DropdownMenuItem onClick={() => handleSendReceipt(order)}>
+                                Enviar Comprovante de Dívida
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive">Cancelar Encomenda</DropdownMenuItem>
                         </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
