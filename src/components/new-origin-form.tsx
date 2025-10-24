@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
@@ -17,10 +18,13 @@ import { useRouter } from 'next/navigation';
 import { createOrigin } from '@/lib/actions';
 import { newOriginSchema } from '@/lib/schemas';
 import type { NewOrigin } from '@/lib/types';
+import { Loader2, Search } from 'lucide-react';
 
 export function NewOriginForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const [isFetchingCep, setIsFetchingCep] = React.useState(false);
+
   const form = useForm<NewOrigin>({
     resolver: zodResolver(newOriginSchema),
     defaultValues: {
@@ -33,6 +37,54 @@ export function NewOriginForm() {
       cep: '',
     },
   });
+
+  const handleCepSearch = async () => {
+    const cep = form.getValues('cep').replace(/\D/g, '');
+    if (cep.length !== 8) {
+      toast({
+        variant: 'destructive',
+        title: 'CEP inválido',
+        description: 'Por favor, digite um CEP com 8 dígitos.',
+      });
+      return;
+    }
+
+    setIsFetchingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+
+      if (data.erro) {
+        toast({
+          variant: 'destructive',
+          title: 'CEP não encontrado',
+          description: 'Verifique o CEP digitado e tente novamente.',
+        });
+        form.setValue('logradouro', '');
+        form.setValue('bairro', '');
+        form.setValue('cidade', '');
+        form.setValue('estado', '');
+      } else {
+        form.setValue('logradouro', data.logradouro, { shouldValidate: true });
+        form.setValue('bairro', data.bairro, { shouldValidate: true });
+        form.setValue('cidade', data.localidade, { shouldValidate: true });
+        form.setValue('estado', data.uf, { shouldValidate: true });
+        form.setFocus('numero'); // Move focus to the number field
+        toast({
+          title: 'Endereço encontrado!',
+          description: 'Por favor, preencha o número.',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro na busca',
+        description: 'Não foi possível buscar o CEP. Tente novamente.',
+      });
+    } finally {
+      setIsFetchingCep(false);
+    }
+  };
 
   async function onSubmit(data: NewOrigin) {
     const formData = new FormData();
@@ -67,87 +119,99 @@ export function NewOriginForm() {
             <FormItem>
               <FormLabel>Nome da Origem *</FormLabel>
               <FormControl>
-                <Input placeholder="Ex: Matriz, Centro de Distribuição SP" {...field} />
+                <Input
+                  placeholder="Ex: Matriz, Centro de Distribuição SP"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+        
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+             <FormField
+                control={form.control}
+                name="cep"
+                render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                    <FormLabel>CEP *</FormLabel>
+                    <div className="flex gap-2">
+                         <FormControl>
+                            <Input placeholder="00000-000" {...field} />
+                        </FormControl>
+                        <Button type="button" onClick={handleCepSearch} disabled={isFetchingCep} className="w-32">
+                            {isFetchingCep ? <Loader2 className="animate-spin" /> : <><Search className="mr-2" /> Buscar</>}
+                        </Button>
+                    </div>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+        </div>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
-            <FormField
+          <FormField
             control={form.control}
             name="logradouro"
             render={({ field }) => (
-                <FormItem className='md:col-span-4'>
+              <FormItem className="md:col-span-4">
                 <FormLabel>Logradouro *</FormLabel>
                 <FormControl>
-                    <Input placeholder="Rua, Avenida, etc." {...field} />
+                  <Input placeholder="Rua, Avenida, etc." {...field} />
                 </FormControl>
                 <FormMessage />
-                </FormItem>
+              </FormItem>
             )}
-            />
-             <FormField
+          />
+          <FormField
             control={form.control}
             name="numero"
             render={({ field }) => (
-                <FormItem className='md:col-span-2'>
+              <FormItem className="md:col-span-2">
                 <FormLabel>Número *</FormLabel>
                 <FormControl>
-                    <Input placeholder="123" {...field} />
+                  <Input placeholder="123" {...field} />
                 </FormControl>
                 <FormMessage />
-                </FormItem>
+              </FormItem>
             )}
-            />
+          />
         </div>
-         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FormField
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FormField
             control={form.control}
             name="bairro"
             render={({ field }) => (
-                <FormItem>
+              <FormItem>
                 <FormLabel>Bairro *</FormLabel>
                 <FormControl>
-                    <Input placeholder="Centro" {...field} />
+                  <Input placeholder="Centro" {...field} />
                 </FormControl>
                 <FormMessage />
-                </FormItem>
+              </FormItem>
             )}
-            />
-            <FormField
-            control={form.control}
-            name="cep"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>CEP *</FormLabel>
-                <FormControl>
-                    <Input placeholder="00000-000" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
-            <FormField
+          />
+          <FormField
             control={form.control}
             name="cidade"
             render={({ field }) => (
-                <FormItem className='md:col-span-4'>
+              <FormItem>
                 <FormLabel>Cidade *</FormLabel>
                 <FormControl>
-                    <Input placeholder="São Paulo" {...field} />
+                  <Input placeholder="São Paulo" {...field} />
                 </FormControl>
                 <FormMessage />
-                </FormItem>
+              </FormItem>
             )}
-            />
-            <FormField
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-4">
+           <FormField
             control={form.control}
             name="estado"
             render={({ field }) => (
-                <FormItem className='md:col-span-2'>
+                <FormItem>
                 <FormLabel>Estado (UF) *</FormLabel>
                 <FormControl>
                     <Input placeholder="SP" {...field} />
@@ -157,9 +221,13 @@ export function NewOriginForm() {
             )}
             />
         </div>
-        
+
         <div className="flex justify-end">
-          <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+          <Button
+            type="submit"
+            size="lg"
+            disabled={form.formState.isSubmitting}
+          >
             {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Origem'}
           </Button>
         </div>
