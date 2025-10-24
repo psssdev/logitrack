@@ -1,3 +1,4 @@
+'use client';
 import { getDrivers } from '@/lib/actions';
 import {
   Card,
@@ -8,21 +9,36 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+import type { Driver } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
-export default async function MotoristasPage() {
-  const drivers = await getDrivers();
+export default function MotoristasPage() {
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchDrivers() {
+      setIsLoading(true);
+      const fetchedDrivers = await getDrivers();
+      setDrivers(fetchedDrivers);
+      setIsLoading(false);
+    }
+    fetchDrivers();
+  }, []);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center">
         <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Motoristas</h1>
         <Button size="sm" className="h-8 gap-1">
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Novo Motorista
-            </span>
+          <PlusCircle className="h-3.5 w-3.5" />
+          <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+            Novo Motorista
+          </span>
         </Button>
       </div>
 
@@ -34,21 +50,52 @@ export default async function MotoristasPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {drivers.map((driver) => (
-            <Card key={driver.id}>
-              <CardContent className="p-6 flex items-center gap-4">
-                <Avatar className="h-12 w-12">
-                   <AvatarImage src={`https://picsum.photos/seed/${driver.id}/80/80`} data-ai-hint="person face" />
-                  <AvatarFallback>{driver.nome.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="grid gap-1">
-                  <p className="text-lg font-medium leading-none">{driver.nome}</p>
-                  <p className="text-sm text-muted-foreground">{driver.telefone}</p>
-                  {driver.placa && <Badge variant="secondary" className="w-fit">{driver.placa}</Badge>}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {isLoading &&
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <Skeleton className="h-24 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          {!isLoading &&
+            drivers.map((driver) => (
+              <Card
+                key={driver.id}
+                className="hover:shadow-md transition-shadow"
+              >
+                <CardContent className="p-6 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage
+                        src={`https://picsum.photos/seed/${driver.id}/80/80`}
+                        data-ai-hint="person face"
+                      />
+                      <AvatarFallback>{driver.nome.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="grid gap-1">
+                      <p className="text-lg font-medium leading-none">
+                        {driver.nome}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {driver.telefone}
+                      </p>
+                      {driver.placa && (
+                        <Badge variant="secondary" className="w-fit">
+                          {driver.placa}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                   <Button asChild variant="outline" size="icon">
+                        <Link href={`/motoristas/${driver.id}`}>
+                            <ArrowRight className="h-4 w-4" />
+                            <span className="sr-only">Ver detalhes</span>
+                        </Link>
+                    </Button>
+                </CardContent>
+              </Card>
+            ))}
         </CardContent>
       </Card>
     </div>
