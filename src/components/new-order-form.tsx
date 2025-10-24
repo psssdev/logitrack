@@ -97,11 +97,8 @@ export function NewOrderForm({
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-      // NOTE: In a real implementation, you would start a barcode scanning library here.
-      // For now, we will simulate a scan after 5 seconds.
-      setTimeout(() => {
-        handleScanSuccess(Math.random().toString(36).substring(2).toUpperCase());
-      }, 5000);
+      // NOTE: In a real implementation, you would integrate a barcode scanning library here
+      // to process the video stream and decode barcodes. For now, the video feed is displayed.
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
@@ -528,3 +525,5 @@ export function NewOrderForm({
     </Form>
   );
 }
+
+    
