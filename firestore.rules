@@ -1,81 +1,71 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset enforces a multi-tenant security model where users can only access data within their company.
- *
- * Data Structure:
- * - /users/{userId}: Stores public user profile information. Accessible only by the user themselves.
- * - /companies/{companyId}/clients/{clientId}: Stores client information, scoped to a company. Access is restricted to authenticated users.
- * - /companies/{companyId}/origins/{originId}: Stores shipment origins, scoped to a company. Access is restricted to authenticated users.
- *
- * Key Security Decisions:
- * - User listing is disallowed.
- * - Data access is predicated on the user being authenticated.
- * - All write operations require explicit authentication and authorization.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces user-ownership for user profiles.
+     * @description Allows users to read and write their own profile data.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user creates their own profile.
-     * @allow (get, update, delete) - Authenticated user accesses their own profile.
-     * @deny  (create, update, delete) - Any other user attempts to access this profile.
-     * @principle Enforces document ownership for writes.
+     * @allow (get, update, delete) if request.auth.uid == userId
+     * @allow (create) if request.auth.uid == request.resource.data.id
+     * @deny (get, update, delete) if request.auth.uid != userId
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
       function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+        return request.auth.uid == userId;
       }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      function isSignedIn() {
+        return request.auth != null;
       }
-
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Restricts access to client data within a company to authenticated users.
+     * @description Allows company users to manage their clients.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow (list) Authenticated user lists clients for a company.
-     * @allow (get, create, update, delete) Authenticated user manages clients for a company.
-     * @deny Any unauthenticated access.
-     * @principle Enforces authentication for accessing client data.
+     * @allow (create, get, list, update, delete) if request.auth.uid != null
+     * @deny (create, get, list, update, delete) if request.auth.uid == null
+     * @principle Enforces company-level access control for client data.
      */
     match /companies/{companyId}/clients/{clientId} {
-        function isSignedIn() {
-            return request.auth != null;
-        }
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      // Define a function to check if the user belongs to the company
+      function belongsToCompany(companyId) {
+          return get(/databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid)).data.exists;
+      }
+      allow get: if isSignedIn() && belongsToCompany(companyId);
+      allow list: if isSignedIn() && belongsToCompany(companyId);
+      allow create: if isSignedIn() && belongsToCompany(companyId);
+      allow update: if isSignedIn() && belongsToCompany(companyId);
+      allow delete: if isSignedIn() && belongsToCompany(companyId) && resource != null;
     }
 
     /**
-     * @description Restricts access to shipment origin data within a company to authenticated users.
+     * @description Allows company users to manage their origins.
      * @path /companies/{companyId}/origins/{originId}
-     * @allow (list) Authenticated user lists origins for a company.
-     * @allow (get, create, update, delete) Authenticated user manages origins for a company.
-     * @deny Any unauthenticated access.
-     * @principle Enforces authentication for accessing origin data.
+     * @allow (create, get, list, update, delete) if request.auth.uid != null
+     * @deny (create, get, list, update, delete) if request.auth.uid == null
+     * @principle Enforces company-level access control for origin data.
      */
     match /companies/{companyId}/origins/{originId} {
-        function isSignedIn() {
-            return request.auth != null;
-        }
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+       function isSignedIn() {
+        return request.auth != null;
+      }
+      // Define a function to check if the user belongs to the company
+      function belongsToCompany(companyId) {
+          return get(/databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid)).data.exists;
+      }
+      allow get: if isSignedIn() && belongsToCompany(companyId);
+      allow list: if isSignedIn() && belongsToCompany(companyId);
+      allow create: if isSignedIn() && belongsToCompany(companyId);
+      allow update: if isSignedIn() && belongsToCompany(companyId);
+      allow delete: if isSignedIn() && belongsToCompany(companyId) && resource != null;
     }
   }
 }
