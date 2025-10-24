@@ -19,6 +19,43 @@ import { createOrigin } from '@/lib/actions';
 import { newOriginSchema } from '@/lib/schemas';
 import type { NewOrigin } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
+
+const brazilianStates = [
+    { value: 'AC', label: 'Acre' },
+    { value: 'AL', label: 'Alagoas' },
+    { value: 'AP', label: 'Amapá' },
+    { value: 'AM', label: 'Amazonas' },
+    { value: 'BA', label: 'Bahia' },
+    { value: 'CE', label: 'Ceará' },
+    { value: 'DF', label: 'Distrito Federal' },
+    { value: 'ES', label: 'Espírito Santo' },
+    { value: 'GO', label: 'Goiás' },
+    { value: 'MA', label: 'Maranhão' },
+    { value: 'MT', label: 'Mato Grosso' },
+    { value: 'MS', label: 'Mato Grosso do Sul' },
+    { value: 'MG', label: 'Minas Gerais' },
+    { value: 'PA', label: 'Pará' },
+    { value: 'PB', label: 'Paraíba' },
+    { value: 'PR', label: 'Paraná' },
+    { value: 'PE', label: 'Pernambuco' },
+    { value: 'PI', label: 'Piauí' },
+    { value: 'RJ', label: 'Rio de Janeiro' },
+    { value: 'RN', label: 'Rio Grande do Norte' },
+    { value: 'RS', label: 'Rio Grande do Sul' },
+    { value: 'RO', label: 'Rondônia' },
+    { value: 'RR', label: 'Roraima' },
+    { value: 'SC', label: 'Santa Catarina' },
+    { value: 'SP', label: 'São Paulo' },
+    { value: 'SE', label: 'Sergipe' },
+    { value: 'TO', label: 'Tocantins' },
+];
 
 export function NewOriginForm() {
   const { toast } = useToast();
@@ -178,7 +215,7 @@ export function NewOriginForm() {
             )}
           />
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <FormField
             control={form.control}
             name="bairro"
@@ -205,17 +242,26 @@ export function NewOriginForm() {
               </FormItem>
             )}
           />
-        </div>
-        <div className="grid grid-cols-1 gap-4">
            <FormField
             control={form.control}
             name="estado"
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Estado (UF) *</FormLabel>
-                <FormControl>
-                    <Input placeholder="SP" {...field} />
-                </FormControl>
+                <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="UF" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {brazilianStates.map(state => (
+                            <SelectItem key={state.value} value={state.value}>
+                                {state.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <FormMessage />
                 </FormItem>
             )}
