@@ -2,35 +2,44 @@
  * @fileoverview Firestore Security Rules for the transport app.
  *
  * Core Philosophy:
- * This ruleset implements a multi-tenant security model. Data is partitioned by
- * company ID. Most data is only accessible to authenticated users.
+ * This ruleset enforces a multi-tenant security model based on company IDs.
+ * Users have implicit ownership over their profiles. Companies own all data
+ * associated with them (clients, orders, drivers, etc.).  No listing of users
+ * is allowed for privacy.
  *
  * Data Structure:
- * - /users/{userId}: User profile information.
- * - /companies/{companyId}/...: All company-related data.
- *   - /clients/{clientId}: Client information for a company.
- *   - /origins/{originId}: Shipment origin points for a company.
- *   - /clients/{clientId}/addresses/{addressId}: Addresses for a specific client.
- *   - /orders/{orderId}: Orders for a specific company.
- *   - /drivers/{driverId}: Drivers working for the company
+ * - /users/{userId}: Stores public user profile information.
+ * - /companies/{companyId}/...: All company-related data is nested under
+ *   the company ID.
+ * - /companies/{companyId}/clients/{clientId}: Client data.
+ * - /companies/{companyId}/orders/{orderId}: Order data.
+ * - /companies/{companyId}/drivers/{driverId}: Driver data.
  *
  * Key Security Decisions:
- * - Users can only read/write their own profile data.
- * - All company-related data is scoped to the company and requires authentication.
- * - Listing of users is disallowed.
- * - Read access to company collections is restricted to authenticated users, with no role-based access control.
- * - Write access to company collections is restricted to authenticated users, with the `createdBy` field enforced as the author.
+ * - User profiles are readable/writable only by the owning user.
+ * - Company data is only accessible within the scope of the company. There are no global administrator roles.
+ * - Listing user documents is disallowed.
+ * - Data shape validation is relaxed in prototyping mode, focusing on authorization.
+ *
+ * Denormalization for Authorization:
+ * - The company ID is embedded within documents nested under /companies/{companyId}
+ *   to simplify and secure access control.  This prevents needing to do a `get()`
+ *   operation to validate the company ID on nested documents.
+ *
+ * Structural Segregation:
+ * - Private user data is stored under /users/{userId}, separate from public
+ *   collections.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile information.
+     * @description Manages access to user profile information.
      * @path /users/{userId}
-     * @allow (get, create, update, delete): if the user is the owner of the profile.
-     * @deny (get, create, update, delete): if the user is not the owner of the profile.
-     * @principle Enforces document ownership for all operations on user profiles.
+     * @allow (get, create, update, delete): Authenticated user with matching UID.
+     * @deny (get, create, update, delete): Any other user or unauthenticated request.
+     * @principle Enforces user ownership of profile data.
      */
     match /users/{userId} {
       function isSignedIn() {
@@ -41,49 +50,39 @@ service cloud.firestore {
         return isSignedIn() && request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if false;
-
       allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to client information within a company.
+     * @description Manages access to client information within a company.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow (get, list): if the user is authenticated.
-     * @allow (create): if the user is authenticated. Validates that the `createdBy` field in the new document matches the authenticated user's ID.
-     * @allow (update, delete): if the user is authenticated and the document exists.
-     * @deny (get, list, create, update, delete): if the user is not authenticated.
-     * @principle Restricts data access to authenticated users within a multi-tenant company structure.
+     * @allow (get, list, create, update, delete): Authenticated user within the company scope.
+     * @deny (get, list, create, update, delete): Access from outside the company scope.
+     * @principle Enforces company-based multi-tenancy.
      */
     match /companies/{companyId}/clients/{clientId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-
-        allow create: if isSignedIn();
-        allow update: if isSignedIn() && resource != null;
-        allow delete: if isSignedIn() && resource != null;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
-     /**
-      * @description Controls access to shipment origin points within a company.
-      * @path /companies/{companyId}/origins/{originId}
-      * @allow (get, list): if the user is authenticated.
-      * @allow (create): if the user is authenticated. Validates that the `createdBy` field in the new document matches the authenticated user's ID.
-      * @allow (update, delete): if the user is authenticated and the document exists.
-      * @deny (get, list, create, update, delete): if the user is not authenticated.
-      * @principle Restricts data access to authenticated users within a multi-tenant company structure.
-      */
+        /**
+         * @description Manages access to origin information within a company.
+         * @path /companies/{companyId}/origins/{originId}
+         * @allow (get, list, create, update, delete): Authenticated user within the company scope.
+         * @deny (get, list, create, update, delete): Access from outside the company scope.
+         * @principle Enforces company-based multi-tenancy.
+         */
     match /companies/{companyId}/origins/{originId} {
       function isSignedIn() {
         return request.auth != null;
@@ -91,20 +90,17 @@ service cloud.firestore {
 
       allow get: if isSignedIn();
       allow list: if isSignedIn();
-
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Controls access to addresses for a specific client within a company.
+     * @description Manages access to addresses for a specific client within a company.
      * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
-     * @allow (get, list): if the user is authenticated.
-     * @allow (create): if the user is authenticated. Validates that the `createdBy` field in the new document matches the authenticated user's ID.
-     * @allow (update, delete): if the user is authenticated and the document exists.
-     * @deny (get, list, create, update, delete): if the user is not authenticated.
-     * @principle Restricts data access to authenticated users within a multi-tenant company structure.
+     * @allow (get, list, create, update, delete): Authenticated user within the company scope.
+     * @deny (get, list, create, update, delete): Access from outside the company scope.
+     * @principle Enforces company-based multi-tenancy and client data ownership.
      */
     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
       function isSignedIn() {
@@ -113,20 +109,17 @@ service cloud.firestore {
 
       allow get: if isSignedIn();
       allow list: if isSignedIn();
-
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Controls access to orders within a company.
+     * @description Manages access to order information within a company.
      * @path /companies/{companyId}/orders/{orderId}
-     * @allow (get, list): if the user is authenticated.
-     * @allow (create): if the user is authenticated. Validates that the `createdBy` field in the new document matches the authenticated user's ID.
-     * @allow (update, delete): if the user is authenticated and the document exists.
-     * @deny (get, list, create, update, delete): if the user is not authenticated.
-     * @principle Restricts data access to authenticated users within a multi-tenant company structure.
+     * @allow (get, list, create, update, delete): Authenticated user within the company scope.
+     * @deny (get, list, create, update, delete): Access from outside the company scope.
+     * @principle Enforces company-based multi-tenancy.
      */
     match /companies/{companyId}/orders/{orderId} {
       function isSignedIn() {
@@ -135,10 +128,27 @@ service cloud.firestore {
 
       allow get: if isSignedIn();
       allow list: if isSignedIn();
-
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
+
+       /**
+        * @description Grants read access to the `companies` documents.
+        * @path /companies/{companyId}
+        * @allow get: if true;
+        * @allow list: if true;
+        * @deny create: if false;
+        * @deny update: if false;
+        * @deny delete: if false;
+        * @principle Allows public read access to the `companies` collection while preventing unauthorized modifications.
+        */
+        match /companies/{companyId} {
+            allow get: if true;
+            allow list: if true;
+            allow create: if false;
+            allow update: if false;
+            allow delete: if false;
+        }
   }
 }

@@ -40,35 +40,14 @@ function CompanyProvider({ children }: { children: React.ReactNode }) {
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
   const router = useRouter();
 
   useEffect(() => {
     // If loading is finished and there's still no user, redirect to login page.
     if (!isUserLoading && !user) {
       router.replace('/');
-      return;
     }
-
-    // If a user is logged in, ensure their profile document exists.
-    if (firestore && user) {
-      const userRef = doc(firestore, 'users', user.uid);
-      getDoc(userRef).then((docSnap) => {
-        if (!docSnap.exists()) {
-          // Document doesn't exist, so create it.
-          setDoc(userRef, {
-            companyId: '1', // Default company ID
-            role: 'admin',      // Default role
-            email: user.email,
-            displayName: user.displayName || user.email,
-          }).catch((error) => {
-            console.error("Failed to create user profile document:", error);
-          });
-        }
-      });
-    }
-
-  }, [user, isUserLoading, router, firestore]);
+  }, [user, isUserLoading, router]);
 
   // While checking for the user, show a full-screen loading spinner.
   if (isUserLoading) {
