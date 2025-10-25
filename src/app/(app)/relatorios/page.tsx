@@ -27,7 +27,7 @@ import {
   ChartLegendContent,
 } from '@/components/ui/chart';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import type { Order, Driver } from '@/lib/types';
+import type { Order, Driver, Client } from '@/lib/types';
 import { collection, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDrivers } from '@/lib/actions';
@@ -72,8 +72,15 @@ export default function RelatoriosPage() {
     if (!firestore) return null;
     return query(collection(firestore, 'companies', '1', 'orders'));
   }, [firestore]);
+  
+  const clientsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'companies', '1', 'clients'));
+  }, [firestore]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+
 
   useEffect(() => {
     async function loadDrivers() {
@@ -85,9 +92,9 @@ export default function RelatoriosPage() {
     loadDrivers();
   }, []);
 
-  const { monthlyData, paymentData, totalRevenue, totalReceivable, ticketMedio, driverPerformance } = useMemo(() => {
-    if (!orders) {
-      return { monthlyData: [], paymentData: [], totalRevenue: 0, totalReceivable: 0, ticketMedio: 0, driverPerformance: [] };
+  const { monthlyData, paymentData, totalRevenue, totalReceivable, ticketMedio, driverPerformance, clientPerformance } = useMemo(() => {
+    if (!orders || !clients) {
+      return { monthlyData: [], paymentData: [], totalRevenue: 0, totalReceivable: 0, ticketMedio: 0, driverPerformance: [], clientPerformance: [] };
     }
 
     const monthly = orders.reduce((acc, order) => {
@@ -123,15 +130,27 @@ export default function RelatoriosPage() {
         }
     }).sort((a,b) => b.deliveries - a.deliveries);
 
+    const clientPerf = clients.map(client => {
+      const clientOrders = orders.filter(o => o.clientId === client.id);
+      const totalValue = clientOrders.reduce((sum, o) => sum + o.valorEntrega, 0);
+      return {
+        ...client,
+        orderCount: clientOrders.length,
+        totalValue
+      }
+    }).sort((a,b) => b.totalValue - a.totalValue);
+
+
     return { 
         monthlyData: Object.values(monthly), 
         paymentData: Object.entries(payment).map(([name, value]) => ({ name, value })),
         totalRevenue,
         totalReceivable,
         ticketMedio,
-        driverPerformance: driverPerf
+        driverPerformance: driverPerf,
+        clientPerformance: clientPerf
     };
-  }, [orders, drivers]);
+  }, [orders, drivers, clients]);
 
   const monthlyChartConfig = {
     faturamento: {
@@ -155,7 +174,7 @@ export default function RelatoriosPage() {
     } satisfies ChartConfig;
 
 
-  const isLoading = isLoadingOrders || isLoadingDrivers;
+  const isLoading = isLoadingOrders || isLoadingDrivers || isLoadingClients;
 
   if(isLoading) {
     return (
@@ -261,6 +280,35 @@ export default function RelatoriosPage() {
         </Card>
       </div>
       
+       <Card>
+          <CardHeader>
+            <CardTitle>Ranking de Clientes</CardTitle>
+            <CardDescription>Clientes que mais geram faturamento para a empresa.</CardDescription>
+          </CardHeader>
+          <CardContent>
+             <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead className="text-center">Nº de Encomendas</TableHead>
+                            <TableHead className="text-right">Valor Total</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {clientPerformance.map(client => (
+                            <TableRow key={client.id}>
+                                <TableCell className="font-medium">{client.nome}</TableCell>
+                                <TableCell className="text-center">{client.orderCount}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(client.totalValue)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+             </div>
+          </CardContent>
+      </Card>
+
       <Card>
           <CardHeader>
             <CardTitle>Performance dos Motoristas</CardTitle>
