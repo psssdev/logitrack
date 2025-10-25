@@ -193,7 +193,7 @@ export function NewOrderForm({
   };
 
   React.useEffect(() => {
-    if (origins.length > 0) {
+    if (origins.length > 0 && !form.getValues('origem')) {
       form.setValue('origem', origins[0].address);
     }
   }, [origins, form]);
@@ -255,11 +255,16 @@ export function NewOrderForm({
 
       if (submitAction === 'save-and-send') {
         const trackingLink = `${company?.linkBaseRastreio || 'https://seusite.com/rastreio/'}${trackingCode}`;
-        const messageTemplate = company?.msgRecebido || "Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}";
+        const totalValueFormatted = formatCurrency(totalValue);
+        const totalVolumes = data.items.reduce((acc, item) => acc + item.quantity, 0).toString();
+        
+        const messageTemplate = company?.msgRecebido || "Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}";
         let message = messageTemplate;
         message = message.replace('{cliente}', client.nome);
         message = message.replace('{codigo}', trackingCode);
         message = message.replace('{link}', trackingLink);
+        message = message.replace('{valor}', totalValueFormatted);
+        message = message.replace('{volumes}', totalVolumes);
 
         openWhatsApp(client.telefone, message);
 

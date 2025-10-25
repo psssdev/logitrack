@@ -15,8 +15,8 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { OrderStatusBadge } from '@/components/status-badge';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import type { Order, Company } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
@@ -30,6 +30,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -64,7 +65,9 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
 
 function ReceiptContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
+  const { user } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   const orderRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -81,24 +84,44 @@ function ReceiptContent({ orderId }: { orderId: string }) {
 
   const isLoading = isLoadingOrder || isLoadingCompany;
   
-  const handleSendNotification = () => {
-    if (!order || !company) return;
+  const handleSendNotification = async () => {
+    if (!order || !company || !firestore || !user) return;
 
     const trackingLink = `${company.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
-    let messageTemplate = company.msgRecebido || `Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}`;
+    const totalValue = formatCurrency(order.valorEntrega);
+    const totalVolumes = order.items.reduce((acc, item) => acc + item.quantity, 0).toString();
 
-    let message = messageTemplate.replace('{cliente}', order.nomeCliente)
-                                .replace('{codigo}', order.codigoRastreio)
-                                .replace('{link}', trackingLink);
+    let messageTemplate = company.msgRecebido || `Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}`;
 
-    if (order.formaPagamento === 'haver') {
-      message += `\n\n*Valor a pagar: ${formatCurrency(order.valorEntrega)}*`;
-    }
+    let message = messageTemplate
+      .replace('{cliente}', order.nomeCliente)
+      .replace('{codigo}', order.codigoRastreio)
+      .replace('{link}', trackingLink)
+      .replace('{valor}', totalValue)
+      .replace('{volumes}', totalVolumes);
     
     const cleanedPhone = order.telefone.replace(/\D/g, '');
     const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
     const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
+
+    try {
+        const messageLog = `Notificação de 'Recebido' enviada via WhatsApp em ${new Date().toLocaleString('pt-BR')}`;
+        await updateDoc(orderRef, {
+            messages: arrayUnion(messageLog),
+        });
+        toast({
+            title: "Notificação Registrada",
+            description: "O envio da notificação foi registrado no histórico da encomenda."
+        });
+    } catch(error: any) {
+        console.error("Failed to log notification:", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao registrar notificação",
+            description: error.message
+        })
+    }
     
     // After attempting to send, redirect to the main orders page
     router.push('/encomendas');
@@ -219,7 +242,7 @@ function ReceiptContent({ orderId }: { orderId: string }) {
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-4">
           <Button onClick={handleSendNotification} size="lg">
-             <svg className="mr-2" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8.35a4 4 0 1 0 -8 0c0 1.6.83 3 2 4.15C10.83 13.5 12 15 12 15s1.17-1.5 2-2.5c1.17-1.15 2-2.55 2-4.15z"></path><path d="M8.5 16.5a1.5 1.5 0 1 0 0 -3a1.5 1.5 0 0 0 0 3z"></path><path d="M15.5 16.5a1.5 1.5 0 1 0 0 -3a1.5 1.5 0 0 0 0 3z"></path><path d="M12 2a10 10 0 0 0 -10 10c0 5.5 4.5 10 10 10s10 -4.5 10 -10c0 -5.5 -4.5 -10 -10 -10z"></path></svg>
+             <WhatsApp className="mr-2" />
              Enviar Comprovante via WhatsApp
           </Button>
            <Button variant="outline" asChild>

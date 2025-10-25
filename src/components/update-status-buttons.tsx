@@ -12,6 +12,13 @@ import { triggerRevalidation } from '@/lib/actions';
 
 const COMPANY_ID = '1';
 
+const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  }
+
 const openWhatsApp = (phone: string, message: string) => {
     const cleanedPhone = phone.replace(/\D/g, '');
     const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
@@ -51,6 +58,8 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
             });
 
             const trackingLink = `${company?.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
+            const totalValue = formatCurrency(order.valorEntrega);
+            const totalVolumes = order.items.reduce((acc, item) => acc + item.quantity, 0).toString();
             let messageTemplate: string | undefined;
 
             if (status === 'EM_ROTA') {
@@ -64,6 +73,8 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
                 message = message.replace('{cliente}', order.nomeCliente);
                 message = message.replace('{codigo}', order.codigoRastreio);
                 message = message.replace('{link}', trackingLink);
+                message = message.replace('{valor}', totalValue);
+                message = message.replace('{volumes}', totalVolumes);
                 openWhatsApp(order.telefone, message);
             }
 

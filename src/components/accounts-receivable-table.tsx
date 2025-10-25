@@ -27,6 +27,13 @@ import { Timestamp } from 'firebase/firestore';
 
 const COMPANY_ID = '1';
 
+const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  }
+
 export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -58,11 +65,16 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
   };
 
   const handleSendReceipt = (order: Order) => {
-    const message = `WHATSAPP: Enviando comprovante de dívida no valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.valorEntrega)} para ${order.nomeCliente}.`;
-    console.log(message);
+    const message = `Olá, ${order.nomeCliente}. Este é um lembrete sobre o pagamento pendente da sua encomenda ${order.codigoRastreio}, no valor de ${formatCurrency(order.valorEntrega)}.`;
+    
+    const cleanedPhone = order.telefone.replace(/\D/g, '');
+    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
+    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+
     toast({
-      title: 'Ação Simulada',
-      description: 'Comprovante de dívida enviado para o cliente.',
+      title: 'Notificação de Cobrança',
+      description: 'Verifique o WhatsApp para enviar a mensagem para o cliente.',
     });
   };
   
@@ -102,10 +114,7 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
               <TableCell className="font-medium">{order.nomeCliente}</TableCell>
               <TableCell>{order.codigoRastreio}</TableCell>
               <TableCell className="text-right font-semibold">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                }).format(order.valorEntrega)}
+                {formatCurrency(order.valorEntrega)}
               </TableCell>
               <TableCell className="hidden sm:table-cell">{formatDate(order.createdAt)}</TableCell>
               <TableCell className="text-center">

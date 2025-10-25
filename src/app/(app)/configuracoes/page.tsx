@@ -72,9 +72,9 @@ export default function ConfiguracoesPage() {
   const { isUserLoading } = useUser();
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
   
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
@@ -86,7 +86,11 @@ export default function ConfiguracoesPage() {
   const [selectedState, setSelectedState] = useState('');
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
-  const [formValues, setFormValues] = useState<Partial<Company>>({});
+  const [formValues, setFormValues] = useState<Partial<Company>>({
+    nomeFantasia: 'LogiTrack',
+    codigoPrefixo: 'TR',
+    linkBaseRastreio: 'https://seusite.com/rastreio/',
+  });
   
   useEffect(() => {
     if (company) {
@@ -237,7 +241,9 @@ export default function ConfiguracoesPage() {
         estado: data.uf || formValues.estado,
       };
       setFormValues(newValues);
-      setSelectedState(data.uf);
+      if(data.uf) {
+        setSelectedState(data.uf);
+      }
 
       toast({
         title: 'Dados da Empresa Encontrados!',
@@ -267,6 +273,12 @@ export default function ConfiguracoesPage() {
             updatedAt: serverTimestamp()
         };
         
+        // Ensure required fields have a default if they are empty
+        if (!companyData.nomeFantasia) companyData.nomeFantasia = 'LogiTrack';
+        if (!companyData.codigoPrefixo) companyData.codigoPrefixo = 'TR';
+        if (!companyData.linkBaseRastreio) companyData.linkBaseRastreio = 'https://seusite.com/rastreio/';
+
+
         await setDoc(companyRef, companyData, { merge: true });
         
         await triggerRevalidation('/'); 
@@ -446,7 +458,7 @@ export default function ConfiguracoesPage() {
           <CardHeader>
             <CardTitle>Modelos de Mensagem do WhatsApp</CardTitle>
             <CardDescription>
-              Edite os textos das notificações. Use {'{cliente}'}, {'{codigo}'} e {'{link}'} como variáveis.
+              Edite os textos. Use {'{cliente}'}, {'{codigo}'}, {'{link}'}, {'{valor}'} e {'{volumes}'} como variáveis.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -454,7 +466,7 @@ export default function ConfiguracoesPage() {
               <Label htmlFor="msgRecebido">Encomenda Recebida</Label>
               <Textarea
                 id="msgRecebido"
-                placeholder="Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}"
+                placeholder="Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}"
                 value={formValues.msgRecebido || ''} onChange={handleInputChange}
               />
             </div>
