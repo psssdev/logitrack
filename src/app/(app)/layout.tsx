@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -17,7 +16,13 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +37,8 @@ import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { FirebaseClientProvider } from '@/firebase';
 import { AuthGuard } from '@/components/auth-guard';
+import { useCompany } from '@/components/providers/company-provider';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -45,18 +52,35 @@ const navItems = [
 ];
 
 
-function StaticCompanyBranding() {
-  return (
-    <Link
-      href="/"
-      className="flex items-center gap-2 font-semibold"
-    >
-      <Logo className="h-6 w-6" />
-      <span>LogiTrack</span>
-    </Link>
-  );
-}
+function CompanyBranding() {
+    const { company, isLoading } = useCompany();
 
+    if (isLoading || !company) {
+        return (
+             <div className="flex items-center gap-2 font-semibold">
+                <Skeleton className="h-6 w-6" />
+                <Skeleton className="h-6 w-24" />
+            </div>
+        )
+    }
+
+    return (
+        <Link
+            href="/"
+            className="flex items-center gap-2 font-semibold"
+        >
+            {company.logoUrl ? (
+                <Avatar className="h-6 w-6">
+                    <AvatarImage src={company.logoUrl} className="object-contain" />
+                    <AvatarFallback><Logo /></AvatarFallback>
+                </Avatar>
+            ): (
+                 <Logo className="h-6 w-6" />
+            )}
+            <span>{company.nomeFantasia || 'LogiTrack'}</span>
+        </Link>
+    );
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
@@ -74,7 +98,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {isSidebarOpen && (
               <div className="flex h-full max-h-screen flex-col gap-2">
                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                  <StaticCompanyBranding />
+                  <CompanyBranding />
                 </div>
                 <div className="flex-1">
                   <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
@@ -113,11 +137,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </SheetTrigger>
                 <SheetContent side="left" className="flex flex-col">
                   <SheetHeader>
-                    <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+                    <SheetTitle className="sr-only">
+                      Menu de Navegação
+                    </SheetTitle>
                   </SheetHeader>
                   <nav className="grid gap-2 text-lg font-medium">
                     <div className="flex items-center gap-2 text-lg font-semibold mb-4">
-                        <StaticCompanyBranding />
+                      <CompanyBranding />
                     </div>
                     <NavLinks />
                   </nav>
@@ -180,7 +206,7 @@ const UserMenu = () => {
         <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-            <Link href="/configuracoes">Configurações</Link>
+          <Link href="/configuracoes">Configurações</Link>
         </DropdownMenuItem>
         <DropdownMenuItem>Suporte</DropdownMenuItem>
         <DropdownMenuSeparator />

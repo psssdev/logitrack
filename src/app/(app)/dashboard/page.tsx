@@ -29,7 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Order } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { getDashboardSummary } from '@/lib/actions';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -38,14 +38,16 @@ export default function DashboardPage() {
     const [summary, setSummary] = useState({ total: 0, pendentes: 0, emRota: 0, entregues: 0 });
     const [loadingSummary, setLoadingSummary] = useState(true);
     const firestore = useFirestore();
+    const { isUserLoading } = useUser();
 
     const recentOrdersQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        // REMOVED orderby and limit to prevent index-related permission errors
+        if (!firestore || isUserLoading) return null;
         return query(
-            collection(firestore, 'companies', '1', 'orders')
+            collection(firestore, 'companies', '1', 'orders'),
+            orderBy('createdAt', 'desc'),
+            limit(5)
         );
-    }, [firestore]);
+    }, [firestore, isUserLoading]);
 
     const { data: recentOrders, isLoading: loadingOrders } = useCollection<Order>(recentOrdersQuery);
     
@@ -59,6 +61,7 @@ export default function DashboardPage() {
         fetchSummary();
     }, []);
 
+    const isLoading = loadingOrders || isUserLoading;
 
   return (
     <>
@@ -129,9 +132,9 @@ export default function DashboardPage() {
           <CardDescription>As 5 encomendas mais recentes registradas no sistema.</CardDescription>
         </CardHeader>
         <CardContent>
-          {loadingOrders && <Skeleton className="h-48 w-full" />}
-          {recentOrders && <RecentOrdersTable orders={(recentOrders || []).slice(0, 5)} />}
-          {!loadingOrders && recentOrders?.length === 0 && (
+          {isLoading && <Skeleton className="h-48 w-full" />}
+          {recentOrders && <RecentOrdersTable orders={recentOrders} />}
+          {!isLoading && recentOrders?.length === 0 && (
              <p className="text-sm text-muted-foreground text-center p-4">Nenhuma encomenda recente encontrada.</p>
           )}
         </CardContent>

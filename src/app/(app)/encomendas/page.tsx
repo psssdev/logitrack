@@ -18,23 +18,26 @@ import {
 } from '@/components/ui/tabs';
 import { OrderTable } from '@/components/order-table';
 import type { Order } from '@/lib/types';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function EncomendasPage() {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
   const statuses = ['TODAS', 'PENDENTE', 'EM_ROTA', 'ENTREGUE', 'CANCELADA'];
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    // REMOVED: orderBy('createdAt', 'desc') to prevent missing index error
+    if (!firestore || isUserLoading) return null;
     return query(
-      collection(firestore, 'companies', '1', 'orders')
+      collection(firestore, 'companies', '1', 'orders'),
+      orderBy('createdAt', 'desc')
     );
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
+  
+  const pageIsLoading = isLoading || isUserLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -66,9 +69,9 @@ export default function EncomendasPage() {
           ))}
         </TabsList>
         
-        {isLoading && <Card><CardContent><Skeleton className="w-full h-64 mt-4" /></CardContent></Card>}
+        {pageIsLoading && <Card><CardContent><Skeleton className="w-full h-64 mt-4" /></CardContent></Card>}
 
-        {orders && statuses.map((status) => {
+        {orders && !pageIsLoading && statuses.map((status) => {
           const filteredOrders =
             status === 'TODAS'
               ? orders
