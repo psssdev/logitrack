@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address, Origin, Company } from '@/lib/types';
+import type { NewOrder, Client, Address, Origin } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -48,6 +48,7 @@ import {
   Loader2,
   Trash2,
   PlusCircle,
+  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -90,6 +91,13 @@ const formatCurrency = (value: number | undefined) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
+const openWhatsApp = (phone: string, message: string) => {
+    const cleanedPhone = phone.replace(/\D/g, '');
+    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
+    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+}
+
 export function NewOrderForm({
   clients,
   origins,
@@ -104,6 +112,7 @@ export function NewOrderForm({
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [submitAction, setSubmitAction] = React.useState<'save' | 'save-and-send'>('save');
 
 
   const form = useForm<NewOrder>({
@@ -205,7 +214,9 @@ export function NewOrderForm({
         return;
       }
 
-      const trackingCode = `TR-${Math.random()
+      // Em um app real, o prefixo viria das configurações da empresa
+      const trackingPrefix = 'TR';
+      const trackingCode = `${trackingPrefix}-${Math.random()
         .toString(36)
         .substring(2, 8)
         .toUpperCase()}`;
@@ -238,11 +249,31 @@ export function NewOrderForm({
       await triggerRevalidation('/dashboard');
       await triggerRevalidation('/financeiro');
 
-      toast({
-        title: 'Sucesso!',
-        description: 'Encomenda criada. Agora, envie o comprovante.',
-      });
-      router.push(`/encomendas/comprovante/${newDocRef.id}`);
+      if (submitAction === 'save-and-send') {
+         // Em um app real, o link base viria das configs da empresa
+        const trackingLink = `https://seusite.com/rastreio/${trackingCode}`;
+        let messageTemplate = "Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}";
+        let message = messageTemplate;
+        message = message.replace('{cliente}', client.nome);
+        message = message.replace('{codigo}', trackingCode);
+        message = message.replace('{link}', trackingLink);
+
+        openWhatsApp(client.telefone, message);
+
+        toast({
+            title: 'Sucesso!',
+            description: 'Encomenda criada e notificação enviada.',
+        });
+
+        router.push(`/encomendas`);
+      } else {
+        toast({
+            title: 'Sucesso!',
+            description: 'Encomenda criada. Agora, revise e envie o comprovante.',
+        });
+        router.push(`/encomendas/comprovante/${newDocRef.id}`);
+      }
+
 
     } catch (error: any) {
       console.error('Error creating order:', error);
@@ -650,20 +681,28 @@ export function NewOrderForm({
             </FormItem>
           )}
         />
-        <div className="flex justify-end">
-          <Button
-            type="submit"
-            size="lg"
-            disabled={form.formState.isSubmitting}
-          >
-            {form.formState.isSubmitting ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              'Salvar Encomenda'
-            )}
-          </Button>
+        <div className="flex justify-end gap-2">
+            <Button
+                type="submit"
+                size="lg"
+                variant="outline"
+                disabled={form.formState.isSubmitting}
+                onClick={() => setSubmitAction('save-and-send')}
+            >
+                {form.formState.isSubmitting && submitAction === 'save-and-send' ? <Loader2 className="animate-spin" /> : <><Send className="mr-2" /> Salvar e Enviar</>}
+            </Button>
+            <Button
+                type="submit"
+                size="lg"
+                disabled={form.formState.isSubmitting}
+                onClick={() => setSubmitAction('save')}
+            >
+                {form.formState.isSubmitting && submitAction === 'save' ? <Loader2 className="animate-spin" /> : 'Salvar Encomenda'}
+            </Button>
         </div>
       </form>
     </Form>
   );
 }
+
+    
