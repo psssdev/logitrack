@@ -28,6 +28,7 @@ export default function EncomendasPage() {
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
+    // REMOVED: orderBy('createdAt', 'desc') to prevent missing index error
     return query(
       collection(firestore, 'companies', '1', 'orders')
     );
