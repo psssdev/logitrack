@@ -37,37 +37,27 @@ const COMPANY_ID = '1';
 export default function FinanceiroPage() {
   const firestore = useFirestore();
 
-  const accountsReceivableQuery = useMemoFirebase(() => {
+  const allOrdersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'orders'),
-      where('formaPagamento', '==', 'haver'),
-      where('pago', '==', false)
+      collection(firestore, 'companies', COMPANY_ID, 'orders')
     );
   }, [firestore]);
   
-  const { data: receivableOrders, isLoading: isLoadingReceivable } = useCollection<Order>(accountsReceivableQuery);
-  const totalReceivable = receivableOrders?.reduce((acc, order) => acc + order.valorEntrega, 0) || 0;
+  const { data: allOrders, isLoading } = useCollection<Order>(allOrdersQuery);
+  
+  const receivableOrders = allOrders?.filter(o => o.formaPagamento === 'haver' && !o.pago) || [];
+  const totalReceivable = receivableOrders.reduce((acc, order) => acc + order.valorEntrega, 0);
 
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const receivedInMonthQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    const now = new Date();
-    const startOfMonth = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1));
-    const endOfMonth = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59));
-
-    return query(
-      collection(firestore, 'companies', COMPANY_ID, 'orders'),
-      where('pago', '==', true),
-      where('createdAt', '>=', startOfMonth),
-      where('createdAt', '<=', endOfMonth)
-    );
-  }, [firestore]);
-
-  const { data: receivedOrders, isLoading: isLoadingReceived } = useCollection<Order>(receivedInMonthQuery);
-  const totalReceivedInMonth = receivedOrders?.reduce((acc, order) => acc + order.valorEntrega, 0) || 0;
-
-  const isLoading = isLoadingReceivable || isLoadingReceived;
+  const receivedOrdersInMonth = allOrders?.filter(o => {
+      const createdAtDate = o.createdAt instanceof Timestamp ? o.createdAt.toDate() : o.createdAt;
+      return o.pago && createdAtDate >= startOfMonth && createdAtDate <= endOfMonth;
+  }) || [];
+  const totalReceivedInMonth = receivedOrdersInMonth.reduce((acc, order) => acc + order.valorEntrega, 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,7 +74,7 @@ export default function FinanceiroPage() {
                 <span className="text-muted-foreground">$</span>
             </CardHeader>
             <CardContent>
-                {isLoadingReceivable ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceivable)}</div>}
+                {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceivable)}</div>}
                 <p className="text-xs text-muted-foreground">de {receivableOrders?.length || 0} encomenda(s)</p>
             </CardContent>
         </Card>
@@ -94,8 +84,8 @@ export default function FinanceiroPage() {
                 <span className="text-muted-foreground">$</span>
             </CardHeader>
             <CardContent>
-                {isLoadingReceived ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceivedInMonth)}</div>}
-                <p className="text-xs text-muted-foreground">de {receivedOrders?.length || 0} encomenda(s) quitadas</p>
+                {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceivedInMonth)}</div>}
+                <p className="text-xs text-muted-foreground">de {receivedOrdersInMonth?.length || 0} encomenda(s) quitadas</p>
             </CardContent>
         </Card>
       </div>
@@ -109,7 +99,7 @@ export default function FinanceiroPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoadingReceivable && <Skeleton className="h-64 w-full" />}
+          {isLoading && <Skeleton className="h-64 w-full" />}
           {receivableOrders && <AccountsReceivableTable orders={receivableOrders} />}
         </CardContent>
       </Card>

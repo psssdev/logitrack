@@ -30,7 +30,7 @@ import type { Order } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { getDashboardSummary } from '@/lib/actions';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, limit } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
@@ -41,9 +41,9 @@ export default function DashboardPage() {
 
     const recentOrdersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
+        // REMOVED orderby and limit to prevent index-related permission errors
         return query(
-            collection(firestore, 'companies', '1', 'orders'),
-            limit(5)
+            collection(firestore, 'companies', '1', 'orders')
         );
     }, [firestore]);
 
@@ -130,7 +130,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           {loadingOrders && <Skeleton className="h-48 w-full" />}
-          {recentOrders && <RecentOrdersTable orders={recentOrders} />}
+          {recentOrders && <RecentOrdersTable orders={(recentOrders || []).slice(0, 5)} />}
           {!loadingOrders && recentOrders?.length === 0 && (
              <p className="text-sm text-muted-foreground text-center p-4">Nenhuma encomenda recente encontrada.</p>
           )}
