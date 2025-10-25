@@ -33,11 +33,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { FirebaseClientProvider } from '@/firebase';
 import { AuthGuard } from '@/components/auth-guard';
-import { Skeleton } from '@/components/ui/skeleton';
+import { CompanyBranding } from '@/components/company-branding';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -49,19 +48,6 @@ const navItems = [
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
-
-
-function CompanyBranding() {
-    return (
-        <Link
-            href="/"
-            className="flex items-center gap-2 font-semibold"
-        >
-            <Logo className="h-6 w-6" />
-            <span>LogiTrack</span>
-        </Link>
-    );
-}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
