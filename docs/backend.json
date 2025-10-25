@@ -14,9 +14,11 @@
           "type": "string",
           "format": "email",
           "description": "The user's email address."
-        }
+        },
+        "companyId": { "type": "string" },
+        "role": { "type": "string" }
       },
-      "required": ["displayName", "email"]
+      "required": ["displayName", "email", "companyId", "role"]
     },
      "Company": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -40,15 +42,23 @@
           "type": "string",
           "description": "URL of the company's logo image."
         },
-        "whatsappProvider": {
+        "cep": { "type": "string" },
+        "logradouro": { "type": "string" },
+        "numero": { "type": "string" },
+        "bairro": { "type": "string" },
+        "cidade": { "type": "string" },
+        "estado": { "type": "string" },
+        "msgRecebido": {
           "type": "string",
-          "description": "JSON string containing the configuration for the WhatsApp provider (type, baseUrl, token, sender).",
-          "format": "json-string"
+          "description": "Template for 'order received' message."
         },
-        "msgTemplates": {
+        "msgEmRota": {
           "type": "string",
-          "description": "JSON string containing templates for WhatsApp messages (recebido, emRota, entregue).",
-          "format": "json-string"
+          "description": "Template for 'order in transit' message."
+        },
+        "msgEntregue": {
+          "type": "string",
+          "description": "Template for 'order delivered' message."
         },
         "codigoPrefixo": {
           "type": "string",
@@ -56,15 +66,15 @@
         },
         "linkBaseRastreio": {
           "type": "string",
-          "description": "Base URL for tracking links.  The tracking code will be appended to this URL.",
+          "description": "Base URL for tracking links. The tracking code will be appended to this URL.",
           "format": "uri"
-        }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": [
         "id",
         "nomeFantasia",
-        "whatsappProvider",
-        "msgTemplates",
         "codigoPrefixo",
         "linkBaseRastreio"
       ]
@@ -97,7 +107,20 @@
         },
         "valorEntrega": {
           "type": "number",
-          "description": "Delivery value."
+          "description": "Total delivery value, calculated from items."
+        },
+        "items": {
+            "type": "array",
+            "description": "Array of items in the order.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "description": { "type": "string" },
+                    "quantity": { "type": "number" },
+                    "value": { "type": "number" }
+                },
+                "required": ["description", "quantity", "value"]
+            }
         },
         "formaPagamento": {
           "type": "string",
@@ -162,6 +185,7 @@
         "origem",
         "destino",
         "valorEntrega",
+        "items",
         "formaPagamento",
         "pago",
         "status",
@@ -282,6 +306,12 @@
         "$ref": "#/entities/UserProfile"
       },
       "description": "Stores public information about a user."
+    },
+    "/companies/{companyId}": {
+        "schema": {
+            "$ref": "#/entities/Company"
+        },
+        "description": "Stores the settings and branding for a company."
     },
     "/companies/{companyId}/clients/{clientId}": {
       "schema": {

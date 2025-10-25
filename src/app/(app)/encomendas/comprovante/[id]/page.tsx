@@ -17,7 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { OrderStatusBadge } from '@/components/status-badge';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
+import type { Order, Company } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
 import {
@@ -70,14 +70,26 @@ function ReceiptContent({ orderId }: { orderId: string }) {
     if (!firestore) return null;
     return doc(firestore, 'companies', '1', 'orders', orderId);
   }, [firestore, orderId]);
+  
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'companies', '1');
+  }, [firestore]);
 
-  const { data: order, isLoading } = useDoc<Order>(orderRef);
+  const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
+
+  const isLoading = isLoadingOrder || isLoadingCompany;
   
   const handleSendNotification = () => {
-    if (!order) return;
+    if (!order || !company) return;
 
-    const trackingLink = `https://seusite.com/rastreio/${order.codigoRastreio}`;
-    let message = `Olá ${order.nomeCliente}! Sua encomenda com o código ${order.codigoRastreio} foi recebida. Acompanhe em: ${trackingLink}`;
+    const trackingLink = `${company.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
+    let messageTemplate = company.msgRecebido || `Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}`;
+
+    let message = messageTemplate.replace('{cliente}', order.nomeCliente)
+                                .replace('{codigo}', order.codigoRastreio)
+                                .replace('{link}', trackingLink);
 
     if (order.formaPagamento === 'haver') {
       message += `\n\n*Valor a pagar: ${formatCurrency(order.valorEntrega)}*`;

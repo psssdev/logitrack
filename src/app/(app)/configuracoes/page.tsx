@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -21,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useFirestore, useUser } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Company } from '@/lib/types';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -70,6 +71,13 @@ export default function ConfiguracoesPage() {
   const firestore = useFirestore();
   const { isUserLoading } = useUser();
 
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'companies', COMPANY_ID);
+  }, [firestore]);
+  
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
@@ -79,6 +87,19 @@ export default function ConfiguracoesPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const [formValues, setFormValues] = useState<Partial<Company>>({});
+  
+  useEffect(() => {
+    if (company) {
+      setFormValues(company);
+      if (company.logoUrl) {
+        setLogoPreview(company.logoUrl);
+      }
+      if (company.estado) {
+        setSelectedState(company.estado);
+      }
+    }
+  }, [company]);
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -133,7 +154,9 @@ export default function ConfiguracoesPage() {
       }
     };
 
-    fetchCities();
+    if(selectedState) {
+        fetchCities();
+    }
   }, [selectedState, toast]);
 
   const handleCepSearch = async () => {
@@ -264,7 +287,7 @@ export default function ConfiguracoesPage() {
     }
   };
 
-  if (isUserLoading) {
+  if (isUserLoading || isLoadingCompany) {
       return (
         <div className="flex flex-col gap-6">
             <Skeleton className="h-9 w-1/3" />

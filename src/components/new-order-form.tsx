@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address, Origin } from '@/lib/types';
+import type { NewOrder, Client, Address, Origin, Company } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -63,8 +63,8 @@ import {
   DialogClose,
 } from './ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { addDoc, collection, query, serverTimestamp } from 'firebase/firestore';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { addDoc, collection, doc, query, serverTimestamp } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -114,6 +114,11 @@ export function NewOrderForm({
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [submitAction, setSubmitAction] = React.useState<'save' | 'save-and-send'>('save');
 
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'companies', COMPANY_ID);
+  }, [firestore]);
+  const { data: company } = useDoc<Company>(companyRef);
 
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
@@ -214,8 +219,7 @@ export function NewOrderForm({
         return;
       }
 
-      // Em um app real, o prefixo viria das configurações da empresa
-      const trackingPrefix = 'TR';
+      const trackingPrefix = company?.codigoPrefixo || 'TR';
       const trackingCode = `${trackingPrefix}-${Math.random()
         .toString(36)
         .substring(2, 8)
@@ -250,9 +254,8 @@ export function NewOrderForm({
       await triggerRevalidation('/financeiro');
 
       if (submitAction === 'save-and-send') {
-         // Em um app real, o link base viria das configs da empresa
-        const trackingLink = `https://seusite.com/rastreio/${trackingCode}`;
-        let messageTemplate = "Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}";
+        const trackingLink = `${company?.linkBaseRastreio || 'https://seusite.com/rastreio/'}${trackingCode}`;
+        const messageTemplate = company?.msgRecebido || "Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}";
         let message = messageTemplate;
         message = message.replace('{cliente}', client.nome);
         message = message.replace('{codigo}', trackingCode);
@@ -704,5 +707,3 @@ export function NewOrderForm({
     </Form>
   );
 }
-
-    
