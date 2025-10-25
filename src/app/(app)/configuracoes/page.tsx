@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import type { Company } from '@/lib/types';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -78,24 +78,7 @@ export default function ConfiguracoesPage() {
   const [selectedState, setSelectedState] = useState('');
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
-  const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore, isUserLoading]);
-
-  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
-
   const [formValues, setFormValues] = useState<Partial<Company>>({});
-
-  useEffect(() => {
-    if (company) {
-      setFormValues({
-        ...company
-      });
-      setSelectedState(company.estado || '');
-      setLogoPreview(company.logoUrl || null);
-    }
-  }, [company]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -249,24 +232,20 @@ export default function ConfiguracoesPage() {
   };
 
   const handleSaveChanges = async () => {
-    if (!firestore || !companyRef) {
+    if (!firestore) {
         toast({ variant: 'destructive', title: 'Erro de conexão' });
         return;
     }
     setIsSaving(true);
     try {
+        const companyRef = doc(firestore, 'companies', COMPANY_ID);
         const companyData: Partial<Company> = {
             ...formValues,
             updatedAt: serverTimestamp()
         };
-        // If it's a new document, add createdAt
-        if (!company) {
-            companyData.createdAt = serverTimestamp();
-        }
-
+        
         await setDoc(companyRef, companyData, { merge: true });
         
-        // Revalidate layout and current page
         await triggerRevalidation('/'); 
 
         toast({
@@ -285,7 +264,7 @@ export default function ConfiguracoesPage() {
     }
   };
 
-  if (isLoadingCompany || isUserLoading) {
+  if (isUserLoading) {
       return (
         <div className="flex flex-col gap-6">
             <Skeleton className="h-9 w-1/3" />
