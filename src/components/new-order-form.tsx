@@ -62,8 +62,8 @@ import {
   DialogClose,
 } from './ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc } from '@/firebase';
-import { addDoc, collection, query, serverTimestamp, doc } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { addDoc, collection, query, serverTimestamp } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -112,12 +112,6 @@ export function NewOrderForm({
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
-  const companyRef = useMemoFirebase(() => {
-    if(!firestore) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore]);
-
-  const { data: company } = useDoc<Company>(companyRef);
 
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
@@ -218,7 +212,7 @@ export function NewOrderForm({
         return;
       }
 
-      const trackingCode = `${company?.codigoPrefixo || 'TR'}-${Math.random()
+      const trackingCode = `TR-${Math.random()
         .toString(36)
         .substring(2, 8)
         .toUpperCase()}`;
@@ -247,17 +241,17 @@ export function NewOrderForm({
 
       await addDoc(ordersCollection, newOrderDoc);
       
-      if(company?.msgRecebido) {
-          const trackingLink = `${company.linkBaseRastreio || 'https://rastreio.com/'}${trackingCode}`;
-          let message = company.msgRecebido;
-          message = message.replace('{cliente}', client.nome);
-          message = message.replace('{codigo}', trackingCode);
-          message = message.replace('{link}', trackingLink);
-          if (data.formaPagamento === 'haver') {
-              message += `\n\n*Valor a pagar: ${formatCurrency(totalValue)}*`;
-          }
-          openWhatsApp(client.telefone, message);
+      const trackingLink = `https://seusite.com/rastreio/${trackingCode}`;
+      const messageTemplate = "Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}";
+      
+      let message = messageTemplate;
+      message = message.replace('{cliente}', client.nome);
+      message = message.replace('{codigo}', trackingCode);
+      message = message.replace('{link}', trackingLink);
+      if (data.formaPagamento === 'haver') {
+          message += `\n\n*Valor a pagar: ${formatCurrency(totalValue)}*`;
       }
+      openWhatsApp(client.telefone, message);
 
 
       await triggerRevalidation('/encomendas');

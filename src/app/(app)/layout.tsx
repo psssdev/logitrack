@@ -37,7 +37,6 @@ import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { FirebaseClientProvider } from '@/firebase';
 import { AuthGuard } from '@/components/auth-guard';
-import { useCompany } from '@/components/providers/company-provider';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const navItems = [
@@ -53,31 +52,13 @@ const navItems = [
 
 
 function CompanyBranding() {
-    const { company, isLoading } = useCompany();
-
-    if (isLoading || !company) {
-        return (
-             <div className="flex items-center gap-2 font-semibold">
-                <Skeleton className="h-6 w-6" />
-                <Skeleton className="h-6 w-24" />
-            </div>
-        )
-    }
-
     return (
         <Link
             href="/"
             className="flex items-center gap-2 font-semibold"
         >
-            {company.logoUrl ? (
-                <Avatar className="h-6 w-6">
-                    <AvatarImage src={company.logoUrl} className="object-contain" />
-                    <AvatarFallback><Logo /></AvatarFallback>
-                </Avatar>
-            ): (
-                 <Logo className="h-6 w-6" />
-            )}
-            <span>{company.nomeFantasia || 'LogiTrack'}</span>
+            <Logo className="h-6 w-6" />
+            <span>LogiTrack</span>
         </Link>
     );
 }

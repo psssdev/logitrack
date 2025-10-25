@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -22,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Company } from '@/lib/types';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -69,6 +68,8 @@ const COMPANY_ID = '1';
 export default function ConfiguracoesPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
+
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
@@ -78,9 +79,9 @@ export default function ConfiguracoesPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
@@ -248,7 +249,7 @@ export default function ConfiguracoesPage() {
   };
 
   const handleSaveChanges = async () => {
-    if (!firestore) {
+    if (!firestore || !companyRef) {
         toast({ variant: 'destructive', title: 'Erro de conexão' });
         return;
     }
@@ -263,7 +264,7 @@ export default function ConfiguracoesPage() {
             companyData.createdAt = serverTimestamp();
         }
 
-        await setDoc(companyRef!, companyData, { merge: true });
+        await setDoc(companyRef, companyData, { merge: true });
         
         // Revalidate layout and current page
         await triggerRevalidation('/'); 
@@ -284,7 +285,7 @@ export default function ConfiguracoesPage() {
     }
   };
 
-  if (isLoadingCompany) {
+  if (isLoadingCompany || isUserLoading) {
       return (
         <div className="flex flex-col gap-6">
             <Skeleton className="h-9 w-1/3" />

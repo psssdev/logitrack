@@ -3,9 +3,9 @@
 import { useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import type { Order, Company } from '@/lib/types';
+import type { Order } from '@/lib/types';
 import { PackageCheck, Truck, Loader2 } from 'lucide-react';
-import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { triggerRevalidation } from '@/lib/actions';
 
@@ -24,12 +24,6 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
   const firestore = useFirestore();
   const { user } = useUser();
   
-  const companyRef = useMemoFirebase(() => {
-    if(!firestore) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore]);
-
-  const { data: company } = useDoc<Company>(companyRef);
 
   const handleUpdateStatus = (status: 'EM_ROTA' | 'ENTREGUE') => {
     startTransition(async () => {
@@ -50,23 +44,21 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
                 })
             });
 
-            if (company) {
-                const trackingLink = `${company.linkBaseRastreio || 'https://rastreio.com/'}${order.codigoRastreio}`;
-                let messageTemplate: string | undefined;
+            const trackingLink = `https://seusite.com/rastreio/${order.codigoRastreio}`;
+            let messageTemplate: string | undefined;
 
-                if (status === 'EM_ROTA') {
-                    messageTemplate = company.msgEmRota;
-                } else if (status === 'ENTREGUE') {
-                    messageTemplate = company.msgEntregue;
-                }
+            if (status === 'EM_ROTA') {
+                messageTemplate = "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
+            } else if (status === 'ENTREGUE') {
+                messageTemplate = "Olá {cliente}! Sua encomenda {codigo} foi entregue com sucesso! Obrigado por confiar em nossos serviços.";
+            }
 
-                if (messageTemplate) {
-                    let message = messageTemplate;
-                    message = message.replace('{cliente}', order.nomeCliente);
-                    message = message.replace('{codigo}', order.codigoRastreio);
-                    message = message.replace('{link}', trackingLink);
-                    openWhatsApp(order.telefone, message);
-                }
+            if (messageTemplate) {
+                let message = messageTemplate;
+                message = message.replace('{cliente}', order.nomeCliente);
+                message = message.replace('{codigo}', order.codigoRastreio);
+                message = message.replace('{link}', trackingLink);
+                openWhatsApp(order.telefone, message);
             }
 
 
