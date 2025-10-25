@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useTransition } from 'react';
@@ -30,13 +29,8 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   
-  const companyRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore]);
-  const { data: company } = useDoc<Company>(companyRef);
 
   const handleUpdateStatus = (status: 'EM_ROTA' | 'ENTREGUE') => {
     startTransition(async () => {
@@ -57,15 +51,15 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
                 })
             });
 
-            const trackingLink = `${company?.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
+            const trackingLink = `https://seusite.com/rastreio/${order.codigoRastreio}`; // Static URL
             const totalValue = formatCurrency(order.valorEntrega);
             const totalVolumes = order.items.reduce((acc, item) => acc + item.quantity, 0).toString();
             let messageTemplate: string | undefined;
 
             if (status === 'EM_ROTA') {
-                messageTemplate = company?.msgEmRota || "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
+                messageTemplate = "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
             } else if (status === 'ENTREGUE') {
-                messageTemplate = company?.msgEntregue || "Olá {cliente}! Sua encomenda {codigo} foi entregue com sucesso! Obrigado por confiar em nossos serviços.";
+                messageTemplate = "Olá {cliente}! Sua encomenda {codigo} foi entregue com sucesso! Obrigado por confiar em nossos serviços.";
             }
 
             if (messageTemplate) {
@@ -104,7 +98,7 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
       {order.status === 'PENDENTE' && (
         <Button
           onClick={() => handleUpdateStatus('EM_ROTA')}
-          disabled={isPending}
+          disabled={isPending || isUserLoading}
         >
           {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />}
           Marcar como Em Rota
@@ -113,7 +107,7 @@ export function UpdateStatusButtons({ order }: { order: Order }) {
       {order.status === 'EM_ROTA' && (
         <Button
           onClick={() => handleUpdateStatus('ENTREGUE')}
-          disabled={isPending}
+          disabled={isPending || isUserLoading}
           className="bg-green-600 hover:bg-green-700"
         >
           {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackageCheck className="mr-2 h-4 w-4" />}

@@ -10,34 +10,35 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { NewOrderForm } from '@/components/new-order-form';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, orderBy, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Client, Origin } from '@/lib/types';
 
 export default function NewOrderPage() {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
       collection(firestore, 'companies', '1', 'clients'),
       orderBy('nome', 'asc')
     );
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
       collection(firestore, 'companies', '1', 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
 
-  const isLoading = isLoadingClients || isLoadingOrigins;
+  const isLoading = isLoadingClients || isLoadingOrigins || isUserLoading;
 
   return (
     <div className="mx-auto grid w-full max-w-4xl flex-1 auto-rows-max gap-4">

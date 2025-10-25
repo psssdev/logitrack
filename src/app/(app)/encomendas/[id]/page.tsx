@@ -25,7 +25,7 @@ import { OrderStatusBadge } from '@/components/status-badge';
 import { OrderTimeline } from '@/components/order-timeline';
 import { RealTimeTrackingCard } from '@/components/real-time-tracking-card';
 import { UpdateStatusButtons } from '@/components/update-status-buttons';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,15 +65,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
 function OrderDetailContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return doc(firestore, 'companies', '1', 'orders', orderId);
-  }, [firestore, orderId]);
+  }, [firestore, isUserLoading, orderId]);
 
   const { data: order, isLoading } = useDoc<Order>(orderRef);
+  const pageIsLoading = isLoading || isUserLoading;
 
-  if (isLoading) {
+  if (pageIsLoading) {
     return <OrderDetailsSkeleton />;
   }
 

@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import AddressList from '@/components/address-list';
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import type { Client, Address } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,21 +29,22 @@ export default function ClientDetailPage({
 
 function ClientDetailContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return doc(firestore, 'companies', '1', 'clients', clientId);
-  }, [firestore, clientId]);
+  }, [firestore, isUserLoading, clientId]);
   
   const addressesQuery = useMemoFirebase(() => {
-      if (!firestore) return null;
-      return collection(firestore, 'companies', '1', 'clients', clientId, 'addresses');
-  }, [firestore, clientId]);
+    if (!firestore || isUserLoading) return null;
+    return collection(firestore, 'companies', '1', 'clients', clientId, 'addresses');
+  }, [firestore, isUserLoading, clientId]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: addresses, isLoading: isLoadingAddresses } = useCollection<Address>(addressesQuery);
   
-  const isLoading = isLoadingClient || isLoadingAddresses;
+  const isLoading = isLoadingClient || isLoadingAddresses || isUserLoading;
 
   const formatDate = (date: Date | Timestamp | undefined) => {
     if (!date) return 'Data desconhecida';
@@ -136,26 +137,32 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
 
 function ClientDetailSkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <div className="grid auto-rows-max items-start gap-4 lg:col-span-3">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-1/2" />
-            <Skeleton className="h-4 w-1/3" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-4 w-1/4" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-1/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-24 w-full" />
-          </CardContent>
-        </Card>
+    <div className="mx-auto grid max-w-4xl flex-1 auto-rows-max gap-4">
+       <div className="flex items-center gap-4">
+        <Skeleton className="h-7 w-7" />
+        <Skeleton className="h-6 w-1/3" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid auto-rows-max items-start gap-4 lg:col-span-3">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-1/2" />
+              <Skeleton className="h-4 w-1/3 mt-2" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-4 w-1/4" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-1/4" />
+              <Skeleton className="h-4 w-1/2 mt-2" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-24 w-full" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

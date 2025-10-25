@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -65,24 +64,24 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
 
 function ReceiptContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return doc(firestore, 'companies', '1', 'orders', orderId);
-  }, [firestore, orderId]);
+  }, [firestore, isUserLoading, orderId]);
   
   const companyRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return doc(firestore, 'companies', '1');
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
-  const isLoading = isLoadingOrder || isLoadingCompany;
+  const isLoading = isLoadingOrder || isLoadingCompany || isUserLoading;
   
   const handleSendNotification = async () => {
     if (!order || !company || !firestore || !user) return;

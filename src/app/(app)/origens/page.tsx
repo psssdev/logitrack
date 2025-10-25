@@ -24,22 +24,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, orderBy, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function OrigensPage() {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
       collection(firestore, 'companies', '1', 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: origins, isLoading } = useCollection<Origin>(originsQuery);
+  const pageIsLoading = isLoading || isUserLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,8 +65,8 @@ export default function OrigensPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading && <Skeleton className="h-48 w-full" />}
-          {origins && <OriginList origins={origins} />}
+          {pageIsLoading && <Skeleton className="h-48 w-full" />}
+          {origins && !pageIsLoading && <OriginList origins={origins} />}
         </CardContent>
       </Card>
     </div>

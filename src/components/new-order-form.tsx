@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -108,17 +107,11 @@ export function NewOrderForm({
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [submitAction, setSubmitAction] = React.useState<'save' | 'save-and-send'>('save');
-
-  const companyRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore]);
-  const { data: company } = useDoc<Company>(companyRef);
 
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
@@ -143,7 +136,7 @@ export function NewOrderForm({
   const totalValue = items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0);
 
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedClientId) return null;
+    if (!firestore || !selectedClientId || isUserLoading) return null;
     return query(
       collection(
         firestore,
@@ -154,7 +147,7 @@ export function NewOrderForm({
         'addresses'
       )
     );
-  }, [firestore, selectedClientId]);
+  }, [firestore, selectedClientId, isUserLoading]);
 
   const { data: addresses, isLoading: loadingAddresses } =
     useCollection<Address>(addressesQuery);
@@ -219,7 +212,7 @@ export function NewOrderForm({
         return;
       }
 
-      const trackingPrefix = company?.codigoPrefixo || 'TR';
+      const trackingPrefix = 'TR'; // Using static prefix as company data fetch was removed
       const trackingCode = `${trackingPrefix}-${Math.random()
         .toString(36)
         .substring(2, 8)
@@ -254,11 +247,11 @@ export function NewOrderForm({
       await triggerRevalidation('/financeiro');
 
       if (submitAction === 'save-and-send') {
-        const trackingLink = `${company?.linkBaseRastreio || 'https://seusite.com/rastreio/'}${trackingCode}`;
+        const trackingLink = `https://seusite.com/rastreio/${trackingCode}`; // Static URL
         const totalValueFormatted = formatCurrency(totalValue);
         const totalVolumes = data.items.reduce((acc, item) => acc + item.quantity, 0).toString();
         
-        const messageTemplate = company?.msgRecebido || "Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}";
+        const messageTemplate = "Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}";
         let message = messageTemplate;
         message = message.replace('{cliente}', client.nome);
         message = message.replace('{codigo}', trackingCode);

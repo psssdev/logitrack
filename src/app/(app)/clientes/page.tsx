@@ -10,22 +10,24 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import ClientTable from '@/components/client-table';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, orderBy, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ClientesPage() {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
       collection(firestore, 'companies', '1', 'clients'),
       orderBy('nome', 'asc')
     );
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: clients, isLoading } = useCollection(clientsQuery);
+  const pageIsLoading = isLoading || isUserLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,8 +52,8 @@ export default function ClientesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading && <Skeleton className="h-48 w-full" />}
-          {clients && <ClientTable clients={clients} />}
+          {pageIsLoading && <Skeleton className="h-48 w-full" />}
+          {clients && !pageIsLoading && <ClientTable clients={clients} />}
         </CardContent>
       </Card>
     </div>

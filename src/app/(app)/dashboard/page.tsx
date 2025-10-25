@@ -52,6 +52,7 @@ export default function DashboardPage() {
     const { data: recentOrders, isLoading: loadingOrders } = useCollection<Order>(recentOrdersQuery);
     
     useEffect(() => {
+        if (isUserLoading) return;
         async function fetchSummary() {
             setLoadingSummary(true);
             const summaryData = await getDashboardSummary();
@@ -59,7 +60,7 @@ export default function DashboardPage() {
             setLoadingSummary(false);
         }
         fetchSummary();
-    }, []);
+    }, [isUserLoading]);
 
     const isLoading = loadingOrders || isUserLoading;
 

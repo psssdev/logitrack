@@ -26,7 +26,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Driver, Client } from '@/lib/types';
 import { collection, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,24 +65,26 @@ const COLORS = [
 
 export default function RelatoriosPage() {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(collection(firestore, 'companies', '1', 'orders'));
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
   
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(collection(firestore, 'companies', '1', 'clients'));
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
 
   useEffect(() => {
+    if (isUserLoading) return;
     async function loadDrivers() {
       setIsLoadingDrivers(true);
       const fetchedDrivers = await getDrivers();
@@ -90,7 +92,7 @@ export default function RelatoriosPage() {
       setIsLoadingDrivers(false);
     }
     loadDrivers();
-  }, []);
+  }, [isUserLoading]);
 
   const { monthlyData, paymentData, totalRevenue, totalReceivable, ticketMedio, driverPerformance, clientPerformance } = useMemo(() => {
     if (!orders || !clients) {
@@ -174,7 +176,7 @@ export default function RelatoriosPage() {
     } satisfies ChartConfig;
 
 
-  const isLoading = isLoadingOrders || isLoadingDrivers || isLoadingClients;
+  const isLoading = isLoadingOrders || isLoadingDrivers || isLoadingClients || isUserLoading;
 
   if(isLoading) {
     return (

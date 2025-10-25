@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order } from '@/lib/types';
 import { collection, query, where, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,15 +36,17 @@ const COMPANY_ID = '1';
 
 export default function FinanceiroPage() {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
   const allOrdersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
       collection(firestore, 'companies', COMPANY_ID, 'orders')
     );
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
   
   const { data: allOrders, isLoading } = useCollection<Order>(allOrdersQuery);
+  const pageIsLoading = isLoading || isUserLoading;
   
   const receivableOrders = allOrders?.filter(o => o.formaPagamento === 'haver' && !o.pago) || [];
   const totalReceivable = receivableOrders.reduce((acc, order) => acc + order.valorEntrega, 0);
@@ -74,7 +76,7 @@ export default function FinanceiroPage() {
                 <span className="text-muted-foreground">$</span>
             </CardHeader>
             <CardContent>
-                {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceivable)}</div>}
+                {pageIsLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceivable)}</div>}
                 <p className="text-xs text-muted-foreground">de {receivableOrders?.length || 0} encomenda(s)</p>
             </CardContent>
         </Card>
@@ -84,7 +86,7 @@ export default function FinanceiroPage() {
                 <span className="text-muted-foreground">$</span>
             </CardHeader>
             <CardContent>
-                {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceivedInMonth)}</div>}
+                {pageIsLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceivedInMonth)}</div>}
                 <p className="text-xs text-muted-foreground">de {receivedOrdersInMonth?.length || 0} encomenda(s) quitadas</p>
             </CardContent>
         </Card>
@@ -99,8 +101,8 @@ export default function FinanceiroPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading && <Skeleton className="h-64 w-full" />}
-          {receivableOrders && <AccountsReceivableTable orders={receivableOrders} />}
+          {pageIsLoading && <Skeleton className="h-64 w-full" />}
+          {receivableOrders && !pageIsLoading && <AccountsReceivableTable orders={receivableOrders} />}
         </CardContent>
       </Card>
     </div>

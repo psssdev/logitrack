@@ -29,10 +29,7 @@ export default function EncomendasPage() {
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;
-    return query(
-      collection(firestore, 'companies', '1', 'orders'),
-      orderBy('createdAt', 'desc')
-    );
+    return query(collection(firestore, 'companies', '1', 'orders'));
   }, [firestore, isUserLoading]);
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);

@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Driver, Order } from '@/lib/types';
 import { getDrivers } from '@/lib/actions';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 
 
@@ -34,22 +34,21 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [isLoadingDriver, setIsLoadingDriver] = useState(true);
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
   const driverOrdersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
       collection(firestore, 'companies', '1', 'orders'),
       where('motoristaId', '==', driverId)
     );
-  }, [firestore, driverId]);
+  }, [firestore, isUserLoading, driverId]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(driverOrdersQuery);
 
   useEffect(() => {
     async function fetchDriver() {
       setIsLoadingDriver(true);
-      // In a real app, you'd fetch a single driver by ID.
-      // Here, we filter the mock data.
       const allDrivers = await getDrivers();
       const foundDriver = allDrivers.find((d) => d.id === driverId) || null;
       setDriver(foundDriver);
@@ -58,7 +57,7 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
     fetchDriver();
   }, [driverId]);
 
-  const isLoading = isLoadingDriver || isLoadingOrders;
+  const isLoading = isLoadingDriver || isLoadingOrders || isUserLoading;
   
   if (isLoading) {
     return <DriverDetailsSkeleton />;
@@ -154,27 +153,33 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
 
 function DriverDetailsSkeleton() {
   return (
-    <div className="grid gap-6 animate-pulse">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-16 w-16 rounded-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-32" />
+    <div className="mx-auto grid max-w-6xl flex-1 auto-rows-max gap-6 animate-pulse">
+       <div className="flex items-center gap-4">
+        <Skeleton className="h-7 w-7" />
+        <Skeleton className="h-6 w-1/3" />
+      </div>
+      <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-16 w-16 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-4 w-32" />
+              </div>
             </div>
-          </div>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-1/3" />
-          <Skeleton className="h-4 w-1/2" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-24 w-full" />
-        </CardContent>
-      </Card>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-1/3" />
+            <Skeleton className="h-4 w-1/2 mt-2" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
