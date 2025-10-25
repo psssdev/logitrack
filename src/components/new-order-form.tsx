@@ -90,13 +90,6 @@ const formatCurrency = (value: number | undefined) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
-const openWhatsApp = (phone: string, message: string) => {
-    const cleanedPhone = phone.replace(/\D/g, '');
-    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
-    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
-}
-
 export function NewOrderForm({
   clients,
   origins,
@@ -223,14 +216,14 @@ export function NewOrderForm({
         COMPANY_ID,
         'orders'
       );
-      const newOrderDoc = {
+      const newOrderData = {
         ...data,
         valorEntrega: totalValue,
         nomeCliente: client.nome,
         telefone: client.telefone,
         codigoRastreio: trackingCode,
         status: 'PENDENTE',
-        pago: false, // Default value
+        pago: false,
         createdAt: serverTimestamp(),
         createdBy: user.uid,
         timeline: [
@@ -239,29 +232,18 @@ export function NewOrderForm({
         messages: [],
       };
 
-      await addDoc(ordersCollection, newOrderDoc);
-      
-      const trackingLink = `https://seusite.com/rastreio/${trackingCode}`;
-      const messageTemplate = "Olá {cliente}! Sua encomenda com o código {codigo} foi recebida. Acompanhe em: {link}";
-      
-      let message = messageTemplate;
-      message = message.replace('{cliente}', client.nome);
-      message = message.replace('{codigo}', trackingCode);
-      message = message.replace('{link}', trackingLink);
-      if (data.formaPagamento === 'haver') {
-          message += `\n\n*Valor a pagar: ${formatCurrency(totalValue)}*`;
-      }
-      openWhatsApp(client.telefone, message);
-
+      const newDocRef = await addDoc(ordersCollection, newOrderData);
 
       await triggerRevalidation('/encomendas');
       await triggerRevalidation('/dashboard');
+      await triggerRevalidation('/financeiro');
 
       toast({
         title: 'Sucesso!',
-        description: 'Encomenda criada. Verifique o WhatsApp para enviar a notificação.',
+        description: 'Encomenda criada. Agora, envie o comprovante.',
       });
-      router.push('/encomendas');
+      router.push(`/encomendas/comprovante/${newDocRef.id}`);
+
     } catch (error: any) {
       console.error('Error creating order:', error);
       toast({
