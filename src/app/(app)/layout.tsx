@@ -15,7 +15,6 @@ import {
   Truck,
   MapPin,
   DollarSign,
-  Building,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -32,8 +31,7 @@ import { cn } from '@/lib/utils';
 import { Logo } from '@/components/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { FirebaseClientProvider } from '@/firebase';
-import { AuthGuard, useCompany } from '@/components/auth-guard';
-import { Skeleton } from '@/components/ui/skeleton';
+import { AuthGuard } from '@/components/auth-guard';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -47,29 +45,14 @@ const navItems = [
 ];
 
 
-function CompanyBranding() {
-  const { company, isLoading } = useCompany();
-
-  if (isLoading) {
-    return (
-        <div className="flex items-center gap-2 font-semibold">
-            <Skeleton className="h-6 w-6 rounded-sm" />
-            <Skeleton className="h-5 w-24" />
-        </div>
-    );
-  }
-
+function StaticCompanyBranding() {
   return (
     <Link
       href="/"
       className="flex items-center gap-2 font-semibold"
     >
-      {company?.logoUrl ? (
-        <img src={company.logoUrl} alt="Logo da Empresa" className="h-6 w-auto" />
-      ) : (
-        <Logo className="h-6 w-6" />
-      )}
-      <span>{company?.nomeFantasia || 'LogiTrack'}</span>
+      <Logo className="h-6 w-6" />
+      <span>LogiTrack</span>
     </Link>
   );
 }
@@ -91,7 +74,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {isSidebarOpen && (
               <div className="flex h-full max-h-screen flex-col gap-2">
                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                  <CompanyBranding />
+                  <StaticCompanyBranding />
                 </div>
                 <div className="flex-1">
                   <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
@@ -134,7 +117,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </SheetHeader>
                   <nav className="grid gap-2 text-lg font-medium">
                     <div className="flex items-center gap-2 text-lg font-semibold mb-4">
-                        <CompanyBranding />
+                        <StaticCompanyBranding />
                     </div>
                     <NavLinks />
                   </nav>
@@ -196,7 +179,9 @@ const UserMenu = () => {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>Configurações</DropdownMenuItem>
+        <DropdownMenuItem asChild>
+            <Link href="/configuracoes">Configurações</Link>
+        </DropdownMenuItem>
         <DropdownMenuItem>Suporte</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
