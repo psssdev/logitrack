@@ -288,12 +288,12 @@ export default function ConfiguracoesPage() {
             description: "Suas alterações foram salvas com sucesso.",
         });
     } catch (error: any) {
+        console.error("Error saving company settings: ", error);
         toast({
             variant: 'destructive',
             title: 'Erro ao Salvar',
             description: error.message || 'Não foi possível salvar as configurações.'
         });
-        console.error("Error saving company settings: ", error);
     } finally {
         setIsSaving(false);
     }
