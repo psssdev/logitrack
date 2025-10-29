@@ -49,6 +49,10 @@ export default function EncomendasPage() {
   const uniqueCities = useMemo(() => {
     if (!orders) return [];
     const cities = orders.map((order) => {
+      // Defensive check to prevent crash if destino is not a string
+      if (typeof order.destino !== 'string') {
+        return 'Desconhecida';
+      }
       const parts = order.destino.split(',');
       return parts.length > 2 ? parts[parts.length - 2].trim() : 'Desconhecida';
     });
@@ -112,7 +116,7 @@ export default function EncomendasPage() {
 
         {orders && !pageIsLoading && statuses.map((status) => {
             const filteredByStatus = status === 'TODAS' ? orders : orders.filter((order) => order.status === status);
-            const filteredOrders = selectedCity === 'all' ? filteredByStatus : filteredByStatus.filter(order => order.destino.includes(selectedCity));
+            const filteredOrders = selectedCity === 'all' ? filteredByStatus : filteredByStatus.filter(order => order.destino && order.destino.includes(selectedCity));
 
             return (
               <TabsContent key={status} value={status}>
