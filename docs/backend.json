@@ -26,10 +26,6 @@
       "type": "object",
       "description": "Represents a transport company using the system. Enables multi-tenant support.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the company."
-        },
         "nomeFantasia": {
           "type": "string",
           "description": "The trade name of the company."
@@ -73,7 +69,6 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": [
-        "id",
         "nomeFantasia",
         "codigoPrefixo",
         "linkBaseRastreio"
@@ -201,10 +196,6 @@
       "type": "object",
       "description": "Represents a driver.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the driver."
-        },
         "companyId": {
           "type": "string",
           "description": "Reference to Company. (Relationship: Company 1:N Driver)"
@@ -227,7 +218,6 @@
         }
       },
       "required": [
-        "id",
         "companyId",
         "nome",
         "telefone",
@@ -269,13 +259,19 @@
           "type": "string",
           "description": "The full, concatenated address of the origin."
         },
+        "logradouro": { "type": "string" },
+        "numero": { "type": "string" },
+        "bairro": { "type": "string" },
+        "cidade": { "type": "string" },
+        "estado": { "type": "string" },
+        "cep": { "type": "string" },
         "createdAt": {
           "type": "string",
           "format": "date-time",
           "description": "Timestamp of when the origin was created."
         }
       },
-      "required": ["name", "address", "createdAt"]
+      "required": ["name", "address", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "createdAt"]
     },
     "Address": {
       "title": "Address",
@@ -289,10 +285,12 @@
         "cidade": { "type": "string" },
         "estado": { "type": "string" },
         "cep": { "type": "string" },
+        "latitude": { "type": "number", "description": "The latitude of the address." },
+        "longitude": { "type": "number", "description": "The longitude of the address." },
         "fullAddress": { "type": "string", "description": "The complete, concatenated address string." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]
+      "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep"]
     },
     "AvisameCampaign": {
       "title": "Avisame Campaign",
@@ -389,3 +387,5 @@
     }
   }
 }
+
+    

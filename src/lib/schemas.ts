@@ -121,6 +121,8 @@ export const addressSchema = z.object({
   cidade: z.string().min(1, 'A cidade é obrigatória'),
   estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
   cep: z.string().min(8, 'O CEP é obrigatório'),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
   fullAddress: z.string(),
   createdAt: z.any(),
 });
@@ -179,3 +181,5 @@ export const avisameDeliverySchema = z.object({
   error: z.string().optional(),
   sentAt: z.any().optional(),
 });
+
+    

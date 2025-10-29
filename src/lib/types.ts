@@ -42,6 +42,8 @@ export type NewClientWithAddress = z.infer<typeof newClientSchema>;
 // Address types
 export type Address = Omit<z.infer<typeof addressSchema>, 'createdAt'> & {
   id: string;
+  latitude?: number;
+  longitude?: number;
   createdAt: Date | Timestamp;
 };
 export type NewAddress = z.infer<typeof newAddressFormSchema>;
@@ -83,5 +85,7 @@ export type AvisameCampaign = Omit<z.infer<typeof avisameCampaignSchema>, 'creat
 
 export type NewAvisameCampaign = z.infer<typeof avisameCampaignSchema>;
 export type AvisameDelivery = z.infer<typeof avisameDeliverySchema>;
+
+    
 
     
