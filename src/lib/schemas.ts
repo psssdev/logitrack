@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 
 export const orderStatusSchema = z.enum([
@@ -155,4 +156,32 @@ export const newOriginSchema = originSchema.omit({
   createdAt: true,
 });
 
-    
+export const avisameCampaignStatusSchema = z.enum(['scheduled', 'running', 'done', 'failed']);
+
+export const avisameCampaignSchema = z.object({
+  city: z.string().min(1, "Cidade é obrigatória"),
+  messageTemplate: z.string().min(1, "A mensagem é obrigatória"),
+  driverId: z.string().optional(),
+  includeGeo: z.boolean().default(false),
+  sendNow: z.boolean().default(true),
+  scheduledAt: z.any(),
+  status: avisameCampaignStatusSchema.default('scheduled'),
+  stats: z.object({
+    queued: z.number().default(0),
+    sent: z.number().default(0),
+    failed: z.number().default(0),
+  }).default({ queued: 0, sent: 0, failed: 0 }),
+  createdAt: z.any(),
+  createdBy: z.string(),
+});
+
+export const avisameDeliveryStatusSchema = z.enum(['queued', 'sent', 'failed']);
+
+export const avisameDeliverySchema = z.object({
+  campaignId: z.string(),
+  customerId: z.string(),
+  phone: z.string(),
+  status: avisameDeliveryStatusSchema.default('queued'),
+  error: z.string().optional(),
+  sentAt: z.any().optional(),
+});

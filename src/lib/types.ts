@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema } from './schemas';
+import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema, avisameCampaignSchema, avisameDeliverySchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
 // Base Order type from schema
@@ -66,3 +66,13 @@ export type Company = {
     createdAt?: Date | Timestamp;
     updatedAt?: Date | Timestamp;
 }
+
+// Avisame types
+export type AvisameCampaign = Omit<z.infer<typeof avisameCampaignSchema>, 'createdAt' | 'scheduledAt'> & {
+    id: string;
+    createdAt: Date | Timestamp;
+    scheduledAt: Date | Timestamp;
+};
+
+export type NewAvisameCampaign = z.infer<typeof avisameCampaignSchema>;
+export type AvisameDelivery = z.infer<typeof avisameDeliverySchema>;
