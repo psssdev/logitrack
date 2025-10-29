@@ -38,6 +38,31 @@ import {
 
 const COMPANY_ID = '1';
 
+// Snippets do plano do usuário
+function getCurrentPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('Geolocalização indisponível'));
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      timeout: 8000,
+      maximumAge: 60000
+    });
+  });
+}
+
+function mapsLink(lat: number, lng: number) {
+  return `https://maps.google.com/?q=${lat},${lng}`;
+}
+
+type Vars = Record<string, string>;
+function renderTemplate(tpl: string, vars: Vars) {
+  // Substitui placeholders e remove linhas onde o placeholder não foi preenchido
+  let result = tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] || ''));
+  result = result.split('\n').filter(line => line.trim() !== '').join('\n');
+  return result;
+}
+
+
 export default function AvisamePage() {
   const firestore = useFirestore();
   const { isUserLoading } = useUser();
@@ -45,7 +70,7 @@ export default function AvisamePage() {
 
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDriverId, setSelectedDriverId] = useState('');
-  const [message, setMessage] = useState('Olá! Estaremos fazendo entregas na sua cidade em breve. Aproveite para fazer seu pedido!');
+  const [message, setMessage] = useState('Olá, {cliente}! Estaremos com entregas em {cidade} em breve.\nMotorista: {motorista_nome} ({motorista_telefone})\n{ponto_encontro}\nSe quiser, me chama por aqui e já separo seu pedido 🙂');
   const [isSending, setIsSending] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
@@ -71,9 +96,10 @@ export default function AvisamePage() {
     if (!orders) return [];
     const cities = orders.map((order) => {
         const parts = order.destino.split(',');
+        // Tenta pegar a antepenúltima parte (cidade) de um endereço completo
         return parts.length > 2 ? parts[parts.length - 2].trim() : 'Desconhecida';
     });
-    return [...new Set(cities)].sort();
+    return [...new Set(cities)].filter(city => city !== 'Desconhecida').sort();
   }, [orders]);
 
   const handleSend = async (includeLocation: boolean) => {
@@ -97,19 +123,17 @@ export default function AvisamePage() {
       return;
     }
 
-    let locationLink = '';
+    let locationText = '';
     if (includeLocation) {
         try {
-            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
-            });
+            const position = await getCurrentPosition();
             const { latitude, longitude } = position.coords;
-            locationLink = `\n\n📍 *Ponto de Encontro/Localização Atual:*\nhttps://maps.google.com/?q=${latitude},${longitude}`;
-        } catch (error) {
+            locationText = `Ponto de encontro: ${mapsLink(latitude, longitude)}`;
+        } catch (error: any) {
             toast({
                 variant: 'destructive',
                 title: 'Erro de Localização',
-                description: 'Não foi possível obter sua localização. Verifique as permissões do navegador.'
+                description: error.message || 'Não foi possível obter sua localização. Verifique as permissões do navegador.'
             });
             setIsSending(false);
             return;
@@ -120,17 +144,15 @@ export default function AvisamePage() {
 
     let successCount = 0;
     for (const client of clientsToNotify) {
-        let personalizedMessage = message
-            .replace('{cliente}', client.nomeCliente)
-            .replace('{cidade}', selectedCity);
-
-        if (driver) {
-            personalizedMessage = personalizedMessage
-                .replace('{motorista_nome}', driver.nome)
-                .replace('{motorista_telefone}', driver.telefone);
-        }
-
-        const finalMessage = personalizedMessage + locationLink;
+        const vars: Vars = {
+            cliente: client.nomeCliente,
+            cidade: selectedCity,
+            motorista_nome: driver?.nome ?? '',
+            motorista_telefone: driver?.telefone ?? '',
+            ponto_encontro: locationText
+        };
+        
+        const finalMessage = renderTemplate(message, vars);
         
         const cleanedPhone = client.telefone.replace(/\D/g, '');
         const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
@@ -138,7 +160,7 @@ export default function AvisamePage() {
         
         window.open(url, '_blank');
         successCount++;
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 300)); // Pequena pausa
     }
     
     setIsSending(false);
@@ -168,7 +190,7 @@ export default function AvisamePage() {
                 <Megaphone className="h-4 w-4" />
                 <AlertTitle>Como Funciona?</AlertTitle>
                 <AlertDescription>
-                   Selecione uma cidade, um motorista (opcional) e escreva sua mensagem. Use {'{cliente}'}, {'{cidade}'}, {'{motorista_nome}'} e {'{motorista_telefone}'} para personalizar. Ao enviar, você poderá incluir sua localização atual.
+                   Selecione uma cidade, um motorista (opcional) e escreva sua mensagem. Use {'{cliente}'}, {'{cidade}'}, {'{motorista_nome}'}, {'{motorista_telefone}'} e {'{ponto_encontro}'} para personalizar. Ao enviar, você poderá incluir sua localização atual como ponto de encontro.
                 </AlertDescription>
             </Alert>
           {pageIsLoading ? (
@@ -212,7 +234,7 @@ export default function AvisamePage() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Escreva sua mensagem aqui..."
-                  rows={5}
+                  rows={6}
                 />
               </div>
             </div>
@@ -229,16 +251,16 @@ export default function AvisamePage() {
                         <AlertDialogHeader>
                         <AlertDialogTitle>Compartilhar Localização?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Deseja incluir um link com a sua localização atual na mensagem? Isso pode ajudar os clientes a encontrarem você.
+                            Deseja incluir sua localização atual como um ponto de encontro na mensagem?
                         </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={() => handleSend(false)} disabled={isSending}>
-                           {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Enviar sem Localização"}
+                           {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Não, Enviar sem Localização"}
                         </AlertDialogAction>
                          <AlertDialogAction onClick={() => handleSend(true)} disabled={isSending} className="bg-blue-600 hover:bg-blue-700">
-                            {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><MapPin className="mr-2 h-4 w-4" /> Sim, incluir localização</>}
+                            {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><MapPin className="mr-2 h-4 w-4" /> Sim, Incluir Localização</>}
                         </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
