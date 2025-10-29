@@ -25,12 +25,12 @@ import { Separator } from '@/components/ui/separator';
 import { OrderStatusBadge } from '@/components/status-badge';
 import { OrderTimeline } from '@/components/order-timeline';
 import { RealTimeTrackingCard } from '@/components/real-time-tracking-card';
-import { UpdateStatusButtons } from '@/components/update-status-buttons';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
+import { Badge } from '@/components/ui/badge';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -121,9 +121,6 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           <p className="text-sm text-muted-foreground">
             Criada em {formatDate(order.createdAt)}
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <UpdateStatusButtons order={order} />
         </div>
       </div>
 
@@ -224,7 +221,11 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                     </div>
                     <div className="flex items-center justify-between">
                       <dt className="text-muted-foreground">Status</dt>
-                      <dd>{order.pago ? 'Pago' : 'Pendente'}</dd>
+                      <dd>
+                        <Badge variant={order.pago ? "default" : "secondary"} className={`w-fit text-xs ${order.pago ? 'bg-green-500/90' : ''}`}>
+                          {order.pago ? 'Pago' : 'Pendente'}
+                        </Badge>
+                      </dd>
                     </div>
                   </dl>
                 </div>
@@ -312,5 +313,3 @@ function OrderDetailsSkeleton() {
     </div>
   );
 }
-
-    

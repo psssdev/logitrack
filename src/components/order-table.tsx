@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, ArrowRight } from 'lucide-react';
+import { MoreHorizontal, ArrowRight, Truck, PackageCheck, CreditCard, Send } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -25,8 +25,10 @@ import { Badge } from '@/components/ui/badge';
 import type { Order } from '@/lib/types';
 import { OrderStatusBadge } from './status-badge';
 import { Input } from './ui/input';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useFirestore, useUser } from '@/firebase';
+import { triggerRevalidation } from '@/lib/actions';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -37,9 +39,22 @@ const paymentMethodLabels: Record<string, string> = {
   haver: 'A Haver',
 };
 
+const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+const openWhatsApp = (phone: string, message: string) => {
+    const cleanedPhone = phone.replace(/\D/g, '');
+    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
+    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+}
+
 export function OrderTable({ orders }: { orders: Order[] }) {
   const [filter, setFilter] = React.useState('');
   const { toast } = useToast();
+  const firestore = useFirestore();
+  const { user } = useUser();
 
   const filteredOrders = orders.filter(
     (order) =>
@@ -48,31 +63,64 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       order.telefone.includes(filter)
   );
   
-  const formatDate = (date: Date | Timestamp) => {
-    if (date instanceof Timestamp) {
-      return date.toDate().toLocaleDateString('pt-BR');
-    }
-    return new Date(date).toLocaleDateString('pt-BR');
+  const formatDate = (date: Date | Timestamp | undefined) => {
+    if (!date) return 'N/A';
+    const d = date instanceof Timestamp ? date.toDate() : date;
+    return d.toLocaleDateString('pt-BR');
   }
 
-  const handleSendReceipt = (order: Order) => {
-    const message = `WHATSAPP: Enviando comprovante de dívida no valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.valorEntrega)} para ${order.nomeCliente}.`;
-    console.log(message);
-    toast({
-      title: 'Ação Simulada',
-      description: 'Comprovante de dívida enviado para o cliente.',
-    });
+  const handleUpdateStatus = async (order: Order, newStatus: 'EM_ROTA' | 'ENTREGUE', newPaidStatus?: boolean) => {
+    if (!firestore || !user) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não autenticado.' });
+      return;
+    }
+
+    const orderRef = doc(firestore, 'companies', '1', 'orders', order.id);
+
+    try {
+      const updateData: any = {
+        status: newStatus,
+        timeline: arrayUnion({
+          status: newStatus,
+          at: serverTimestamp(),
+          userId: user.uid,
+        }),
+      };
+
+      if (typeof newPaidStatus === 'boolean') {
+        updateData.pago = newPaidStatus;
+      }
+      
+      await updateDoc(orderRef, updateData);
+
+      // Revalidate paths to reflect changes
+      await triggerRevalidation(`/encomendas/${order.id}`);
+      await triggerRevalidation('/encomendas');
+      await triggerRevalidation('/dashboard');
+      await triggerRevalidation('/financeiro');
+
+      toast({
+        title: 'Sucesso',
+        description: `Status da encomenda atualizado para ${newStatus}.`,
+      });
+    } catch (error: any) {
+      console.error("Error updating status:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao atualizar',
+        description: error.message || 'Não foi possível atualizar o status.',
+      });
+    }
   };
 
-  const handleResendNotification = (order: Order) => {
-     const message = `WHATSAPP: Reenviando notificação de "recebido" para ${order.nomeCliente}.`;
-    console.log(message);
+  const handleSendReminder = (order: Order) => {
+    const message = `Olá, ${order.nomeCliente}. Passando para lembrar da sua pendência de ${formatCurrency(order.valorEntrega)} referente à encomenda ${order.codigoRastreio}.`;
+    openWhatsApp(order.telefone, message);
     toast({
-      title: 'Ação Simulada',
-      description: 'Notificação de recebimento reenviada para o cliente.',
+      title: 'Ação Requerida',
+      description: 'Verifique o WhatsApp para enviar a mensagem de cobrança.',
     });
   }
-
 
   return (
     <div className="flex flex-col gap-4">
@@ -114,14 +162,11 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                   <TableCell className="hidden md:table-cell">
                     <div className="flex flex-col">
                       <span>
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
-                        }).format(order.valorEntrega)}
+                        {formatCurrency(order.valorEntrega)}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {paymentMethodLabels[order.formaPagamento]}
-                      </span>
+                       <Badge variant={order.pago ? "default" : "secondary"} className={`w-fit text-xs ${order.pago ? 'bg-green-500/90' : ''}`}>
+                          {order.pago ? 'Pago' : 'Pendente'}
+                        </Badge>
                     </div>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
@@ -129,11 +174,6 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" asChild>
-                           <Link href={`/encomendas/${order.id}`}>
-                             <ArrowRight className="h-4 w-4" />
-                           </Link>
-                        </Button>
                         <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -142,20 +182,36 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
                             <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
-                            <DropdownMenuItem>Editar</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                             <DropdownMenuItem onClick={() => handleResendNotification(order)}>
-                              Reenviar Notificação
-                            </DropdownMenuItem>
-                            {order.formaPagamento === 'haver' && !order.pago && (
-                                <DropdownMenuItem onClick={() => handleSendReceipt(order)}>
-                                Enviar Comprovante de Dívida
+                            {order.status === 'PENDENTE' && (
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
+                                    <Truck className="mr-2 h-4 w-4" />
+                                    Marcar como Em Rota
                                 </DropdownMenuItem>
                             )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive">Cancelar Encomenda</DropdownMenuItem>
+                             {order.status === 'EM_ROTA' && (
+                                <>
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', true)}>
+                                        <PackageCheck className="mr-2 h-4 w-4" />
+                                        Entregue (Pago)
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', false)}>
+                                        <CreditCard className="mr-2 h-4 w-4" />
+                                        Entregue (Pendente)
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                            {order.formaPagamento === 'haver' && !order.pago && (
+                                <>
+                                 <DropdownMenuSeparator />
+                                 <DropdownMenuItem onClick={() => handleSendReminder(order)}>
+                                    <Send className="mr-2 h-4 w-4"/>
+                                    Enviar Cobrança
+                                </DropdownMenuItem>
+                                </>
+                            )}
                         </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
