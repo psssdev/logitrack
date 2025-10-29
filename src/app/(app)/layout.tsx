@@ -14,6 +14,7 @@ import {
   Truck,
   MapPin,
   DollarSign,
+  Megaphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +46,7 @@ const navItems = [
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
   { href: '/origens', icon: MapPin, label: 'Origens' },
   { href: '/financeiro', icon: DollarSign, label: 'Financeiro' },
+  { href: '/avisame', icon: Megaphone, label: 'Avisame' },
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
