@@ -111,7 +111,8 @@ export function OrderTable({ orders }: { orders: Order[] }) {
 
   const handleSendNotification = (
     order: Order,
-    type: 'payment_received' | 'payment_due' | 'cancellation'
+    type: 'payment_received' | 'payment_due' | 'cancellation',
+    paymentDetails?: { amount: number; method: string }
   ) => {
     let message = '';
     const company = { linkBaseRastreio: 'https://seusite.com/rastreio/' }; // Placeholder
@@ -124,14 +125,12 @@ export function OrderTable({ orders }: { orders: Order[] }) {
         order.codigoRastreio
       }. Agradecemos a preferência!`;
     } else if (type === 'payment_due') {
-      const pendingAmount = order.valorEntrega - (order.valorPago || 0);
-      message = `Olá, ${
-        order.nomeCliente
-      }. Sua encomenda ${
-        order.codigoRastreio
-      } foi entregue. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(
-        pendingAmount
-      )}.`;
+      const totalValue = formatCurrency(order.valorEntrega);
+      const paidValue = formatCurrency(paymentDetails?.amount || 0);
+      const pendingAmount = formatCurrency(order.valorEntrega - (order.valorPago || 0) - (paymentDetails?.amount || 0));
+
+      message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi entregue. Do valor total de ${totalValue}, foi recebido ${paidValue}, restando um saldo pendente de ${pendingAmount}.`;
+
     } else if (type === 'cancellation') {
       message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi cancelada. Caso tenha alguma dúvida, por favor, entre em contato.`;
     }
@@ -157,7 +156,18 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     setIsUpdating(orderId);
     const orderRef = doc(firestore, 'companies', '1', 'orders', orderId);
     try {
-      await updateDoc(orderRef, { pago: newPaidStatus });
+      // To mark as pending, we remove the "pago" status by setting it to false.
+      // And we reset the valorPago to 0, and clear the pagamentos array.
+      // This is a destructive action for now. A better implementation might "archive" the payments.
+      await updateDoc(orderRef, {
+        valorPago: newPaidStatus ? (filteredOrders.find(o => o.id === orderId)?.valorEntrega || 0) : 0,
+        // if we are un-paying, we should probably clear the payment history too.
+        pagamentos: newPaidStatus ? arrayUnion({
+            valor: filteredOrders.find(o => o.id === orderId)?.valorEntrega,
+            forma: 'haver',
+            data: new Date()
+        }) : []
+      });
 
       await triggerRevalidation(`/encomendas/${orderId}`);
       await triggerRevalidation('/encomendas');
@@ -236,7 +246,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
           if (finalPaidStatus === true) {
               handleSendNotification(order, 'payment_received');
           } else if (finalPaidStatus === false) {
-              handleSendNotification(order, 'payment_due');
+              handleSendNotification(order, 'payment_due', paymentDetails);
           }
       } else if (newStatus === 'CANCELADA') {
           handleSendNotification(order, 'cancellation');
@@ -332,11 +342,10 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                     <BadgeCent className="mr-2 h-4 w-4" />
                     Notificar Pagamento Recebido
                 </DropdownMenuItem>
-                {/* This is a placeholder for a future feature to revert payment */}
-                {/* <DropdownMenuItem onClick={() => handleUpdatePaymentStatus(order.id, false)}>
+                <DropdownMenuItem onClick={() => handleUpdatePaymentStatus(order.id, false)}>
                     <History className="mr-2 h-4 w-4" />
                     Marcar como Pendente
-                </DropdownMenuItem> */}
+                </DropdownMenuItem>
                 </>
             );
         } else {
