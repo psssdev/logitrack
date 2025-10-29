@@ -717,5 +717,3 @@ export function NewOrderForm({
     </Form>
   );
 }
-
-    
