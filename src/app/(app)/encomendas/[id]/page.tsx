@@ -51,6 +51,18 @@ const formatDate = (date: Date | Timestamp | undefined) => {
   });
 };
 
+const formatDateTime = (date: Date | Timestamp | undefined) => {
+    if (!date) return 'Data indisponível';
+    const d = date instanceof Timestamp ? date.toDate() : date;
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+};
+
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -101,6 +113,8 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         </div>
      )
   }
+  
+  const isPaid = (order.valorPago || 0) >= order.valorEntrega;
 
   return (
     <div className="mx-auto grid max-w-6xl flex-1 auto-rows-max gap-4">
@@ -214,20 +228,39 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                 <Separator />
                 <div className="grid gap-3">
                   <div className="font-semibold">Informações de Pagamento</div>
-                  <dl className="grid gap-3">
-                    <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">Forma</dt>
-                      <dd>{paymentMethodLabels[order.formaPagamento]}</dd>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">Status</dt>
-                      <dd>
-                        <Badge variant={order.pago ? "default" : "secondary"} className={`w-fit text-xs ${order.pago ? 'bg-green-500/90' : ''}`}>
-                          {order.pago ? 'Pago' : 'Pendente'}
-                        </Badge>
-                      </dd>
-                    </div>
-                  </dl>
+                   <dl className="grid gap-3">
+                     <div className="flex items-center justify-between">
+                        <dt className="text-muted-foreground">Status</dt>
+                        <dd>
+                            <Badge variant={isPaid ? "default" : "secondary"} className={`w-fit text-xs ${isPaid ? 'bg-green-500/90' : ''}`}>
+                            {isPaid ? 'Pago Integralmente' : `Pendente: ${formatCurrency(order.valorEntrega - (order.valorPago || 0))}`}
+                            </Badge>
+                        </dd>
+                     </div>
+                   </dl>
+                    {order.pagamentos && order.pagamentos.length > 0 && (
+                        <div className="pt-2">
+                         <h4 className="text-sm font-medium text-muted-foreground mb-2">Histórico de Pagamentos</h4>
+                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Data</TableHead>
+                                    <TableHead>Forma</TableHead>
+                                    <TableHead className="text-right">Valor</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {order.pagamentos.map((p, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell>{formatDateTime(p.data)}</TableCell>
+                                        <TableCell>{paymentMethodLabels[p.forma]}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(p.valor)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                         </Table>
+                        </div>
+                    )}
                 </div>
               </div>
             </CardContent>

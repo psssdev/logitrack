@@ -1,9 +1,19 @@
-
 'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, ArrowRight, Truck, PackageCheck, CreditCard, Send, BadgeCent, History, PackageX } from 'lucide-react';
+import {
+  MoreHorizontal,
+  ArrowRight,
+  Truck,
+  PackageCheck,
+  CreditCard,
+  Send,
+  BadgeCent,
+  History,
+  PackageX,
+  Loader2,
+} from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -20,6 +30,16 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Order } from '@/lib/types';
@@ -29,23 +49,52 @@ import { Timestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser } from '@/firebase';
 import { triggerRevalidation } from '@/lib/actions';
+import { Label } from './ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
+
+const paymentMethodLabels: Record<string, string> = {
+  pix: 'PIX',
+  dinheiro: 'Dinheiro',
+  cartao: 'Cartão',
+  boleto: 'Boleto',
+  link: 'Link',
+  haver: 'A Haver',
+};
 
 const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-}
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+};
 
 const openWhatsApp = (phone: string, message: string) => {
-    const cleanedPhone = phone.replace(/\D/g, '');
-    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
-    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
-}
+  const cleanedPhone = phone.replace(/\D/g, '');
+  const fullPhone = cleanedPhone.startsWith('55')
+    ? cleanedPhone
+    : `55${cleanedPhone}`;
+  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+};
 
 export function OrderTable({ orders }: { orders: Order[] }) {
   const [filter, setFilter] = React.useState('');
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user } = useUser();
+  const [isUpdating, setIsUpdating] = React.useState<string | null>(null);
+
+  // State for the payment dialog
+  const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
+  const [orderForPayment, setOrderForPayment] = React.useState<Order | null>(null);
+  const [amountReceived, setAmountReceived] = React.useState<number | string>('');
+  const [paymentMethod, setPaymentMethod] = React.useState<string>('dinheiro');
 
   const filteredOrders = orders.filter(
     (order) =>
@@ -53,66 +102,97 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       order.codigoRastreio.toLowerCase().includes(filter.toLowerCase()) ||
       order.telefone.includes(filter)
   );
-  
+
   const formatDate = (date: Date | Timestamp | undefined) => {
     if (!date) return 'N/A';
     const d = date instanceof Timestamp ? date.toDate() : date;
     return d.toLocaleDateString('pt-BR');
-  }
-  
-  const handleSendNotification = (order: Order, type: 'payment_received' | 'payment_due' | 'cancellation') => {
+  };
+
+  const handleSendNotification = (
+    order: Order,
+    type: 'payment_received' | 'payment_due' | 'cancellation'
+  ) => {
     let message = '';
     const company = { linkBaseRastreio: 'https://seusite.com/rastreio/' }; // Placeholder
     const trackingLink = `${company.linkBaseRastreio}${order.codigoRastreio}`;
 
     if (type === 'payment_received') {
-        message = `Olá, ${order.nomeCliente}. Recebemos o pagamento da sua encomenda ${order.codigoRastreio}. Agradecemos a preferência!`;
+      message = `Olá, ${
+        order.nomeCliente
+      }. Recebemos o pagamento da sua encomenda ${
+        order.codigoRastreio
+      }. Agradecemos a preferência!`;
     } else if (type === 'payment_due') {
-        message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi entregue. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(order.valorEntrega)}.`;
+      const pendingAmount = order.valorEntrega - (order.valorPago || 0);
+      message = `Olá, ${
+        order.nomeCliente
+      }. Sua encomenda ${
+        order.codigoRastreio
+      } foi entregue. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(
+        pendingAmount
+      )}.`;
     } else if (type === 'cancellation') {
-        message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi cancelada. Caso tenha alguma dúvida, por favor, entre em contato.`;
+      message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi cancelada. Caso tenha alguma dúvida, por favor, entre em contato.`;
     }
     openWhatsApp(order.telefone, message);
     toast({
       title: 'Ação Requerida',
       description: 'Verifique o WhatsApp para enviar a mensagem.',
     });
-  }
-  
-  const handleUpdatePaymentStatus = async (orderId: string, newPaidStatus: boolean) => {
+  };
+
+  const handleUpdatePaymentStatus = async (
+    orderId: string,
+    newPaidStatus: boolean
+  ) => {
     if (!firestore || !user) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não autenticado.' });
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Usuário não autenticado.',
+      });
       return;
     }
+    setIsUpdating(orderId);
     const orderRef = doc(firestore, 'companies', '1', 'orders', orderId);
     try {
-        await updateDoc(orderRef, { pago: newPaidStatus });
+      await updateDoc(orderRef, { pago: newPaidStatus });
 
-        await triggerRevalidation(`/encomendas/${orderId}`);
-        await triggerRevalidation('/encomendas');
-        await triggerRevalidation('/financeiro');
+      await triggerRevalidation(`/encomendas/${orderId}`);
+      await triggerRevalidation('/encomendas');
+      await triggerRevalidation('/financeiro');
 
-        toast({
-            title: 'Sucesso',
-            description: `Status de pagamento atualizado.`,
-        });
-
+      toast({
+        title: 'Sucesso',
+        description: `Status de pagamento atualizado.`,
+      });
     } catch (error: any) {
-         console.error("Error updating payment status:", error);
-         toast({
-            variant: 'destructive',
-            title: 'Erro ao atualizar pagamento',
-            description: error.message || 'Não foi possível atualizar o pagamento.',
-         });
+      console.error('Error updating payment status:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao atualizar pagamento',
+        description: error.message || 'Não foi possível atualizar o pagamento.',
+      });
+    } finally {
+        setIsUpdating(null);
     }
-  }
+  };
 
-  const handleUpdateStatus = async (order: Order, newStatus: 'EM_ROTA' | 'ENTREGUE' | 'CANCELADA', newPaidStatus?: boolean) => {
+  const handleUpdateStatus = async (
+    order: Order,
+    newStatus: 'EM_ROTA' | 'ENTREGUE' | 'CANCELADA',
+    paymentDetails?: { amount: number; method: string }
+  ) => {
     if (!firestore || !user) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não autenticado.' });
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Usuário não autenticado.',
+      });
       return;
     }
-
+    setIsUpdating(order.id);
     const orderRef = doc(firestore, 'companies', '1', 'orders', order.id);
 
     try {
@@ -124,9 +204,19 @@ export function OrderTable({ orders }: { orders: Order[] }) {
           userId: user.uid,
         }),
       };
+      
+      let finalPaidStatus: boolean | undefined = undefined;
 
-      if (typeof newPaidStatus === 'boolean') {
-        updateData.pago = newPaidStatus;
+      if (newStatus === 'ENTREGUE' && paymentDetails) {
+        const newTotalPaid = (order.valorPago || 0) + paymentDetails.amount;
+        updateData.valorPago = newTotalPaid;
+        updateData.pagamentos = arrayUnion({
+            valor: paymentDetails.amount,
+            forma: paymentDetails.method,
+            data: new Date()
+        });
+        
+        finalPaidStatus = newTotalPaid >= order.valorEntrega;
       }
       
       await updateDoc(orderRef, updateData);
@@ -136,98 +226,135 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       await triggerRevalidation('/dashboard');
       await triggerRevalidation('/financeiro');
 
-      if (newStatus === 'ENTREGUE') {
-        if (newPaidStatus === true) {
-          handleSendNotification(order, 'payment_received');
-        } else if (newPaidStatus === false) {
-          handleSendNotification(order, 'payment_due');
-        }
-      } else if (newStatus === 'CANCELADA') {
-        handleSendNotification(order, 'cancellation');
-      }
-      
       toast({
         title: 'Sucesso',
         description: `Status da encomenda atualizado para ${newStatus}.`,
       });
+      
+      // Send notifications AFTER status update
+      if (newStatus === 'ENTREGUE') {
+          if (finalPaidStatus === true) {
+              handleSendNotification(order, 'payment_received');
+          } else if (finalPaidStatus === false) {
+              handleSendNotification(order, 'payment_due');
+          }
+      } else if (newStatus === 'CANCELADA') {
+          handleSendNotification(order, 'cancellation');
+      }
 
     } catch (error: any) {
-      console.error("Error updating status:", error);
+      console.error('Error updating status:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao atualizar',
         description: error.message || 'Não foi possível atualizar o status.',
       });
+    } finally {
+      setIsUpdating(null);
     }
   };
+  
+  const openPaymentDialog = (order: Order) => {
+    const remainingAmount = order.valorEntrega - (order.valorPago || 0);
+    setOrderForPayment(order);
+    setAmountReceived(remainingAmount > 0 ? remainingAmount : 0);
+    setPaymentMethod('dinheiro');
+    setPaymentDialogOpen(true);
+  }
 
-  const renderDropdownActions = (order: Order) => {
-    const status = String(order.status).trim();
+  const handleConfirmPayment = () => {
+      if (!orderForPayment) return;
+      const parsedAmount = typeof amountReceived === 'string' ? parseFloat(amountReceived) : amountReceived;
+      if (isNaN(parsedAmount) || parsedAmount < 0) {
+          toast({ variant: 'destructive', title: 'Valor Inválido', description: 'Por favor, insira um valor de pagamento válido.'});
+          return;
+      }
+      handleUpdateStatus(orderForPayment, 'ENTREGUE', { amount: parsedAmount, method: paymentMethod });
+      setPaymentDialogOpen(false);
+  }
 
-    if (status === 'PENDENTE') {
+  function renderDropdownActions(order: Order) {
+    if (order.status === 'PENDENTE') {
       return (
         <>
-          <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
+          <DropdownMenuItem
+            onClick={() => handleUpdateStatus(order, 'EM_ROTA')}
+            disabled={isUpdating === order.id}
+          >
             <Truck className="mr-2 h-4 w-4" />
             Marcar como Em Rota
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive" onClick={() => handleUpdateStatus(order, 'CANCELADA')}>
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={() => handleUpdateStatus(order, 'CANCELADA')}
+            disabled={isUpdating === order.id}
+          >
             <PackageX className="mr-2 h-4 w-4" />
             Cancelar Encomenda
           </DropdownMenuItem>
         </>
       );
     }
-    
-    if (status === 'EM_ROTA') {
+
+    if (order.status === 'EM_ROTA') {
       return (
         <>
-          <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', true)}>
+          <DropdownMenuItem
+            onClick={() => openPaymentDialog(order)}
+            disabled={isUpdating === order.id}
+          >
             <PackageCheck className="mr-2 h-4 w-4" />
-            Marcar como Entregue (Pago)
+            Marcar como Entregue
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', false)}>
-            <CreditCard className="mr-2 h-4 w-4" />
-            Marcar como Entregue (Pendente)
-          </DropdownMenuItem>
-           <DropdownMenuSeparator />
-           <DropdownMenuItem className="text-destructive" onClick={() => handleUpdateStatus(order, 'CANCELADA')}>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={() => handleUpdateStatus(order, 'CANCELADA')}
+            disabled={isUpdating === order.id}
+          >
             <PackageX className="mr-2 h-4 w-4" />
             Cancelar Encomenda
           </DropdownMenuItem>
         </>
       );
     }
-    
-    if (status === 'ENTREGUE') {
-      if (order.pago) {
-        return (
-          <>
-            <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_received')}>
-              <BadgeCent className="mr-2 h-4 w-4"/>
-              Notificar Pagamento Recebido
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleUpdatePaymentStatus(order.id, false)}>
-              <History className="mr-2 h-4 w-4" />
-              Marcar como Pendente
-            </DropdownMenuItem>
-          </>
-        );
-      } else {
-        return (
-            <>
-                <DropdownMenuItem onClick={() => handleUpdatePaymentStatus(order.id, true)}>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Marcar como Pago
+
+    const isPaid = (order.valorPago || 0) >= order.valorEntrega;
+
+    if (order.status === 'ENTREGUE') {
+        if (isPaid) {
+            return (
+                <>
+                <DropdownMenuItem
+                    onClick={() => handleSendNotification(order, 'payment_received')}
+                >
+                    <BadgeCent className="mr-2 h-4 w-4" />
+                    Notificar Pagamento Recebido
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_due')}>
-                    <Send className="mr-2 h-4 w-4"/>
+                {/* This is a placeholder for a future feature to revert payment */}
+                {/* <DropdownMenuItem onClick={() => handleUpdatePaymentStatus(order.id, false)}>
+                    <History className="mr-2 h-4 w-4" />
+                    Marcar como Pendente
+                </DropdownMenuItem> */}
+                </>
+            );
+        } else {
+             return (
+                <>
+                <DropdownMenuItem onClick={() => openPaymentDialog(order)}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Registrar Pagamento
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    onClick={() => handleSendNotification(order, 'payment_due')}
+                >
+                    <Send className="mr-2 h-4 w-4" />
                     Enviar Cobrança
                 </DropdownMenuItem>
-            </>
-        );
-      }
+                </>
+            );
+        }
     }
     
     return null;
@@ -236,7 +363,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="w-full max-w-sm">
-        <Input 
+        <Input
           placeholder="Buscar por cliente, código ou telefone..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -259,10 +386,12 @@ export function OrderTable({ orders }: { orders: Order[] }) {
           <TableBody>
             {filteredOrders.length > 0 ? (
               filteredOrders.map((order) => (
-                <TableRow key={order.id}>
+                <TableRow key={order.id} data-state={isUpdating === order.id ? 'active' : ''} className="data-[state=active]:opacity-50">
                   <TableCell>
                     <div className="font-medium">{order.nomeCliente}</div>
-                    <div className="text-sm text-muted-foreground">{order.destino}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {order.destino}
+                    </div>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <Badge variant="outline">{order.codigoRastreio}</Badge>
@@ -270,27 +399,42 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                         <div className="inline-block cursor-pointer">
-                           <OrderStatusBadge status={order.status} />
-                         </div>
+                        <div className="inline-block cursor-pointer">
+                          <OrderStatusBadge status={order.status} />
+                        </div>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
                         <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         {renderDropdownActions(order)}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/encomendas/${order.id}`}>
+                            Ver Detalhes
+                          </Link>
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <div className="flex flex-col">
-                      <span>
-                        {formatCurrency(order.valorEntrega)}
-                      </span>
-                       <Badge variant={order.pago ? "default" : "secondary"} className={`w-fit text-xs ${order.pago ? 'bg-green-500/90' : ''}`}>
-                          {order.pago ? 'Pago' : 'Pendente'}
-                        </Badge>
+                      <span>{formatCurrency(order.valorEntrega)}</span>
+                      <Badge
+                        variant={
+                          (order.valorPago || 0) >= order.valorEntrega
+                            ? 'default'
+                            : 'secondary'
+                        }
+                        className={`w-fit text-xs ${
+                          (order.valorPago || 0) >= order.valorEntrega
+                            ? 'bg-green-500/90'
+                            : ''
+                        }`}
+                      >
+                        {(order.valorPago || 0) >= order.valorEntrega
+                          ? 'Pago'
+                          : `Pendente: ${formatCurrency(order.valorEntrega - (order.valorPago || 0))}`}
+                      </Badge>
                     </div>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
@@ -298,12 +442,12 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-2">
-                        <Button asChild variant="ghost" size="icon">
-                            <Link href={`/encomendas/${order.id}`}>
-                                <ArrowRight className="h-4 w-4" />
-                                <span className="sr-only">Ver Detalhes</span>
-                            </Link>
-                        </Button>
+                      <Button asChild variant="ghost" size="icon">
+                        <Link href={`/encomendas/${order.id}`}>
+                          <ArrowRight className="h-4 w-4" />
+                          <span className="sr-only">Ver Detalhes</span>
+                        </Link>
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -318,6 +462,59 @@ export function OrderTable({ orders }: { orders: Order[] }) {
           </TableBody>
         </Table>
       </div>
+
+       <AlertDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Registrar Pagamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Encomenda: <span className="font-mono">{orderForPayment?.codigoRastreio}</span>
+              <br />
+              Valor total: <span className="font-semibold">{formatCurrency(orderForPayment?.valorEntrega || 0)}</span>
+              <br />
+              Valor pendente: <span className="font-semibold text-destructive">{formatCurrency((orderForPayment?.valorEntrega || 0) - (orderForPayment?.valorPago || 0))}</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="amount" className="text-right">
+                Valor Recebido
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                value={amountReceived}
+                onChange={(e) => setAmountReceived(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="payment-method" className="text-right">
+                Forma
+              </Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(paymentMethodLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPayment} disabled={isUpdating !== null}>
+              {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+              Confirmar e Concluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
