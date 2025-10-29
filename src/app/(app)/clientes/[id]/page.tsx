@@ -173,3 +173,5 @@ function ClientDetailSkeleton() {
     </div>
   );
 }
+
+    

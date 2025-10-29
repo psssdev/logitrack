@@ -652,3 +652,5 @@ function RadarTab({ clients, allAddresses, isUserLoading }: { clients: Client[],
         </Card>
     )
 }
+
+    
