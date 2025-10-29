@@ -9,13 +9,14 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, ArrowRight } from 'lucide-react';
+import { PlusCircle, MoreVertical, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Driver } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const COMPANY_ID = '1';
 
@@ -68,7 +69,7 @@ export default function MotoristasPage() {
                 className="hover:shadow-md transition-shadow"
               >
                 <CardContent className="p-6 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
+                  <Link href={`/motoristas/${driver.id}`} className="flex items-center gap-4 flex-1 overflow-hidden">
                     <Avatar className="h-12 w-12">
                       <AvatarImage
                         src={`https://picsum.photos/seed/${driver.id}/80/80`}
@@ -77,7 +78,7 @@ export default function MotoristasPage() {
                       <AvatarFallback>{driver.nome.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="grid gap-1">
-                      <p className="text-lg font-medium leading-none">
+                      <p className="text-lg font-medium leading-none truncate">
                         {driver.nome}
                       </p>
                       <p className="text-sm text-muted-foreground">
@@ -89,13 +90,28 @@ export default function MotoristasPage() {
                         </Badge>
                       )}
                     </div>
-                  </div>
-                   <Button asChild variant="outline" size="icon">
-                        <Link href={`/motoristas/${driver.id}`}>
-                            <ArrowRight className="h-4 w-4" />
-                            <span className="sr-only">Ver detalhes</span>
-                        </Link>
-                    </Button>
+                  </Link>
+                   <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                           <Button asChild variant="ghost" size="icon">
+                                <span className="cursor-pointer">
+                                    <MoreVertical className="h-5 w-5" />
+                                    <span className="sr-only">Abrir menu</span>
+                                </span>
+                           </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                                <Link href={`/motoristas/${driver.id}/editar`}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Editar
+                                </Link>
+                            </DropdownMenuItem>
+                             <DropdownMenuItem className="text-destructive">
+                                Excluir
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </CardContent>
               </Card>
             ))}
