@@ -181,13 +181,10 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
   
   const handleBuildPreview = async (data: NewAvisameCampaign) => {
     setIsBuildingPreview(true);
-    const clientsToNotify = clients
-      ?.filter(client => {
-          // A simple logic to check if any order destination for this client contains the target city.
-          // This could be improved with more structured address data.
-          const clientOrders = orders?.filter(o => o.clientId === client.id);
-          return clientOrders?.some(o => o.destino.toLowerCase().includes(data.city.toLowerCase()));
-      }) || [];
+
+    const ordersInCity = orders?.filter(o => o.destino.toLowerCase().includes(data.city.toLowerCase()));
+    const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
+    const clientsToNotify = clients?.filter(c => clientIdsInCity.includes(c.id)) || [];
 
     if (clientsToNotify.length === 0) {
       toast({
@@ -522,11 +519,8 @@ function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients
             
             setSearchCity(city);
             
-            const clientsInCity = clients.filter(client => {
-                const clientOrders = orders.filter(o => o.clientId === client.id);
-                // A simple logic to check if any order destination for this client contains the target city.
-                return clientOrders.some(o => o.destino.toLowerCase().includes(city.toLowerCase()));
-            });
+            const clientIdsInCity = [...new Set(orders.filter(o => o.destino.toLowerCase().includes(city.toLowerCase())).map(o => o.clientId))];
+            const clientsInCity = clients.filter(c => clientIdsInCity.includes(c.id));
             
             setNearbyClients(clientsInCity);
             
@@ -612,5 +606,7 @@ function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients
         </Card>
     )
 }
+
+    
 
     
