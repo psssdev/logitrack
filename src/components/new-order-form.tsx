@@ -231,7 +231,7 @@ export function NewOrderForm({
         COMPANY_ID,
         'orders'
       );
-      const newOrderData = {
+      const newOrderData: any = {
         ...data,
         valorEntrega: totalValue,
         nomeCliente: client.nome,
@@ -246,6 +246,10 @@ export function NewOrderForm({
         ],
         messages: [],
       };
+
+      if (newOrderData.motoristaId === undefined) {
+        delete newOrderData.motoristaId;
+      }
 
       const newDocRef = await addDoc(ordersCollection, newOrderData);
 
@@ -652,13 +656,14 @@ export function NewOrderForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Motorista</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingDrivers}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isLoadingDrivers}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Atribuir motorista..." />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {drivers?.map((driver) => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.nome}
@@ -712,3 +717,5 @@ export function NewOrderForm({
     </Form>
   );
 }
+
+    

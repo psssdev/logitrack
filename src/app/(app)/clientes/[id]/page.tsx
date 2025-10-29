@@ -1,3 +1,4 @@
+
 'use client';
 import React from 'react';
 import Link from 'next/link';
@@ -21,9 +22,9 @@ import { Timestamp } from 'firebase/firestore';
 export default function ClientDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-    const { id } = React.use(params);
+    const { id } = params;
     return <ClientDetailContent clientId={id} />
 }
 
@@ -167,3 +168,5 @@ function ClientDetailSkeleton() {
     </div>
   );
 }
+
+    

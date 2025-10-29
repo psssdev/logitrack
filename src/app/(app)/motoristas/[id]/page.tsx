@@ -24,9 +24,9 @@ const COMPANY_ID = '1';
 export default function MotoristaDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-    const { id } = React.use(params);
+    const { id } = params;
     return <MotoristaDetailContent driverId={id} />
 }
 
@@ -176,3 +176,5 @@ function DriverDetailsSkeleton() {
     </div>
   );
 }
+
+    
