@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import {
@@ -18,10 +17,10 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Order, Driver, Client } from '@/lib/types';
-import { collection, query, orderBy } from 'firebase/firestore';
+import type { Order, Driver, Client, Address } from '@/lib/types';
+import { collection, query, orderBy, getDocs, collectionGroup } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Megaphone, Send, Search, Radar, User } from 'lucide-react';
+import { Loader2, Megaphone, Send, Search, Radar, User, MoveRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getCityFromCoordinates } from '@/lib/actions';
@@ -59,9 +58,9 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('Geolocalização indisponível'));
     navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: false,
+      enableHighAccuracy: true,
       timeout: 8000,
-      maximumAge: 60000
+      maximumAge: 0
     });
   });
 }
@@ -100,11 +99,18 @@ export default function AvisamePage() {
     if (!firestore || isUserLoading) return null;
     return query(collection(firestore, 'companies', COMPANY_ID, 'orders'));
   }, [firestore, isUserLoading]);
+  
+  const allAddressesQuery = useMemoFirebase(() => {
+    if(!firestore || isUserLoading) return null;
+    return collectionGroup(firestore, 'addresses');
+  }, [firestore, isUserLoading]);
 
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+  const { data: allAddresses, isLoading: isLoadingAddresses } = useCollection<Address>(allAddressesQuery);
 
-  const pageIsLoading = isLoadingOrders || isUserLoading || isLoadingClients;
+
+  const pageIsLoading = isLoadingOrders || isUserLoading || isLoadingClients || isLoadingAddresses;
   
   return (
     <div className="flex flex-col gap-6">
@@ -127,8 +133,8 @@ export default function AvisamePage() {
         </TabsContent>
         <TabsContent value="radar">
             <RadarTab 
-                orders={orders || []} 
                 clients={clients || []}
+                allAddresses={allAddresses || []}
                 isUserLoading={pageIsLoading}
             />
         </TabsContent>
@@ -492,36 +498,64 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
   )
 }
 
-function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients: Client[], isUserLoading: boolean }) {
+type FoundClient = Client & { distance: number };
+
+function RadarTab({ clients, allAddresses, isUserLoading }: { clients: Client[], allAddresses: Address[], isUserLoading: boolean }) {
     const { toast } = useToast();
     const [isSearching, setIsSearching] = useState(false);
-    const [nearbyClients, setNearbyClients] = useState<Client[]>([]);
-    const [searchCity, setSearchCity] = useState<string | null>(null);
+    const [nearbyClients, setNearbyClients] = useState<FoundClient[]>([]);
+    const [searchRadius, setSearchRadius] = useState<number>(5);
+
+    const haversineDistance = (coords1: {lat: number, lng: number}, coords2: {lat: number, lng: number}) => {
+        const R = 6371; // Radius of the Earth in km
+        const dLat = (coords2.lat - coords1.lat) * Math.PI / 180;
+        const dLon = (coords2.lng - coords1.lng) * Math.PI / 180;
+        const a = 
+            0.5 - Math.cos(dLat)/2 + 
+            Math.cos(coords1.lat * Math.PI / 180) * Math.cos(coords2.lat * Math.PI / 180) * 
+            (1 - Math.cos(dLon)) / 2;
+        return R * 2 * Math.asin(Math.sqrt(a));
+    };
 
     const handleSearchNearby = async () => {
         setIsSearching(true);
         setNearbyClients([]);
-        setSearchCity(null);
         
         try {
             const position = await getCurrentPosition();
-            const city = await getCityFromCoordinates(position.coords.latitude, position.coords.longitude);
+            const myLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
 
-            if (!city) {
-                toast({ variant: 'destructive', title: 'Cidade não encontrada', description: 'Não foi possível identificar sua cidade atual.' });
-                setIsSearching(false);
-                return;
+            if (!allAddresses || allAddresses.length === 0) {
+                 toast({ variant: 'destructive', title: 'Nenhum endereço', description: 'Nenhum endereço de cliente foi encontrado no sistema.' });
+                 setIsSearching(false);
+                 return;
             }
             
-            setSearchCity(city);
+            const foundClientsMap = new Map<string, FoundClient>();
+
+            allAddresses.forEach(address => {
+                if (address.latitude && address.longitude) {
+                    const clientLocation = { lat: address.latitude, lng: address.longitude };
+                    const distance = haversineDistance(myLocation, clientLocation);
+
+                    if (distance <= searchRadius) {
+                        const clientData = clients.find(c => c.id === address.clientId);
+                        if (clientData) {
+                            // If client is already found, check if this new address is closer
+                            const existingClient = foundClientsMap.get(clientData.id);
+                            if (!existingClient || distance < existingClient.distance) {
+                                foundClientsMap.set(clientData.id, { ...clientData, distance });
+                            }
+                        }
+                    }
+                }
+            });
             
-            const clientIdsInCity = [...new Set(orders.filter(o => o.destino.toLowerCase().includes(city.toLowerCase())).map(o => o.clientId))];
-            const clientsInCity = clients.filter(c => clientIdsInCity.includes(c.id));
+            const foundClients = Array.from(foundClientsMap.values()).sort((a,b) => a.distance - b.distance);
+            setNearbyClients(foundClients);
             
-            setNearbyClients(clientsInCity);
-            
-            if (clientsInCity.length === 0) {
-                 toast({ title: 'Nenhum cliente próximo', description: `Nenhum cliente encontrado na sua cidade atual: ${city}` });
+            if (foundClients.length === 0) {
+                 toast({ title: 'Nenhum cliente próximo', description: `Nenhum cliente encontrado em um raio de ${searchRadius}km.` });
             }
 
         } catch (error: any) {
@@ -553,11 +587,21 @@ function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients
                     <Radar className="h-4 w-4" />
                     <AlertTitle>Como Funciona?</AlertTitle>
                     <AlertDescription>
-                        Clique no botão abaixo para usar sua localização atual e encontrar clientes na mesma cidade. Ideal para motoristas em rota que desejam aproveitar oportunidades de novas entregas.
+                        Use sua localização para encontrar clientes em um raio de até 20km. Ideal para motoristas em rota que desejam aproveitar oportunidades de novas entregas.
                     </AlertDescription>
                 </Alert>
-                <div className="flex justify-center">
-                    <Button size="lg" onClick={handleSearchNearby} disabled={isSearching || isUserLoading}>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                     <Select onValueChange={(val) => setSearchRadius(Number(val))} defaultValue={searchRadius.toString()}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Raio de busca" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="5">Raio de 5 km</SelectItem>
+                            <SelectItem value="10">Raio de 10 km</SelectItem>
+                            <SelectItem value="20">Raio de 20 km</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button size="lg" onClick={handleSearchNearby} disabled={isSearching || isUserLoading} className="w-full sm:w-auto">
                         {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                         Buscar Clientes Próximos
                     </Button>
@@ -566,7 +610,7 @@ function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients
                 {(isSearching || nearbyClients.length > 0) && (
                     <div className="space-y-4">
                          <h3 className="text-lg font-medium text-center">
-                            {isSearching ? 'Buscando...' : `Clientes em ${searchCity}`}
+                            {isSearching ? 'Buscando...' : `Clientes encontrados (${nearbyClients.length})`}
                         </h3>
 
                         {isSearching ? (
@@ -576,22 +620,28 @@ function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients
                                 <Skeleton className="h-16 w-full" />
                             </div>
                         ) : (
-                             <ul className="space-y-3">
+                             <ul className="space-y-3 max-h-96 overflow-y-auto pr-2">
                                 {nearbyClients.map(client => (
                                     <li key={client.id} className="flex items-center justify-between rounded-md border p-4">
                                         <div className="flex items-center gap-4">
                                             <Avatar>
                                                 <AvatarFallback><User /></AvatarFallback>
                                             </Avatar>
-                                            <div>
+                                            <div className="flex-1">
                                                 <p className="font-semibold">{client.nome}</p>
                                                 <p className="text-sm text-muted-foreground">{client.telefone}</p>
                                             </div>
                                         </div>
-                                        <Button size="sm" variant="outline" onClick={() => handleNotifyClient(client)}>
-                                            <WhatsApp className="mr-2" />
-                                            Notificar
-                                        </Button>
+                                         <div className="flex items-center gap-4">
+                                             <div className="text-right">
+                                                <div className="font-bold text-lg">{client.distance.toFixed(1)} km</div>
+                                                <div className="text-xs text-muted-foreground">distância</div>
+                                             </div>
+                                            <Button size="sm" variant="outline" onClick={() => handleNotifyClient(client)}>
+                                                <WhatsApp className="mr-2" />
+                                                Notificar
+                                            </Button>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
