@@ -157,7 +157,38 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                     <Badge variant="outline">{order.codigoRastreio}</Badge>
                   </TableCell>
                   <TableCell>
-                    <OrderStatusBadge status={order.status} />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                         <div className="inline-block cursor-pointer">
+                           <OrderStatusBadge status={order.status} />
+                         </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuLabel>Mudar Status</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {order.status === 'PENDENTE' && (
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
+                                <Truck className="mr-2 h-4 w-4" />
+                                Marcar como Em Rota
+                            </DropdownMenuItem>
+                        )}
+                         {order.status === 'EM_ROTA' && (
+                            <>
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', true)}>
+                                    <PackageCheck className="mr-2 h-4 w-4" />
+                                    Entregue (Pago)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', false)}>
+                                    <CreditCard className="mr-2 h-4 w-4" />
+                                    Entregue (Pendente)
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                        {order.status !== 'PENDENTE' && order.status !== 'EM_ROTA' && (
+                            <DropdownMenuItem disabled>Sem ações de status</DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <div className="flex flex-col">
@@ -182,27 +213,8 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {order.status === 'PENDENTE' && (
-                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
-                                    <Truck className="mr-2 h-4 w-4" />
-                                    Marcar como Em Rota
-                                </DropdownMenuItem>
-                            )}
-                             {order.status === 'EM_ROTA' && (
-                                <>
-                                    <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', true)}>
-                                        <PackageCheck className="mr-2 h-4 w-4" />
-                                        Entregue (Pago)
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', false)}>
-                                        <CreditCard className="mr-2 h-4 w-4" />
-                                        Entregue (Pendente)
-                                    </DropdownMenuItem>
-                                </>
-                            )}
                             {order.formaPagamento === 'haver' && !order.pago && (
                                 <>
                                  <DropdownMenuSeparator />
