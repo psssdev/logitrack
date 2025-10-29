@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -86,7 +87,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Cliente</TableHead>
+              <TableHead>Cliente / Destino</TableHead>
               <TableHead className="hidden lg:table-cell">Código</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="hidden md:table-cell">Pagamento</TableHead>
@@ -102,7 +103,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                 <TableRow key={order.id}>
                   <TableCell>
                     <div className="font-medium">{order.nomeCliente}</div>
-                    <div className="text-sm text-muted-foreground">{order.telefone}</div>
+                    <div className="text-sm text-muted-foreground">{order.destino}</div>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <Badge variant="outline">{order.codigoRastreio}</Badge>
