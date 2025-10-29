@@ -67,7 +67,6 @@ export const orderSchema = z.object({
     .default([]),
   createdAt: z.any(), // Allow Date, string, or Firestore Timestamp
   createdBy: z.string(),
-  companyId: z.string(),
 });
 
 export const newOrderSchema = orderSchema.omit({
@@ -77,7 +76,6 @@ export const newOrderSchema = orderSchema.omit({
   messages: true,
   createdAt: true,
   createdBy: true,
-  companyId: true,
   valorPago: true,
   pagamentos: true,
   status: true,

@@ -8,7 +8,6 @@ import { Timestamp } from 'firebase/firestore';
 export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' | 'pagamentos'> & {
     id: string;
     createdAt: Date | Timestamp;
-    clientId: string;
     timeline: {
         status: OrderStatus;
         at: Date | Timestamp;

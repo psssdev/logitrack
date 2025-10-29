@@ -234,11 +234,12 @@ export function NewOrderForm({
       const newOrderData: any = {
         ...data,
         valorEntrega: totalValue,
+        valorPago: 0,
+        pagamentos: [],
         nomeCliente: client.nome,
         telefone: client.telefone,
         codigoRastreio: trackingCode,
         status: 'PENDENTE',
-        pago: false,
         createdAt: serverTimestamp(),
         createdBy: user.uid,
         timeline: [

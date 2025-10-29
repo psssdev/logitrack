@@ -66,7 +66,6 @@ export default function FinanceiroPage() {
         if(order.pagamentos && Array.isArray(order.pagamentos)) {
             order.pagamentos.forEach(p => {
                 if (!p.data) return;
-                // Ensure p.data is a Date object before comparison
                 const paymentDate = p.data instanceof Timestamp ? p.data.toDate() : new Date(p.data);
                 
                 if(paymentDate >= startOfMonth && paymentDate <= endOfMonth) {
