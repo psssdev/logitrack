@@ -63,9 +63,12 @@ export default function FinanceiroPage() {
     const monthlyPaidOrders = new Set<string>();
 
     allOrders.forEach(order => {
-        if(order.pagamentos) {
+        if(order.pagamentos && Array.isArray(order.pagamentos)) {
             order.pagamentos.forEach(p => {
+                if (!p.data) return;
+                // Ensure p.data is a Date object before comparison
                 const paymentDate = p.data instanceof Timestamp ? p.data.toDate() : new Date(p.data);
+                
                 if(paymentDate >= startOfMonth && paymentDate <= endOfMonth) {
                     monthlyTotal += p.valor;
                     monthlyPaidOrders.add(order.id);
@@ -73,7 +76,6 @@ export default function FinanceiroPage() {
             })
         }
     });
-
 
     return {
       receivableOrders: receivable,
