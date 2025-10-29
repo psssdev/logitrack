@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Order } from '@/lib/types';
 import { OrderStatusBadge } from './status-badge';
 import { Input } from './ui/input';
-import { Timestamp, doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser } from '@/firebase';
 import { triggerRevalidation } from '@/lib/actions';
@@ -58,6 +58,20 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     if (!date) return 'N/A';
     const d = date instanceof Timestamp ? date.toDate() : date;
     return d.toLocaleDateString('pt-BR');
+  }
+  
+  const handleSendNotification = (order: Order, type: 'payment_received' | 'payment_due') => {
+    let message = '';
+    if (type === 'payment_received') {
+        message = `Olá, ${order.nomeCliente}. Confirmamos o recebimento do pagamento da sua encomenda ${order.codigoRastreio}. Agradecemos a preferência!`;
+    } else { // payment_due
+        message = `Olá, ${order.nomeCliente}. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(order.valorEntrega)} referente à encomenda ${order.codigoRastreio}.`;
+    }
+    openWhatsApp(order.telefone, message);
+    toast({
+      title: 'Ação Requerida',
+      description: 'Verifique o WhatsApp para enviar a mensagem.',
+    });
   }
 
   const handleUpdateStatus = async (order: Order, newStatus: 'EM_ROTA' | 'ENTREGUE', newPaidStatus?: boolean) => {
@@ -94,6 +108,16 @@ export function OrderTable({ orders }: { orders: Order[] }) {
         title: 'Sucesso',
         description: `Status da encomenda atualizado para ${newStatus}.`,
       });
+      
+      // Automatically trigger notification on delivery confirmation
+      if (newStatus === 'ENTREGUE') {
+        if (newPaidStatus === true) {
+          handleSendNotification(order, 'payment_received');
+        } else if (newPaidStatus === false) {
+          handleSendNotification(order, 'payment_due');
+        }
+      }
+
     } catch (error: any) {
       console.error("Error updating status:", error);
       toast({
@@ -104,19 +128,6 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     }
   };
 
-  const handleSendNotification = (order: Order, type: 'payment_received' | 'payment_due') => {
-    let message = '';
-    if (type === 'payment_received') {
-        message = `Olá, ${order.nomeCliente}. Confirmamos o recebimento do pagamento da sua encomenda ${order.codigoRastreio}. Agradecemos a preferência!`;
-    } else { // payment_due
-        message = `Olá, ${order.nomeCliente}. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(order.valorEntrega)} referente à encomenda ${order.codigoRastreio}.`;
-    }
-    openWhatsApp(order.telefone, message);
-    toast({
-      title: 'Ação Requerida',
-      description: 'Verifique o WhatsApp para enviar a mensagem.',
-    });
-  }
   
   const renderDropdownActions = (order: Order) => {
     const status = String(order.status).trim();
