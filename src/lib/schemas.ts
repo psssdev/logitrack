@@ -86,7 +86,6 @@ export const driverSchema = z.object({
   telefone: z.string(),
   placa: z.string().optional(),
   ativo: z.boolean(),
-  companyId: z.string(),
 });
 
 export const clientSchema = z.object({

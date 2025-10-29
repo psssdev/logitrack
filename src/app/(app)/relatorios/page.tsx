@@ -1,3 +1,4 @@
+
 'use client';
 import { useMemo, useState, useEffect } from 'react';
 import {
@@ -28,9 +29,8 @@ import {
 } from '@/components/ui/chart';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Driver, Client } from '@/lib/types';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getDrivers } from '@/lib/actions';
 import {
   Table,
   TableBody,
@@ -39,6 +39,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+
+const COMPANY_ID = '1';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
@@ -66,8 +68,6 @@ const COLORS = [
 export default function RelatoriosPage() {
   const firestore = useFirestore();
   const { isUserLoading } = useUser();
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;
@@ -79,23 +79,18 @@ export default function RelatoriosPage() {
     return query(collection(firestore, 'companies', '1', 'clients'));
   }, [firestore, isUserLoading]);
 
+  const driversQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(collection(firestore, 'companies', COMPANY_ID, 'drivers'), orderBy('nome'));
+  }, [firestore, isUserLoading]);
+
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
-
-  useEffect(() => {
-    if (isUserLoading) return;
-    async function loadDrivers() {
-      setIsLoadingDrivers(true);
-      const fetchedDrivers = await getDrivers();
-      setDrivers(fetchedDrivers);
-      setIsLoadingDrivers(false);
-    }
-    loadDrivers();
-  }, [isUserLoading]);
 
   const { monthlyData, paymentData, totalRevenue, totalReceivable, ticketMedio, driverPerformance, clientPerformance } = useMemo(() => {
-    if (!orders || !clients) {
+    if (!orders || !clients || !drivers) {
       return { monthlyData: [], paymentData: [], totalRevenue: 0, totalReceivable: 0, ticketMedio: 0, driverPerformance: [], clientPerformance: [] };
     }
 

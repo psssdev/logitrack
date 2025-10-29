@@ -1,5 +1,5 @@
+
 'use client';
-import { getDrivers } from '@/lib/actions';
 import {
   Card,
   CardContent,
@@ -11,24 +11,25 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useEffect, useState } from 'react';
 import type { Driver } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
+
+const COMPANY_ID = '1';
 
 export default function MotoristasPage() {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
-  useEffect(() => {
-    async function fetchDrivers() {
-      setIsLoading(true);
-      const fetchedDrivers = await getDrivers();
-      setDrivers(fetchedDrivers);
-      setIsLoading(false);
-    }
-    fetchDrivers();
-  }, []);
+  const driversQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(collection(firestore, 'companies', COMPANY_ID, 'drivers'), orderBy('nome'));
+  }, [firestore, isUserLoading]);
+
+  const { data: drivers, isLoading } = useCollection<Driver>(driversQuery);
+  const pageIsLoading = isLoading || isUserLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,7 +51,7 @@ export default function MotoristasPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {isLoading &&
+          {pageIsLoading &&
             Array.from({ length: 3 }).map((_, i) => (
               <Card key={i}>
                 <CardContent className="p-6">
@@ -58,7 +59,7 @@ export default function MotoristasPage() {
                 </CardContent>
               </Card>
             ))}
-          {!isLoading &&
+          {!pageIsLoading && drivers &&
             drivers.map((driver) => (
               <Card
                 key={driver.id}

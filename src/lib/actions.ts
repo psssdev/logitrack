@@ -1,7 +1,7 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { drivers } from './data';
 import { getFirestoreServer } from '@/firebase/server-init';
 import { collection, getDocs, where, query } from 'firebase/firestore';
 
@@ -16,7 +16,8 @@ const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export async function getDrivers() {
   await delay(200);
-  return drivers;
+  // This function is now a placeholder, data should be fetched from components.
+  return [];
 }
 
 export async function triggerRevalidation(path: string) {

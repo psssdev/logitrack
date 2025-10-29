@@ -1,7 +1,7 @@
+
 'use client';
 
 import React from 'react';
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Driver, Order } from '@/lib/types';
-import { getDrivers } from '@/lib/actions';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
 
+const COMPANY_ID = '1';
 
 export default function MotoristaDetailPage({
   params,
@@ -31,10 +31,13 @@ export default function MotoristaDetailPage({
 }
 
 function MotoristaDetailContent({ driverId }: { driverId: string }) {
-  const [driver, setDriver] = useState<Driver | null>(null);
-  const [isLoadingDriver, setIsLoadingDriver] = useState(true);
   const firestore = useFirestore();
   const { isUserLoading } = useUser();
+
+  const driverRef = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'companies', COMPANY_ID, 'drivers', driverId);
+  }, [firestore, isUserLoading, driverId]);
 
   const driverOrdersQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;
@@ -44,18 +47,8 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
     );
   }, [firestore, isUserLoading, driverId]);
 
+  const { data: driver, isLoading: isLoadingDriver } = useDoc<Driver>(driverRef);
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(driverOrdersQuery);
-
-  useEffect(() => {
-    async function fetchDriver() {
-      setIsLoadingDriver(true);
-      const allDrivers = await getDrivers();
-      const foundDriver = allDrivers.find((d) => d.id === driverId) || null;
-      setDriver(foundDriver);
-      setIsLoadingDriver(false);
-    }
-    fetchDriver();
-  }, [driverId]);
 
   const isLoading = isLoadingDriver || isLoadingOrders || isUserLoading;
   

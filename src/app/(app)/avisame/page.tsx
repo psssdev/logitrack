@@ -19,12 +19,12 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Driver, Client } from '@/lib/types';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Megaphone, Send, Search, Radar, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getCityFromCoordinates, getDrivers } from '@/lib/actions';
+import { getCityFromCoordinates } from '@/lib/actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -140,8 +140,8 @@ export default function AvisamePage() {
 // TAB 1: CAMPANHA POR CIDADE
 function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Order[], clients: Client[], user: any, isUserLoading: boolean }) {
   const { toast } = useToast();
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
+  const firestore = useFirestore();
+
   const [preview, setPreview] = useState<{ clients: Client[], message: string, includeGeo: boolean } | null>(null);
   const [isBuildingPreview, setIsBuildingPreview] = useState(false);
 
@@ -158,17 +158,13 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
   });
 
   const sendNow = form.watch('sendNow');
+  
+  const driversQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(collection(firestore, 'companies', COMPANY_ID, 'drivers'), orderBy('nome'));
+  }, [firestore, isUserLoading]);
 
-  useEffect(() => {
-    async function fetchDrivers() {
-      if(isUserLoading) return;
-      setIsLoadingDrivers(true);
-      const fetchedDrivers = await getDrivers();
-      setDrivers(fetchedDrivers);
-      setIsLoadingDrivers(false);
-    }
-    fetchDrivers();
-  }, [isUserLoading]);
+  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
   const uniqueCities = useMemo(() => {
     if (!orders) return [];
@@ -213,7 +209,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
         }
     }
     
-    const driver = drivers.find(d => d.id === data.driverId);
+    const driver = drivers?.find(d => d.id === data.driverId);
     const vars: Vars = {
         cliente: '{cliente}', // keep placeholder for preview
         cidade: data.city,
@@ -309,7 +305,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Motorista (Opcional)</FormLabel>
-                           <Select onValueChange={field.onChange} defaultValue={field.value}>
+                           <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingDrivers}>
                              <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Selecione um motorista" />
@@ -317,7 +313,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                              </FormControl>
                             <SelectContent>
                               <SelectItem value="none">Nenhum</SelectItem>
-                              {drivers.map((driver) => (
+                              {drivers?.map((driver) => (
                                 <SelectItem key={driver.id} value={driver.id}>
                                   {driver.nome}
                                 </SelectItem>
@@ -606,7 +602,3 @@ function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients
         </Card>
     )
 }
-
-    
-
-    

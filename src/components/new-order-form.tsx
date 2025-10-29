@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -22,11 +23,10 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address, Origin, Company } from '@/lib/types';
+import type { NewOrder, Client, Address, Origin, Driver } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { drivers } from '@/lib/data';
 import {
   Command,
   CommandEmpty,
@@ -63,7 +63,7 @@ import {
 } from './ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { addDoc, collection, doc, query, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, query, serverTimestamp, orderBy } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -134,6 +134,13 @@ export function NewOrderForm({
   const selectedClientId = form.watch('clientId');
   const items = form.watch('items');
   const totalValue = items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0);
+
+  const driversQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(collection(firestore, 'companies', COMPANY_ID, 'drivers'), orderBy('nome'));
+  }, [firestore, isUserLoading]);
+
+  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
   const addressesQuery = useMemoFirebase(() => {
     if (!firestore || !selectedClientId || isUserLoading) return null;
@@ -645,14 +652,14 @@ export function NewOrderForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Motorista</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingDrivers}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Atribuir motorista..." />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {drivers.map((driver) => (
+                    {drivers?.map((driver) => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.nome}
                       </SelectItem>

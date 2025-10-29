@@ -201,14 +201,6 @@
       "type": "object",
       "description": "Represents a driver.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the driver."
-        },
-        "companyId": {
-          "type": "string",
-          "description": "Reference to Company. (Relationship: Company 1:N Driver)"
-        },
         "nome": {
           "type": "string",
           "description": "Driver's name."
@@ -227,8 +219,6 @@
         }
       },
       "required": [
-        "id",
-        "companyId",
         "nome",
         "telefone",
         "placa",
@@ -293,6 +283,44 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]
+    },
+    "AvisameCampaign": {
+      "title": "Avisame Campaign",
+      "description": "Represents a bulk notification campaign.",
+      "type": "object",
+      "properties": {
+        "city": { "type": "string" },
+        "messageTemplate": { "type": "string" },
+        "driverId": { "type": "string" },
+        "includeGeo": { "type": "boolean" },
+        "scheduledAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["scheduled", "running", "done", "failed"] },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "queued": { "type": "number" },
+            "sent": { "type": "number" },
+            "failed": { "type": "number" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["city", "messageTemplate", "scheduledAt", "status", "createdAt", "createdBy"]
+    },
+    "AvisameDelivery": {
+      "title": "Avisame Delivery",
+      "description": "Represents a single message delivery in a campaign.",
+      "type": "object",
+      "properties": {
+        "campaignId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["queued", "sent", "failed"] },
+        "error": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["campaignId", "customerId", "phone", "status"]
     }
   },
   "auth": {
@@ -312,6 +340,12 @@
             "$ref": "#/entities/Company"
         },
         "description": "Stores the settings and branding for a company."
+    },
+    "/companies/{companyId}/drivers/{driverId}": {
+        "schema": {
+            "$ref": "#/entities/Driver"
+        },
+        "description": "Stores driver information for a specific company."
     },
     "/companies/{companyId}/clients/{clientId}": {
       "schema": {
@@ -336,6 +370,18 @@
         "$ref": "#/entities/Order"
       },
       "description": "Stores all orders for a specific company."
+    },
+    "/companies/{companyId}/avisame_campaigns/{campaignId}": {
+        "schema": {
+            "$ref": "#/entities/AvisameCampaign"
+        },
+        "description": "Stores all Avisame campaigns for a company."
+    },
+    "/companies/{companyId}/avisame_deliveries/{deliveryId}": {
+        "schema": {
+            "$ref": "#/entities/AvisameDelivery"
+        },
+        "description": "Stores all individual delivery statuses for Avisame campaigns."
     }
   }
 }
