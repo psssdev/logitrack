@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, ArrowRight, Truck, PackageCheck, CreditCard, Send, BadgeCent } from 'lucide-react';
+import { MoreHorizontal, ArrowRight, Truck, PackageCheck, CreditCard, Send, BadgeCent, History } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -62,16 +62,47 @@ export function OrderTable({ orders }: { orders: Order[] }) {
   
   const handleSendNotification = (order: Order, type: 'payment_received' | 'payment_due') => {
     let message = '';
+    const company = { linkBaseRastreio: 'https://seusite.com/rastreio/' }; // Placeholder
+    const trackingLink = `${company.linkBaseRastreio}${order.codigoRastreio}`;
+
     if (type === 'payment_received') {
-        message = `Olá, ${order.nomeCliente}. Confirmamos o recebimento do pagamento da sua encomenda ${order.codigoRastreio}. Agradecemos a preferência!`;
+        message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi marcada como entregue e paga. Agradecemos a preferência!`;
     } else { // payment_due
-        message = `Olá, ${order.nomeCliente}. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(order.valorEntrega)} referente à encomenda ${order.codigoRastreio}.`;
+        message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi entregue. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(order.valorEntrega)}.`;
     }
     openWhatsApp(order.telefone, message);
     toast({
       title: 'Ação Requerida',
       description: 'Verifique o WhatsApp para enviar a mensagem.',
     });
+  }
+  
+  const handleUpdatePaymentStatus = async (orderId: string, newPaidStatus: boolean) => {
+    if (!firestore || !user) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não autenticado.' });
+      return;
+    }
+    const orderRef = doc(firestore, 'companies', '1', 'orders', orderId);
+    try {
+        await updateDoc(orderRef, { pago: newPaidStatus });
+
+        await triggerRevalidation(`/encomendas/${orderId}`);
+        await triggerRevalidation('/encomendas');
+        await triggerRevalidation('/financeiro');
+
+        toast({
+            title: 'Sucesso',
+            description: `Status de pagamento atualizado.`,
+        });
+
+    } catch (error: any) {
+         console.error("Error updating payment status:", error);
+         toast({
+            variant: 'destructive',
+            title: 'Erro ao atualizar pagamento',
+            description: error.message || 'Não foi possível atualizar o pagamento.',
+         });
+    }
   }
 
   const handleUpdateStatus = async (order: Order, newStatus: 'EM_ROTA' | 'ENTREGUE', newPaidStatus?: boolean) => {
@@ -98,7 +129,6 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       
       await updateDoc(orderRef, updateData);
 
-      // Revalidate paths to reflect changes
       await triggerRevalidation(`/encomendas/${order.id}`);
       await triggerRevalidation('/encomendas');
       await triggerRevalidation('/dashboard');
@@ -109,7 +139,6 @@ export function OrderTable({ orders }: { orders: Order[] }) {
         description: `Status da encomenda atualizado para ${newStatus}.`,
       });
       
-      // Automatically trigger notification on delivery confirmation
       if (newStatus === 'ENTREGUE') {
         if (newPaidStatus === true) {
           handleSendNotification(order, 'payment_received');
@@ -159,10 +188,16 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     if (status === 'ENTREGUE') {
       if (order.pago) {
         return (
-          <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_received')}>
-            <BadgeCent className="mr-2 h-4 w-4"/>
-            Notificar Pagamento Recebido
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_received')}>
+                <BadgeCent className="mr-2 h-4 w-4"/>
+                Notificar Pagamento Recebido
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleUpdatePaymentStatus(order.id, false)}>
+                <History className="mr-2 h-4 w-4" />
+                Marcar como Pendente
+            </DropdownMenuItem>
+          </>
         );
       } else {
         return (
