@@ -1,6 +1,7 @@
 
 'use client'
 
+import React from 'react';
 import { getFirestoreServer } from '@/lib/actions-public';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,17 +50,19 @@ async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | n
 export default function RastreioPage({
   params,
 }: {
-  params: { codigo: string };
+  params: Promise<{ codigo: string }>;
 }) {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  
+  const resolvedParams = React.use(params);
 
   useEffect(() => {
     async function fetchOrder() {
         setLoading(true);
         setError(false);
-        const fetchedOrder = await getOrderByTrackingCode(params.codigo);
+        const fetchedOrder = await getOrderByTrackingCode(resolvedParams.codigo);
         if(fetchedOrder) {
             setOrder(fetchedOrder);
         } else {
@@ -68,7 +71,7 @@ export default function RastreioPage({
         setLoading(false);
     }
     fetchOrder();
-  }, [params.codigo]);
+  }, [resolvedParams.codigo]);
 
   if(loading) {
     return <RastreioSkeleton />
@@ -86,7 +89,7 @@ export default function RastreioPage({
             <CardDescription>
               O código de rastreio{' '}
               <strong className="font-mono text-foreground">
-                {params.codigo.toUpperCase()}
+                {resolvedParams.codigo.toUpperCase()}
               </strong>{' '}
               não foi encontrado em nosso sistema.
             </CardDescription>

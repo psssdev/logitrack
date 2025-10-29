@@ -22,9 +22,9 @@ import { Timestamp } from 'firebase/firestore';
 export default function ClientDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-    const { id } = params;
+    const { id } = React.use(params);
     return <ClientDetailContent clientId={id} />
 }
 

@@ -21,9 +21,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function NewAddressPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  const { id } = React.use(params);
   return <NewAddressContent clientId={id} />
 }
 

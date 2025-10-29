@@ -58,8 +58,8 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
   return <OrderDetailContent orderId={id} />;
 }
 
