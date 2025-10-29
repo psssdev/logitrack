@@ -162,13 +162,13 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                       <DropdownMenuContent align="start">
                         <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        {order.status === 'PENDENTE' && (
+                        
+                        {order.status === 'PENDENTE' ? (
                             <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
                                 <Truck className="mr-2 h-4 w-4" />
                                 Marcar como Em Rota
                             </DropdownMenuItem>
-                        )}
-                         {order.status === 'EM_ROTA' && (
+                        ) : order.status === 'EM_ROTA' ? (
                             <>
                                 <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', true)}>
                                     <PackageCheck className="mr-2 h-4 w-4" />
@@ -179,8 +179,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                                     Marcar como Entregue (Pendente)
                                 </DropdownMenuItem>
                             </>
-                        )}
-                        {order.status === 'ENTREGUE' && (
+                        ) : order.status === 'ENTREGUE' ? (
                            <>
                              {order.pago ? (
                                 <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_received')}>
@@ -194,7 +193,8 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                                 </DropdownMenuItem>
                              )}
                            </>
-                        )}
+                        ) : null}
+
                          <DropdownMenuSeparator />
                          <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
                       </DropdownMenuContent>
