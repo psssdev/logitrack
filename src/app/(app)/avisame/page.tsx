@@ -19,12 +19,12 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Driver, Client } from '@/lib/types';
-import { collection, query, serverTimestamp } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Megaphone, Send, MapPin, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { Loader2, Megaphone, Send, MapPin, Calendar, Clock, AlertCircle, Radar, User, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getDrivers } from '@/lib/actions';
+import { getCityFromCoordinates, getDrivers } from '@/lib/actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +48,9 @@ import { format } from 'date-fns';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { scheduleAvisameCampaign } from '@/lib/avisame-actions';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { WhatsApp } from '@/components/ui/icons';
 
 const COMPANY_ID = '1';
 
@@ -67,6 +70,14 @@ function mapsLink(lat: number, lng: number) {
   return `https://maps.google.com/?q=${lat},${lng}`;
 }
 
+function openWhatsApp(phone: string, message: string) {
+    const cleanedPhone = phone.replace(/\D/g, '');
+    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
+    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+}
+
+
 type Vars = Record<string, string>;
 function renderTemplate(tpl: string, vars: Vars) {
   // Substitui placeholders e remove linhas onde o placeholder não foi preenchido
@@ -79,8 +90,56 @@ function renderTemplate(tpl: string, vars: Vars) {
 export default function AvisamePage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-  const { toast } = useToast();
 
+  const clientsQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(collection(firestore, 'companies', COMPANY_ID, 'clients'));
+  }, [firestore, isUserLoading]);
+  
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(collection(firestore, 'companies', COMPANY_ID, 'orders'));
+  }, [firestore, isUserLoading]);
+
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+
+  const pageIsLoading = isLoadingOrders || isUserLoading || isLoadingClients;
+  
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center">
+        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Avisame</h1>
+      </div>
+      
+       <Tabs defaultValue="campaign">
+        <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="campaign"><Megaphone className="mr-2 h-4 w-4" /> Campanha por Cidade</TabsTrigger>
+            <TabsTrigger value="radar"><Radar className="mr-2 h-4 w-4" /> Radar de Oportunidade</TabsTrigger>
+        </TabsList>
+        <TabsContent value="campaign">
+            <CityCampaignTab 
+                orders={orders || []} 
+                clients={clients || []}
+                user={user}
+                isUserLoading={pageIsLoading}
+            />
+        </TabsContent>
+        <TabsContent value="radar">
+            <RadarTab 
+                orders={orders || []} 
+                clients={clients || []}
+                isUserLoading={pageIsLoading}
+            />
+        </TabsContent>
+       </Tabs>
+    </div>
+  );
+}
+
+// TAB 1: CAMPANHA POR CIDADE
+function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Order[], clients: Client[], user: any, isUserLoading: boolean }) {
+  const { toast } = useToast();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
   const [preview, setPreview] = useState<{ clients: Client[], message: string, includeGeo: boolean } | null>(null);
@@ -100,7 +159,6 @@ export default function AvisamePage() {
 
   const sendNow = form.watch('sendNow');
 
-
   useEffect(() => {
     async function fetchDrivers() {
       if(isUserLoading) return;
@@ -111,19 +169,6 @@ export default function AvisamePage() {
     }
     fetchDrivers();
   }, [isUserLoading]);
-
-  const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(collection(firestore, 'companies', COMPANY_ID, 'clients'));
-  }, [firestore, isUserLoading]);
-  
-  const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(collection(firestore, 'companies', COMPANY_ID, 'orders'));
-  }, [firestore, isUserLoading]);
-
-  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
-  const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
 
   const uniqueCities = useMemo(() => {
     if (!orders) return [];
@@ -209,19 +254,15 @@ export default function AvisamePage() {
   }
 
 
-  const pageIsLoading = isLoadingOrders || isUserLoading || isLoadingDrivers || isLoadingClients;
-  
+  const pageIsLoading = isUserLoading || isLoadingDrivers;
+
   return (
     <>
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center">
-        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Avisame</h1>
-      </div>
       <Card>
         <CardHeader>
           <CardTitle>Nova Campanha de Avisos</CardTitle>
           <CardDescription>
-            Agende ou envie uma notificação em massa via WhatsApp para todos os clientes de uma cidade.
+            Agende ou envie uma notificação em massa para todos os clientes de uma cidade.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -416,9 +457,8 @@ export default function AvisamePage() {
           )}
         </CardContent>
       </Card>
-    </div>
-
-    {preview && (
+      
+      {preview && (
         <AlertDialog open={!!preview} onOpenChange={() => setPreview(null)}>
             <AlertDialogContent className="max-w-2xl">
                 <AlertDialogHeader>
@@ -453,5 +493,118 @@ export default function AvisamePage() {
         </AlertDialog>
     )}
     </>
-  );
+  )
+}
+
+function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients: Client[], isUserLoading: boolean }) {
+    const { toast } = useToast();
+    const [isSearching, setIsSearching] = useState(false);
+    const [nearbyClients, setNearbyClients] = useState<Client[]>([]);
+    const [searchCity, setSearchCity] = useState<string | null>(null);
+
+    const handleSearchNearby = async () => {
+        setIsSearching(true);
+        setNearbyClients([]);
+        setSearchCity(null);
+        
+        try {
+            const position = await getCurrentPosition();
+            const city = await getCityFromCoordinates(position.coords.latitude, position.coords.longitude);
+
+            if (!city) {
+                toast({ variant: 'destructive', title: 'Cidade não encontrada', description: 'Não foi possível identificar sua cidade atual.' });
+                setIsSearching(false);
+                return;
+            }
+            
+            setSearchCity(city);
+            
+            const clientsInCity = clients.filter(client => {
+                const clientOrders = orders.filter(o => o.clientId === client.id);
+                return clientOrders.some(o => o.destino.includes(city));
+            });
+            
+            setNearbyClients(clientsInCity);
+            
+            if (clientsInCity.length === 0) {
+                 toast({ title: 'Nenhum cliente próximo', description: `Nenhum cliente encontrado na sua cidade atual: ${city}` });
+            }
+
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro de Localização',
+                description: error.message || 'Não foi possível obter sua localização.'
+            });
+        } finally {
+            setIsSearching(false);
+        }
+    }
+    
+    const handleNotifyClient = (client: Client) => {
+        const message = `Olá, ${client.nome}! Estou aqui perto de você hoje. Gostaria de aproveitar para fazer um pedido?`;
+        openWhatsApp(client.telefone, message);
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Radar de Oportunidade</CardTitle>
+                <CardDescription>
+                    Encontre clientes próximos à sua localização atual e envie um aviso rápido.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                 <Alert>
+                    <Radar className="h-4 w-4" />
+                    <AlertTitle>Como Funciona?</AlertTitle>
+                    <AlertDescription>
+                        Clique no botão abaixo para usar sua localização atual e encontrar clientes na mesma cidade. Ideal para motoristas em rota que desejam aproveitar oportunidades de novas entregas.
+                    </AlertDescription>
+                </Alert>
+                <div className="flex justify-center">
+                    <Button size="lg" onClick={handleSearchNearby} disabled={isSearching || isUserLoading}>
+                        {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                        Buscar Clientes Próximos
+                    </Button>
+                </div>
+
+                {(isSearching || nearbyClients.length > 0) && (
+                    <div className="space-y-4">
+                         <h3 className="text-lg font-medium text-center">
+                            {isSearching ? 'Buscando...' : `Clientes em ${searchCity}`}
+                        </h3>
+
+                        {isSearching ? (
+                            <div className="space-y-4">
+                                <Skeleton className="h-16 w-full" />
+                                <Skeleton className="h-16 w-full" />
+                                <Skeleton className="h-16 w-full" />
+                            </div>
+                        ) : (
+                             <ul className="space-y-3">
+                                {nearbyClients.map(client => (
+                                    <li key={client.id} className="flex items-center justify-between rounded-md border p-4">
+                                        <div className="flex items-center gap-4">
+                                            <Avatar>
+                                                <AvatarFallback><User /></AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="font-semibold">{client.nome}</p>
+                                                <p className="text-sm text-muted-foreground">{client.telefone}</p>
+                                            </div>
+                                        </div>
+                                        <Button size="sm" variant="outline" onClick={() => handleNotifyClient(client)}>
+                                            <WhatsApp className="mr-2" />
+                                            Notificar
+                                        </Button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
 }
