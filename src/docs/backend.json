@@ -285,10 +285,12 @@
         "cidade": { "type": "string" },
         "estado": { "type": "string" },
         "cep": { "type": "string" },
+        "latitude": { "type": "number", "description": "The latitude of the address." },
+        "longitude": { "type": "number", "description": "The longitude of the address." },
         "fullAddress": { "type": "string", "description": "The complete, concatenated address string." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]
+      "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep"]
     },
     "AvisameCampaign": {
       "title": "Avisame Campaign",

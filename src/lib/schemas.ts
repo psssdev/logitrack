@@ -29,7 +29,7 @@ export const orderSchema = z.object({
   nomeCliente: z.string().min(1, 'Nome do cliente é obrigatório'),
   telefone: z.string().min(10, 'Telefone inválido'),
   origem: z.string().min(1, 'Origem é obrigatória'),
-  destino: z.string().min(1, 'Destino é obrigatório'),
+  destino: z.string().min(1, 'Destino é obrigatória'),
   valorEntrega: z.coerce.number().min(0, 'Valor da entrega deve ser positivo'),
   items: z.array(orderItemSchema).min(1, 'A encomenda deve ter pelo menos um item.'),
   formaPagamento: paymentMethodSchema,
@@ -181,5 +181,3 @@ export const avisameDeliverySchema = z.object({
   error: z.string().optional(),
   sentAt: z.any().optional(),
 });
-
-    
