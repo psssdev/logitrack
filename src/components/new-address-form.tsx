@@ -177,10 +177,16 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
         const addressCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', data.clientId, 'addresses');
         const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
+        
+        // Simulação de geocodificação
+        const latitude = -23.5505 + (Math.random() - 0.5) * 0.1;
+        const longitude = -46.6333 + (Math.random() - 0.5) * 0.1;
 
         await addDoc(addressCollection, {
             ...data,
             fullAddress,
+            latitude,
+            longitude,
             createdAt: serverTimestamp(),
         });
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -172,10 +171,16 @@ export function EditAddressForm({ address }: { address: Address }) {
         const addressRef = doc(firestore, 'companies', COMPANY_ID, 'clients', data.clientId, 'addresses', address.id);
         const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
+        
+        // Simulação de geocodificação
+        const latitude = -23.5505 + (Math.random() - 0.5) * 0.1;
+        const longitude = -46.6333 + (Math.random() - 0.5) * 0.1;
 
         await updateDoc(addressRef, {
             ...data,
             fullAddress,
+            latitude,
+            longitude,
         });
 
         await triggerRevalidation(`/clientes/${data.clientId}`);

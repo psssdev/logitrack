@@ -42,6 +42,7 @@ export type NewClientWithAddress = z.infer<typeof newClientSchema>;
 // Address types
 export type Address = Omit<z.infer<typeof addressSchema>, 'createdAt'> & {
   id: string;
+  clientId: string;
   latitude?: number;
   longitude?: number;
   createdAt: Date | Timestamp;

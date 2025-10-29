@@ -19,7 +19,7 @@ import { triggerRevalidation } from '@/lib/actions';
 import { newClientSchema } from '@/lib/schemas';
 import type { NewClientWithAddress } from '@/lib/types';
 import { useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
 import { Loader2, Search } from 'lucide-react';
 import {
   Select,
@@ -185,8 +185,8 @@ export function NewClientForm() {
         const batch = writeBatch(firestore);
         
         // 1. Create Client
-        const clientsCollection = collection(firestore, 'companies', COMPANY_ID, 'clients');
-        const newClientRef = await addDoc(clientsCollection, {
+        const newClientRef = doc(collection(firestore, 'companies', COMPANY_ID, 'clients'));
+        batch.set(newClientRef, {
             nome: data.nome,
             telefone: data.telefone,
             createdAt: serverTimestamp()
@@ -195,11 +195,16 @@ export function NewClientForm() {
         // 2. Create Address if provided
         const hasAddress = data.logradouro && data.cidade && data.estado && data.cep;
         if(hasAddress) {
-            const addressCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', newClientRef.id, 'addresses');
+            const newAddressRef = doc(collection(firestore, 'companies', COMPANY_ID, 'clients', newClientRef.id, 'addresses'));
             const { logradouro, numero, bairro, cidade, estado, cep } = data;
             const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
             
-            await addDoc(addressCollection, {
+            // Simulação de geocodificação
+            const latitude = -23.5505 + (Math.random() - 0.5) * 0.1;
+            const longitude = -46.6333 + (Math.random() - 0.5) * 0.1;
+            
+            batch.set(newAddressRef, {
+                clientId: newClientRef.id,
                 label: 'Principal', // Default label
                 logradouro,
                 numero,
@@ -208,10 +213,13 @@ export function NewClientForm() {
                 estado,
                 cep,
                 fullAddress,
+                latitude,
+                longitude,
                 createdAt: serverTimestamp(),
             });
         }
         
+        await batch.commit();
         await triggerRevalidation('/clientes');
 
         toast({
