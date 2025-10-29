@@ -119,12 +119,25 @@
         },
         "formaPagamento": {
           "type": "string",
-          "description": "Payment method (pix, dinheiro, cartao, boleto, link).",
+          "description": "Main payment method for the order (pix, dinheiro, cartao, boleto, link, haver).",
           "enum": ["pix", "dinheiro", "cartao", "boleto", "link", "haver"]
         },
-        "pago": {
-          "type": "boolean",
-          "description": "Indicates if the order is paid."
+        "valorPago": {
+            "type": "number",
+            "description": "The total amount paid by the customer so far."
+        },
+        "pagamentos": {
+            "type": "array",
+            "description": "A history of payments made for this order.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "valor": { "type": "number" },
+                    "forma": { "type": "string", "enum": ["pix", "dinheiro", "cartao", "boleto", "link", "haver"] },
+                    "data": { "type": "string", "format": "date-time" }
+                },
+                "required": ["valor", "forma", "data"]
+            }
         },
         "status": {
           "type": "string",
@@ -180,9 +193,10 @@
         "origem",
         "destino",
         "valorEntrega",
+        "valorPago",
         "items",
         "formaPagamento",
-        "pago",
+        "pagamentos",
         "status",
         "timeline",
         "messages",
