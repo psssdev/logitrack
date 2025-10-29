@@ -93,11 +93,10 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
     });
   };
   
-    const formatDate = (date: Date | Timestamp) => {
-    if (date instanceof Timestamp) {
-      return date.toDate().toLocaleDateString('pt-BR');
-    }
-    return new Date(date).toLocaleDateString('pt-BR');
+  const formatDate = (date: Date | Timestamp | undefined) => {
+    if (!date) return 'Data desconhecida';
+    const d = date instanceof Timestamp ? date.toDate() : date;
+    return d.toLocaleDateString('pt-BR');
   }
 
   if (orders.length === 0) {
