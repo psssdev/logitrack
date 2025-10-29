@@ -13,7 +13,7 @@ import { NewOrderForm } from '@/components/new-order-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, orderBy, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Client, Origin } from '@/lib/types';
+import type { Client, Origin, Driver } from '@/lib/types';
 
 export default function NewOrderPage() {
   const firestore = useFirestore();
@@ -35,10 +35,19 @@ export default function NewOrderPage() {
     );
   }, [firestore, isUserLoading]);
 
+  const driversQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(
+      collection(firestore, 'companies', '1', 'drivers'),
+      orderBy('nome', 'asc')
+    );
+  }, [firestore, isUserLoading]);
+
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
+  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
-  const isLoading = isLoadingClients || isLoadingOrigins || isUserLoading;
+  const isLoading = isLoadingClients || isLoadingOrigins || isUserLoading || isLoadingDrivers;
 
   return (
     <div className="mx-auto grid w-full max-w-4xl flex-1 auto-rows-max gap-4">
@@ -62,7 +71,7 @@ export default function NewOrderPage() {
         </CardHeader>
         <CardContent>
           {isLoading && <Skeleton className="h-48 w-full" />}
-          {clients && origins && <NewOrderForm clients={clients} origins={origins} />}
+          {clients && origins && drivers && <NewOrderForm clients={clients} origins={origins} />}
         </CardContent>
       </Card>
     </div>
