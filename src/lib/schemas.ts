@@ -82,10 +82,14 @@ export const newOrderSchema = orderSchema.omit({
 
 export const driverSchema = z.object({
   id: z.string(),
-  nome: z.string(),
-  telefone: z.string(),
+  nome: z.string().min(3, "Nome deve ter no mínimo 3 caracteres."),
+  telefone: z.string().min(10, "Telefone inválido."),
   placa: z.string().optional(),
-  ativo: z.boolean(),
+  ativo: z.boolean().default(true),
+});
+
+export const newDriverSchema = driverSchema.omit({
+    id: true
 });
 
 export const clientSchema = z.object({
@@ -94,17 +98,6 @@ export const clientSchema = z.object({
     telefone: z.string().min(10, "Telefone inválido"),
     createdAt: z.any(), // Allow Date or Firestore Timestamp
 });
-
-export const newAddressSchema = z.object({
-  label: z.string().min(1, 'O rótulo é obrigatório'),
-  logradouro: z.string().min(1, 'O logradouro é obrigatório'),
-  numero: z.string().min(1, 'O número é obrigatório'),
-  bairro: z.string().min(1, 'O bairro é obrigatório'),
-  cidade: z.string().min(1, 'A cidade é obrigatória'),
-  estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
-  cep: z.string().min(8, 'O CEP é obrigatório'),
-});
-
 
 export const newClientSchema = z.object({
     nome: z.string().min(1, "Nome é obrigatório"),
