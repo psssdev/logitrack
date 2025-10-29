@@ -48,16 +48,21 @@ export default function FinanceiroPage() {
   const { data: allOrders, isLoading } = useCollection<Order>(allOrdersQuery);
   const pageIsLoading = isLoading || isUserLoading;
   
-  const receivableOrders = allOrders?.filter(o => o.formaPagamento === 'haver' && !o.pago) || [];
-  const totalReceivable = receivableOrders.reduce((acc, order) => acc + order.valorEntrega, 0);
+  const receivableOrders = allOrders?.filter(o => (o.valorPago || 0) < o.valorEntrega) || [];
+  const totalReceivable = receivableOrders.reduce((acc, order) => acc + (order.valorEntrega - (order.valorPago || 0)), 0);
 
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
   const receivedOrdersInMonth = allOrders?.filter(o => {
-      const createdAtDate = o.createdAt instanceof Timestamp ? o.createdAt.toDate() : o.createdAt;
-      return o.pago && createdAtDate >= startOfMonth && createdAtDate <= endOfMonth;
+    if ((o.valorPago || 0) < o.valorEntrega) return false;
+    const paymentRecords = o.pagamentos || [];
+    const lastPayment = paymentRecords[paymentRecords.length - 1];
+    if (!lastPayment) return false;
+    
+    const paidDate = lastPayment.data instanceof Timestamp ? lastPayment.data.toDate() : new Date(lastPayment.data);
+    return paidDate >= startOfMonth && paidDate <= endOfMonth;
   }) || [];
   const totalReceivedInMonth = receivedOrdersInMonth.reduce((acc, order) => acc + order.valorEntrega, 0);
 
@@ -77,7 +82,7 @@ export default function FinanceiroPage() {
             </CardHeader>
             <CardContent>
                 {pageIsLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceivable)}</div>}
-                <p className="text-xs text-muted-foreground">de {receivableOrders?.length || 0} encomenda(s)</p>
+                <p className="text-xs text-muted-foreground">de {receivableOrders?.length || 0} encomenda(s) com pendências</p>
             </CardContent>
         </Card>
         <Card>
@@ -96,8 +101,7 @@ export default function FinanceiroPage() {
         <CardHeader>
           <CardTitle>Contas a Receber</CardTitle>
           <CardDescription>
-            Lista de todas as encomendas com pagamento "A Haver" que ainda não
-            foram quitadas.
+            Lista de todas as encomendas com pagamentos pendentes.
           </CardDescription>
         </CardHeader>
         <CardContent>

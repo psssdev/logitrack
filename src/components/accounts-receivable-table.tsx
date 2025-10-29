@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { Order } from '@/lib/types';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { triggerRevalidation } from '@/lib/actions';
 import { useFirestore } from '@/firebase';
 import {
@@ -38,7 +38,7 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const handleMarkAsPaid = async (orderId: string) => {
+  const handleMarkAsPaid = async (order: Order) => {
     if (!firestore) {
       toast({
         variant: 'destructive',
@@ -47,10 +47,25 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
       });
       return;
     }
-    const orderRef = doc(firestore, 'companies', COMPANY_ID, 'orders', orderId);
+    const orderRef = doc(firestore, 'companies', COMPANY_ID, 'orders', order.id);
+    const remainingAmount = order.valorEntrega - (order.valorPago || 0);
+
+    if (remainingAmount <= 0) {
+        toast({ title: 'Aviso', description: 'Esta encomenda já está totalmente paga.'});
+        return;
+    }
+
     try {
-      await updateDoc(orderRef, { pago: true });
+      await updateDoc(orderRef, { 
+        valorPago: order.valorEntrega,
+        pagamentos: arrayUnion({
+            valor: remainingAmount,
+            forma: 'haver', // Assume 'haver' for this quick action
+            data: new Date()
+        })
+      });
       await triggerRevalidation('/financeiro');
+      await triggerRevalidation('/encomendas');
       toast({
         title: 'Sucesso!',
         description: 'Encomenda marcada como paga.',
@@ -65,7 +80,7 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
   };
 
   const handleSendReceipt = (order: Order) => {
-    const message = `Olá, ${order.nomeCliente}. Este é um lembrete sobre o pagamento pendente da sua encomenda ${order.codigoRastreio}, no valor de ${formatCurrency(order.valorEntrega)}.`;
+    const message = `Olá, ${order.nomeCliente}. Este é um lembrete sobre o pagamento pendente da sua encomenda ${order.codigoRastreio}, no valor de ${formatCurrency(order.valorEntrega - (order.valorPago || 0))}.`;
     
     const cleanedPhone = order.telefone.replace(/\D/g, '');
     const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
@@ -103,7 +118,8 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
           <TableRow>
             <TableHead>Cliente</TableHead>
             <TableHead>Código</TableHead>
-            <TableHead className="text-right">Valor</TableHead>
+            <TableHead className="text-right">Valor Total</TableHead>
+            <TableHead className="text-right">Valor Pendente</TableHead>
             <TableHead className="hidden sm:table-cell">Data</TableHead>
             <TableHead className="text-center">Ações</TableHead>
           </TableRow>
@@ -116,6 +132,9 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
               <TableCell className="text-right font-semibold">
                 {formatCurrency(order.valorEntrega)}
               </TableCell>
+               <TableCell className="text-right font-semibold text-destructive">
+                {formatCurrency(order.valorEntrega - (order.valorPago || 0))}
+              </TableCell>
               <TableCell className="hidden sm:table-cell">{formatDate(order.createdAt)}</TableCell>
               <TableCell className="text-center">
                 <DropdownMenu>
@@ -127,7 +146,7 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => handleMarkAsPaid(order.id)}>
+                    <DropdownMenuItem onClick={() => handleMarkAsPaid(order)}>
                       Marcar como Pago
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleSendReceipt(order)}>
