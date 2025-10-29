@@ -60,15 +60,17 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     return d.toLocaleDateString('pt-BR');
   }
   
-  const handleSendNotification = (order: Order, type: 'payment_received' | 'payment_due') => {
+  const handleSendNotification = (order: Order, type: 'payment_received' | 'payment_due' | 'cancellation') => {
     let message = '';
     const company = { linkBaseRastreio: 'https://seusite.com/rastreio/' }; // Placeholder
     const trackingLink = `${company.linkBaseRastreio}${order.codigoRastreio}`;
 
     if (type === 'payment_received') {
         message = `Olá, ${order.nomeCliente}. Recebemos o pagamento da sua encomenda ${order.codigoRastreio}. Agradecemos a preferência!`;
-    } else { // payment_due
+    } else if (type === 'payment_due') {
         message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi entregue. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(order.valorEntrega)}.`;
+    } else if (type === 'cancellation') {
+        message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi cancelada. Caso tenha alguma dúvida, por favor, entre em contato.`;
     }
     openWhatsApp(order.telefone, message);
     toast({
@@ -140,6 +142,8 @@ export function OrderTable({ orders }: { orders: Order[] }) {
         } else if (newPaidStatus === false) {
           handleSendNotification(order, 'payment_due');
         }
+      } else if (newStatus === 'CANCELADA') {
+        handleSendNotification(order, 'cancellation');
       }
       
       toast({
