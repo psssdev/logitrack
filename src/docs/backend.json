@@ -26,10 +26,6 @@
       "type": "object",
       "description": "Represents a transport company using the system. Enables multi-tenant support.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the company."
-        },
         "nomeFantasia": {
           "type": "string",
           "description": "The trade name of the company."
@@ -73,7 +69,6 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": [
-        "id",
         "nomeFantasia",
         "codigoPrefixo",
         "linkBaseRastreio"
@@ -201,6 +196,10 @@
       "type": "object",
       "description": "Represents a driver.",
       "properties": {
+        "companyId": {
+          "type": "string",
+          "description": "Reference to Company. (Relationship: Company 1:N Driver)"
+        },
         "nome": {
           "type": "string",
           "description": "Driver's name."
@@ -219,6 +218,7 @@
         }
       },
       "required": [
+        "companyId",
         "nome",
         "telefone",
         "placa",
@@ -340,12 +340,6 @@
             "$ref": "#/entities/Company"
         },
         "description": "Stores the settings and branding for a company."
-    },
-    "/companies/{companyId}/drivers/{driverId}": {
-        "schema": {
-            "$ref": "#/entities/Driver"
-        },
-        "description": "Stores driver information for a specific company."
     },
     "/companies/{companyId}/clients/{clientId}": {
       "schema": {

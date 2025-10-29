@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, ArrowRight, Truck, PackageCheck, CreditCard, Send } from 'lucide-react';
+import { MoreHorizontal, ArrowRight, Truck, PackageCheck, CreditCard, Send, BadgeCent } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -29,15 +29,6 @@ import { Timestamp, doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser } from '@/firebase';
 import { triggerRevalidation } from '@/lib/actions';
-
-const paymentMethodLabels: Record<string, string> = {
-  pix: 'PIX',
-  dinheiro: 'Dinheiro',
-  cartao: 'Cartão',
-  boleto: 'Boleto',
-  link: 'Link',
-  haver: 'A Haver',
-};
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -113,12 +104,17 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     }
   };
 
-  const handleSendReminder = (order: Order) => {
-    const message = `Olá, ${order.nomeCliente}. Passando para lembrar da sua pendência de ${formatCurrency(order.valorEntrega)} referente à encomenda ${order.codigoRastreio}.`;
+  const handleSendNotification = (order: Order, type: 'payment_received' | 'payment_due') => {
+    let message = '';
+    if (type === 'payment_received') {
+        message = `Olá, ${order.nomeCliente}. Confirmamos o recebimento do pagamento da sua encomenda ${order.codigoRastreio}. Agradecemos a preferência!`;
+    } else { // payment_due
+        message = `Olá, ${order.nomeCliente}. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(order.valorEntrega)} referente à encomenda ${order.codigoRastreio}.`;
+    }
     openWhatsApp(order.telefone, message);
     toast({
       title: 'Ação Requerida',
-      description: 'Verifique o WhatsApp para enviar a mensagem de cobrança.',
+      description: 'Verifique o WhatsApp para enviar a mensagem.',
     });
   }
 
@@ -164,7 +160,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                          </div>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
-                        <DropdownMenuLabel>Mudar Status</DropdownMenuLabel>
+                        <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         {order.status === 'PENDENTE' && (
                             <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
@@ -176,17 +172,31 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                             <>
                                 <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', true)}>
                                     <PackageCheck className="mr-2 h-4 w-4" />
-                                    Entregue (Pago)
+                                    Marcar como Entregue (Pago)
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', false)}>
                                     <CreditCard className="mr-2 h-4 w-4" />
-                                    Entregue (Pendente)
+                                    Marcar como Entregue (Pendente)
                                 </DropdownMenuItem>
                             </>
                         )}
-                        {order.status !== 'PENDENTE' && order.status !== 'EM_ROTA' && (
-                            <DropdownMenuItem disabled>Sem ações de status</DropdownMenuItem>
+                        {order.status === 'ENTREGUE' && (
+                           <>
+                             {order.pago ? (
+                                <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_received')}>
+                                    <BadgeCent className="mr-2 h-4 w-4"/>
+                                    Notificar Pagamento Recebido
+                                </DropdownMenuItem>
+                             ) : (
+                                <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_due')}>
+                                    <Send className="mr-2 h-4 w-4"/>
+                                    Enviar Cobrança
+                                </DropdownMenuItem>
+                             )}
+                           </>
                         )}
+                         <DropdownMenuSeparator />
+                         <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -205,27 +215,12 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-2">
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
-                            {order.formaPagamento === 'haver' && !order.pago && (
-                                <>
-                                 <DropdownMenuSeparator />
-                                 <DropdownMenuItem onClick={() => handleSendReminder(order)}>
-                                    <Send className="mr-2 h-4 w-4"/>
-                                    Enviar Cobrança
-                                </DropdownMenuItem>
-                                </>
-                            )}
-                        </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button asChild variant="ghost" size="icon">
+                            <Link href={`/encomendas/${order.id}`}>
+                                <ArrowRight className="h-4 w-4" />
+                                <span className="sr-only">Ver Detalhes</span>
+                            </Link>
+                        </Button>
                     </div>
                   </TableCell>
                 </TableRow>
