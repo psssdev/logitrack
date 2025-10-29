@@ -15,6 +15,7 @@ import {
   MapPin,
   DollarSign,
   Megaphone,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +39,11 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { FirebaseClientProvider } from '@/firebase';
 import { AuthGuard } from '@/components/auth-guard';
 import { CompanyBranding } from '@/components/company-branding';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -46,7 +52,14 @@ const navItems = [
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
   { href: '/origens', icon: MapPin, label: 'Origens' },
   { href: '/financeiro', icon: DollarSign, label: 'Financeiro' },
-  { href: '/avisame', icon: Megaphone, label: 'Avisame' },
+  { 
+    href: '/avisame', 
+    icon: Megaphone, 
+    label: 'Avisame',
+    subItems: [
+        { href: '/avisame/campanhas', label: 'Campanhas' },
+    ]
+  },
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
@@ -136,25 +149,73 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 const NavLinks = () => {
-  const pathname = usePathname();
-  return (
-    <>
-      {navItems.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-            pathname.startsWith(item.href) && 'bg-muted text-primary'
-          )}
-        >
-          <item.icon className="h-4 w-4" />
-          {item.label}
-        </Link>
-      ))}
-    </>
-  );
-};
+    const pathname = usePathname();
+    const [openCollapsible, setOpenCollapsible] = React.useState<string | null>(
+      navItems.find((item) => item.subItems && pathname.startsWith(item.href))?.href || null
+    );
+  
+    return (
+      <>
+        {navItems.map((item) =>
+          item.subItems ? (
+            <Collapsible
+              key={item.href}
+              open={openCollapsible === item.href}
+              onOpenChange={() => setOpenCollapsible(openCollapsible === item.href ? null : item.href)}
+            >
+              <CollapsibleTrigger
+                className={cn(
+                  'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+                  pathname.startsWith(item.href) && 'text-primary'
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </div>
+                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pl-7 pt-1 space-y-1">
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'block rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-primary',
+                    pathname === item.href && 'bg-muted text-primary'
+                  )}
+                >
+                  Visão Geral
+                </Link>
+                {item.subItems.map((subItem) => (
+                  <Link
+                    key={subItem.href}
+                    href={subItem.href}
+                    className={cn(
+                      'block rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-primary',
+                      pathname.startsWith(subItem.href) && 'bg-muted text-primary'
+                    )}
+                  >
+                    {subItem.label}
+                  </Link>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          ) : (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+                pathname.startsWith(item.href) && 'bg-muted text-primary'
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          )
+        )}
+      </>
+    );
+  };
 
 const UserMenu = () => {
   return (
