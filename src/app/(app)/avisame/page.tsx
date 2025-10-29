@@ -21,7 +21,7 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebas
 import type { Order, Driver, Client } from '@/lib/types';
 import { collection, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Megaphone, Send, MapPin, Calendar, Clock, AlertCircle, Radar, User, Search } from 'lucide-react';
+import { Loader2, Megaphone, Send, Search, Radar, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getCityFromCoordinates, getDrivers } from '@/lib/actions';
@@ -183,14 +183,17 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
     setIsBuildingPreview(true);
     const clientsToNotify = clients
       ?.filter(client => {
+          // A simple logic to check if any order destination for this client contains the target city.
+          // This could be improved with more structured address data.
           const clientOrders = orders?.filter(o => o.clientId === client.id);
-          return clientOrders?.some(o => o.destino.includes(data.city));
+          return clientOrders?.some(o => o.destino.toLowerCase().includes(data.city.toLowerCase()));
       }) || [];
 
     if (clientsToNotify.length === 0) {
       toast({
         title: 'Nenhum cliente',
         description: `Nenhum cliente encontrado para a cidade de ${data.city}.`,
+        variant: 'destructive'
       });
       setIsBuildingPreview(false);
       return;
@@ -447,7 +450,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                  </div>
 
                 <div className="flex justify-end">
-                    <Button type="submit" disabled={isBuildingPreview}>
+                    <Button type="submit" disabled={isBuildingPreview || form.formState.isSubmitting}>
                         {isBuildingPreview ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                         Agendar / Visualizar Envio
                     </Button>
@@ -521,7 +524,8 @@ function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients
             
             const clientsInCity = clients.filter(client => {
                 const clientOrders = orders.filter(o => o.clientId === client.id);
-                return clientOrders.some(o => o.destino.includes(city));
+                // A simple logic to check if any order destination for this client contains the target city.
+                return clientOrders.some(o => o.destino.toLowerCase().includes(city.toLowerCase()));
             });
             
             setNearbyClients(clientsInCity);
@@ -608,3 +612,5 @@ function RadarTab({ orders, clients, isUserLoading }: { orders: Order[], clients
         </Card>
     )
 }
+
+    

@@ -7,6 +7,7 @@ import { Timestamp } from 'firebase/firestore';
 export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline'> & {
     id: string;
     createdAt: Date | Timestamp;
+    clientId: string;
     timeline: {
         status: OrderStatus;
         at: Date | Timestamp;
@@ -76,3 +77,5 @@ export type AvisameCampaign = Omit<z.infer<typeof avisameCampaignSchema>, 'creat
 
 export type NewAvisameCampaign = z.infer<typeof avisameCampaignSchema>;
 export type AvisameDelivery = z.infer<typeof avisameDeliverySchema>;
+
+    
