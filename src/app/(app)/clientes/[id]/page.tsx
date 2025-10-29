@@ -1,8 +1,7 @@
-
 'use client';
 import React from 'react';
 import Link from 'next/link';
-import { ChevronLeft, PlusCircle } from 'lucide-react';
+import { ChevronLeft, PlusCircle, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -93,6 +92,12 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
           Detalhes do Cliente
         </h1>
+         <Button size="sm" asChild>
+          <Link href={`/clientes/${clientId}/editar`}>
+            <Edit className="h-4 w-4 mr-2" />
+            Editar Cliente
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -168,5 +173,3 @@ function ClientDetailSkeleton() {
     </div>
   );
 }
-
-    

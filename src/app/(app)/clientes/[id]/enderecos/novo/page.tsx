@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -114,5 +113,3 @@ function NewAddressContent({ clientId }: { clientId: string }) {
     </div>
   );
 }
-
-    

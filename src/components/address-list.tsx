@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import type { Address } from '@/lib/types';
+import Link from 'next/link';
 
 export default function AddressList({ addresses }: { addresses: Address[] }) {
   if (addresses.length === 0) {
@@ -56,7 +57,11 @@ export default function AddressList({ addresses }: { addresses: Address[] }) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Editar</DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                         <Link href={`/clientes/${address.clientId}/enderecos/${address.id}/editar`}>
+                          Editar
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive">
                         Excluir
                       </DropdownMenuItem>

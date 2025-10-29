@@ -122,11 +122,13 @@ export const addressSchema = z.object({
   estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
   cep: z.string().min(8, 'O CEP é obrigatório'),
   fullAddress: z.string(),
+  createdAt: z.any(),
 });
 
 export const newAddressFormSchema = addressSchema.omit({
   id: true,
   fullAddress: true,
+  createdAt: true,
 });
 
 export const originSchema = z.object({
