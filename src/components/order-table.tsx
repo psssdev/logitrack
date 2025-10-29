@@ -117,6 +117,52 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       description: 'Verifique o WhatsApp para enviar a mensagem.',
     });
   }
+  
+  const renderDropdownActions = (order: Order) => {
+    const status = String(order.status).trim();
+
+    switch (status) {
+      case 'PENDENTE':
+        return (
+          <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
+            <Truck className="mr-2 h-4 w-4" />
+            Marcar como Em Rota
+          </DropdownMenuItem>
+        );
+      case 'EM_ROTA':
+        return (
+          <>
+            <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', true)}>
+              <PackageCheck className="mr-2 h-4 w-4" />
+              Marcar como Entregue (Pago)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', false)}>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Marcar como Entregue (Pendente)
+            </DropdownMenuItem>
+          </>
+        );
+      case 'ENTREGUE':
+        if (order.pago) {
+          return (
+            <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_received')}>
+              <BadgeCent className="mr-2 h-4 w-4"/>
+              Notificar Pagamento Recebido
+            </DropdownMenuItem>
+          );
+        } else {
+          return (
+            <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_due')}>
+              <Send className="mr-2 h-4 w-4"/>
+              Enviar Cobrança
+            </DropdownMenuItem>
+          );
+        }
+      default:
+        return null;
+    }
+  };
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -162,41 +208,9 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                       <DropdownMenuContent align="start">
                         <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        
-                        {order.status === 'PENDENTE' ? (
-                            <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
-                                <Truck className="mr-2 h-4 w-4" />
-                                Marcar como Em Rota
-                            </DropdownMenuItem>
-                        ) : order.status === 'EM_ROTA' ? (
-                            <>
-                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', true)}>
-                                    <PackageCheck className="mr-2 h-4 w-4" />
-                                    Marcar como Entregue (Pago)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', false)}>
-                                    <CreditCard className="mr-2 h-4 w-4" />
-                                    Marcar como Entregue (Pendente)
-                                </DropdownMenuItem>
-                            </>
-                        ) : order.status === 'ENTREGUE' ? (
-                           <>
-                             {order.pago ? (
-                                <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_received')}>
-                                    <BadgeCent className="mr-2 h-4 w-4"/>
-                                    Notificar Pagamento Recebido
-                                </DropdownMenuItem>
-                             ) : (
-                                <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_due')}>
-                                    <Send className="mr-2 h-4 w-4"/>
-                                    Enviar Cobrança
-                                </DropdownMenuItem>
-                             )}
-                           </>
-                        ) : null}
-
-                         <DropdownMenuSeparator />
-                         <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
+                        {renderDropdownActions(order)}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
