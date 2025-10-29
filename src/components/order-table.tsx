@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, ArrowRight, Truck, PackageCheck, CreditCard, Send, BadgeCent, History } from 'lucide-react';
+import { MoreHorizontal, ArrowRight, Truck, PackageCheck, CreditCard, Send, BadgeCent, History, PackageX } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -66,7 +66,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     const trackingLink = `${company.linkBaseRastreio}${order.codigoRastreio}`;
 
     if (type === 'payment_received') {
-        message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi marcada como entregue e paga. Agradecemos a preferência!`;
+        message = `Olá, ${order.nomeCliente}. Recebemos o pagamento da sua encomenda ${order.codigoRastreio}. Agradecemos a preferência!`;
     } else { // payment_due
         message = `Olá, ${order.nomeCliente}. Sua encomenda ${order.codigoRastreio} foi entregue. Passando para lembrar sobre o pagamento pendente de ${formatCurrency(order.valorEntrega)}.`;
     }
@@ -105,7 +105,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     }
   }
 
-  const handleUpdateStatus = async (order: Order, newStatus: 'EM_ROTA' | 'ENTREGUE', newPaidStatus?: boolean) => {
+  const handleUpdateStatus = async (order: Order, newStatus: 'EM_ROTA' | 'ENTREGUE' | 'CANCELADA', newPaidStatus?: boolean) => {
     if (!firestore || !user) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não autenticado.' });
       return;
@@ -162,10 +162,17 @@ export function OrderTable({ orders }: { orders: Order[] }) {
 
     if (status === 'PENDENTE') {
       return (
-        <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
-          <Truck className="mr-2 h-4 w-4" />
-          Marcar como Em Rota
-        </DropdownMenuItem>
+        <>
+          <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
+            <Truck className="mr-2 h-4 w-4" />
+            Marcar como Em Rota
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="text-destructive" onClick={() => handleUpdateStatus(order, 'CANCELADA')}>
+            <PackageX className="mr-2 h-4 w-4" />
+            Cancelar Encomenda
+          </DropdownMenuItem>
+        </>
       );
     }
     
@@ -179,6 +186,11 @@ export function OrderTable({ orders }: { orders: Order[] }) {
           <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'ENTREGUE', false)}>
             <CreditCard className="mr-2 h-4 w-4" />
             Marcar como Entregue (Pendente)
+          </DropdownMenuItem>
+           <DropdownMenuSeparator />
+           <DropdownMenuItem className="text-destructive" onClick={() => handleUpdateStatus(order, 'CANCELADA')}>
+            <PackageX className="mr-2 h-4 w-4" />
+            Cancelar Encomenda
           </DropdownMenuItem>
         </>
       );
@@ -305,5 +317,3 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     </div>
   );
 }
-
-    
