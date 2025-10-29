@@ -134,11 +134,6 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       await triggerRevalidation('/dashboard');
       await triggerRevalidation('/financeiro');
 
-      toast({
-        title: 'Sucesso',
-        description: `Status da encomenda atualizado para ${newStatus}.`,
-      });
-      
       if (newStatus === 'ENTREGUE') {
         if (newPaidStatus === true) {
           handleSendNotification(order, 'payment_received');
@@ -146,6 +141,11 @@ export function OrderTable({ orders }: { orders: Order[] }) {
           handleSendNotification(order, 'payment_due');
         }
       }
+      
+      toast({
+        title: 'Sucesso',
+        description: `Status da encomenda atualizado para ${newStatus}.`,
+      });
 
     } catch (error: any) {
       console.error("Error updating status:", error);
@@ -157,10 +157,9 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     }
   };
 
-  
   const renderDropdownActions = (order: Order) => {
     const status = String(order.status).trim();
-    
+
     if (status === 'PENDENTE') {
       return (
         <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'EM_ROTA')}>
@@ -168,7 +167,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
           Marcar como Em Rota
         </DropdownMenuItem>
       );
-    } 
+    }
     
     if (status === 'EM_ROTA') {
       return (
@@ -190,21 +189,27 @@ export function OrderTable({ orders }: { orders: Order[] }) {
         return (
           <>
             <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_received')}>
-                <BadgeCent className="mr-2 h-4 w-4"/>
-                Notificar Pagamento Recebido
+              <BadgeCent className="mr-2 h-4 w-4"/>
+              Notificar Pagamento Recebido
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleUpdatePaymentStatus(order.id, false)}>
-                <History className="mr-2 h-4 w-4" />
-                Marcar como Pendente
+              <History className="mr-2 h-4 w-4" />
+              Marcar como Pendente
             </DropdownMenuItem>
           </>
         );
       } else {
         return (
-          <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_due')}>
-            <Send className="mr-2 h-4 w-4"/>
-            Enviar Cobrança
-          </DropdownMenuItem>
+            <>
+                <DropdownMenuItem onClick={() => handleUpdatePaymentStatus(order.id, true)}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Marcar como Pago
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSendNotification(order, 'payment_due')}>
+                    <Send className="mr-2 h-4 w-4"/>
+                    Enviar Cobrança
+                </DropdownMenuItem>
+            </>
         );
       }
     }
@@ -300,3 +305,5 @@ export function OrderTable({ orders }: { orders: Order[] }) {
     </div>
   );
 }
+
+    
