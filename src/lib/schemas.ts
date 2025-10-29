@@ -134,12 +134,12 @@ export const newAddressFormSchema = addressSchema.omit({
 export const originSchema = z.object({
   id: z.string(),
   name: z.string().min(1, 'O nome é obrigatório'),
-  logradouro: z.string().min(1, 'O logradouro é obrigatório').optional(),
-  numero: z.string().optional(),
-  bairro: z.string().optional(),
-  cidade: z.string().optional(),
-  estado: z.string().optional(),
-  cep: z.string().optional(),
+  logradouro: z.string().min(1, 'O logradouro é obrigatório'),
+  numero: z.string().min(1, 'O número é obrigatório'),
+  bairro: z.string().min(1, 'O bairro é obrigatório'),
+  cidade: z.string().min(1, 'A cidade é obrigatória'),
+  estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
+  cep: z.string().min(8, 'O CEP é obrigatório'),
   address: z.string(), // This will be the concatenated full address
   createdAt: z.any(), // Allow Date or Firestore Timestamp
 });

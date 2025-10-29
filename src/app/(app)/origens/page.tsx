@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from '@/components/ui/button';
 import {
@@ -112,7 +113,11 @@ function OriginList({ origins }: { origins: Origin[] }) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Editar</DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/origens/${origin.id}/editar`}>
+                          Editar
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive">
                         Excluir
                       </DropdownMenuItem>

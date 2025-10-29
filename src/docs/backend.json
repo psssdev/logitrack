@@ -259,13 +259,19 @@
           "type": "string",
           "description": "The full, concatenated address of the origin."
         },
+        "logradouro": { "type": "string" },
+        "numero": { "type": "string" },
+        "bairro": { "type": "string" },
+        "cidade": { "type": "string" },
+        "estado": { "type": "string" },
+        "cep": { "type": "string" },
         "createdAt": {
           "type": "string",
           "format": "date-time",
           "description": "Timestamp of when the origin was created."
         }
       },
-      "required": ["name", "address", "createdAt"]
+      "required": ["name", "address", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "createdAt"]
     },
     "Address": {
       "title": "Address",
