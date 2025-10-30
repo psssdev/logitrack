@@ -110,7 +110,7 @@ export default function AvisamePage() {
   const { data: allAddresses, isLoading: isLoadingAddresses } = useCollection<Address>(allAddressesQuery);
 
 
-  const pageIsLoading = isLoadingOrders || isUserLoading || isLoadingClients || isLoadingAddresses;
+  const pageIsLoading = isUserLoading || isLoadingClients || isLoadingOrders || isLoadingAddresses;
   
   return (
     <div className="flex flex-col gap-6">
@@ -652,5 +652,3 @@ function RadarTab({ clients, allAddresses, isUserLoading }: { clients: Client[],
         </Card>
     )
 }
-
-    
