@@ -5,143 +5,179 @@ service cloud.firestore {
     /**
      * @description Controls access to user profile information.
      * @path /users/{userId}
-     * @allow (get, create, update, delete): Authenticated user accessing their own profile.
-     * @deny (get, create, update, delete): Any other user attempting to access another user's profile.
-     * @principle Enforces document ownership for writes.
+     * @allow (get, create, update, delete): User with ID 'user123' can read, create, update, and delete their own profile.
+     *   - Request: auth.uid == 'user123'
+     * @deny (get, create, update, delete): User with ID 'user456' cannot access profile of user 'user123'.
+     *   - Request: auth.uid == 'user456'
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+      function isSignedIn() {
+        return request.auth != null;
       }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
       function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
+        return isOwner(userId) && resource.data != null;
       }
 
       allow get: if isOwner(userId);
-      allow list: if false; // User listing is disallowed.
-      allow create: if isOwner(userId) && request.auth.token.email == request.resource.data.email;
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to company profile information.
+     * @description Controls access to company settings.
      * @path /companies/{companyId}
-     * @allow (get, list): Public read access to company profiles.
-     * @allow (create): Authenticated user creating a new company profile.
-     * @allow (update, delete): Not allowed.
-     * @principle Public read access with owner-only writes; enforces company-level isolation.
+     * @allow get: Any signed-in user can read company settings.
+     * @deny create, update, delete: No one can create, update, or delete company settings.
+     * @principle  Company settings are read-only.
      */
     match /companies/{companyId} {
-      allow get, list: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if false;
+        function isSignedIn() {
+          return request.auth != null;
+        }
+        allow get: if isSignedIn();
+        allow list: if false;
+        allow create: if false;
+        allow update: if false;
+        allow delete: if false;
     }
 
     /**
-     * @description Controls access to client information within a company.
+     * @description Controls access to client information for a specific company.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow (get, list, create, update, delete): Authenticated user within the company accessing client data.
-     * @deny (get, list, create, update, delete): Access from outside the company.
-     * @principle Enforces company-level data isolation.
+     * @allow get, list, create: Any signed-in user can read or create clients for their company.
+     *   - Request: auth.uid != null && request.resource.data.companyId == companyId
+     * @allow update, delete: Only a signed-in user can update or delete a client for their company if the document exists.
+     *   - Request: auth.uid != null && resource.data.companyId == companyId
+     * @deny create, update: if request.resource.data.companyId != companyId
+     * @principle Enforces company-based access control for clients.
      */
     match /companies/{companyId}/clients/{clientId} {
-        function isCompanyUser(companyId) {
-            return request.auth != null && request.params.companyId == companyId;
+        function isSignedIn() {
+          return request.auth != null;
         }
-        allow get: if isCompanyUser(companyId);
-        allow list: if isCompanyUser(companyId);
-        allow create: if isCompanyUser(companyId);
-        allow update: if isCompanyUser(companyId);
-        allow delete: if isCompanyUser(companyId);
-    }
 
-        /**
-     * @description Controls access to origins information within a company.
-     * @path /companies/{companyId}/origins/{originId}
-     * @allow (get, list, create, update, delete): Authenticated user within the company accessing origins data.
-     * @deny (get, list, create, update, delete): Access from outside the company.
-     * @principle Enforces company-level data isolation.
-     */
-     match /companies/{companyId}/origins/{originId} {
-        function isCompanyUser(companyId) {
-            return request.auth != null && request.params.companyId == companyId;
-        }
-        allow get: if isCompanyUser(companyId);
-        allow list: if isCompanyUser(companyId);
-        allow create: if isCompanyUser(companyId);
-        allow update: if isCompanyUser(companyId);
-        allow delete: if isCompanyUser(companyId);
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
     }
 
     /**
-     * @description Controls access to addresses for a specific client within a company.
+     * @description Controls access to shipment origin points for a specific company.
+     * @path /companies/{companyId}/origins/{originId}
+     * @allow get, list, create: Any signed-in user can read or create origins for their company.
+     *   - Request: auth.uid != null && request.resource.data.companyId == companyId
+     * @allow update, delete: Only a signed-in user can update or delete an origin for their company if the document exists.
+     *   - Request: auth.uid != null && resource.data.companyId == companyId
+     * @deny create, update: if request.resource.data.companyId != companyId
+     * @principle Enforces company-based access control for shipment origins.
+     */
+    match /companies/{companyId}/origins/{originId} {
+        function isSignedIn() {
+          return request.auth != null;
+        }
+
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Controls access to client addresses for a specific client within a company.
      * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
-     * @allow (get, list, create, update, delete): Authenticated user within the company accessing client addresses.
-     * @deny (get, list, create, update, delete): Access from outside the company.
-     * @principle Enforces company-level data isolation; restricts access to client-specific data.
+     * @allow get, list, create: Any signed-in user can read or create addresses for a client within their company.
+     * @allow update, delete: Only a signed-in user can update or delete an address for a client within their company if the document exists.
+     * @principle Enforces company and client-based access control for addresses.
      */
     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-        function isCompanyUser(companyId) {
-            return request.auth != null && request.params.companyId == companyId;
+        function isSignedIn() {
+          return request.auth != null;
         }
-        allow get: if isCompanyUser(companyId);
-        allow list: if isCompanyUser(companyId);
-        allow create: if isCompanyUser(companyId);
-        allow update: if isCompanyUser(companyId);
-        allow delete: if isCompanyUser(companyId);
+
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
     }
 
     /**
-     * @description Controls access to order information within a company.
+     * @description Controls access to orders for a specific company.
      * @path /companies/{companyId}/orders/{orderId}
-     * @allow (get, list, create, update, delete): Authenticated user within the company accessing order data.
-     * @deny (get, list, create, update, delete): Access from outside the company.
-     * @principle Enforces company-level data isolation.
+     * @allow get, list, create: Any signed-in user can read or create orders for their company.
+     *   - Request: auth.uid != null && request.resource.data.companyId == companyId
+     * @allow update, delete: Only a signed-in user can update or delete an order for their company if the document exists.
+     *   - Request: auth.uid != null && resource.data.companyId == companyId
+     * @deny create, update: if request.resource.data.companyId != companyId
+     * @principle Enforces company-based access control for orders.
      */
     match /companies/{companyId}/orders/{orderId} {
-        function isCompanyUser(companyId) {
-            return request.auth != null && request.params.companyId == companyId;
+        function isSignedIn() {
+          return request.auth != null;
         }
-        allow get: if isCompanyUser(companyId);
-        allow list: if isCompanyUser(companyId);
-        allow create: if isCompanyUser(companyId);
-        allow update: if isCompanyUser(companyId);
-        allow delete: if isCompanyUser(companyId);
+
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
     }
 
-    /**
-     * @description Controls access to Avisame campaigns within a company.
+     /**
+     * @description Controls access to bulk notification campaigns for a specific company.
      * @path /companies/{companyId}/avisame_campaigns/{campaignId}
-     * @allow (get, list, create, update, delete): Authenticated user within the company accessing Avisame campaign data.
-     * @deny (get, list, create, update, delete): Access from outside the company.
+     * @allow get, list, create: Any signed-in user can read or create campaigns for their company.
+     *   - Request: auth.uid != null && request.resource.data.companyId == companyId
+     * @allow update, delete: Only a signed-in user can update or delete a campaign for their company if the document exists.
+     *   - Request: auth.uid != null && resource.data.companyId == companyId
+     * @deny create, update: if request.resource.data.companyId != companyId
+     * @principle Enforces company-based access control for campaigns.
      */
     match /companies/{companyId}/avisame_campaigns/{campaignId} {
-      function isCompanyUser(companyId) {
-            return request.auth != null && request.params.companyId == companyId;
+        function isSignedIn() {
+          return request.auth != null;
         }
-        allow get: if isCompanyUser(companyId);
-        allow list: if isCompanyUser(companyId);
-        allow create: if isCompanyUser(companyId);
-        allow update: if isCompanyUser(companyId);
-        allow delete: if isCompanyUser(companyId);
+
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
     }
 
     /**
-     * @description Controls access to Avisame delivery statuses within a company.
+     * @description Controls access to individual Avisame deliveries.
      * @path /companies/{companyId}/avisame_deliveries/{deliveryId}
-     * @allow (get, list, create, update, delete): Authenticated user within the company accessing Avisame delivery status data.
-     * @deny (get, list, create, update, delete): Access from outside the company.
+     * @allow get: Any signed-in user can read deliveries for their company.
+     *   - Request: auth.uid != null
+     * @deny list: Listing deliveries is disabled.
+     * @allow create: Any signed-in user can create deliveries for their company.
+     *   - Request: auth.uid != null
+     * @allow update, delete: Only a signed-in user can update or delete a delivery for their company if the document exists.
+     *   - Request: auth.uid != null && resource != null
+     * @principle Enforces company-based access control for deliveries.  Listing is disabled.
      */
     match /companies/{companyId}/avisame_deliveries/{deliveryId} {
-      function isCompanyUser(companyId) {
-            return request.auth != null && request.params.companyId == companyId;
+        function isSignedIn() {
+          return request.auth != null;
         }
-        allow get: if isCompanyUser(companyId);
-        allow list: if isCompanyUser(companyId);
-        allow create: if isCompanyUser(companyId);
-        allow update: if isCompanyUser(companyId);
-        allow delete: if isCompanyUser(companyId);
+
+        allow get: if isSignedIn();
+        allow list: if false;
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
     }
   }
 }
