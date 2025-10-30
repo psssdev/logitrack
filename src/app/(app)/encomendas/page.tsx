@@ -87,7 +87,7 @@ export default function EncomendasPage() {
             <TabsList>
             {statuses.map((status) => (
                 <TabsTrigger key={status} value={status}>
-                {status.charAt(0) + status.slice(1).toLowerCase()}
+                {status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ')}
                 </TabsTrigger>
             ))}
             </TabsList>
@@ -116,14 +116,14 @@ export default function EncomendasPage() {
 
         {orders && !pageIsLoading && statuses.map((status) => {
             const filteredByStatus = status === 'TODAS' ? orders : orders.filter((order) => order.status === status);
-            const filteredOrders = selectedCity === 'all' ? filteredByStatus : filteredByStatus.filter(order => order.destino && order.destino.includes(selectedCity));
+            const filteredOrders = selectedCity === 'all' ? filteredByStatus : filteredByStatus.filter(order => order.destino && typeof order.destino === 'string' && order.destino.includes(selectedCity));
 
             return (
               <TabsContent key={status} value={status}>
                 <Card>
                   <CardHeader>
                     <CardTitle>
-                      {status.charAt(0) + status.slice(1).toLowerCase()}
+                      {status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ')}
                     </CardTitle>
                     <CardDescription>
                       {filteredOrders.length} encomenda(s) encontrada(s).
