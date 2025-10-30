@@ -50,6 +50,7 @@ import { scheduleAvisameCampaign } from '@/lib/avisame-actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { WhatsApp } from '@/components/ui/icons';
+import { z } from 'zod';
 
 const COMPANY_ID = '1';
 
@@ -674,5 +675,3 @@ function RadarTab({ clients, isUserLoading }: { clients: Client[], isUserLoading
         </Card>
     )
 }
-
-    
