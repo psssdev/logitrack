@@ -137,6 +137,9 @@ export default function AvisamePage() {
   );
 }
 
+// Custom Type for Form Data
+type CampaignFormData = NewAvisameCampaign & { target: 'city' | 'all' };
+
 // TAB 1: CAMPANHA POR CIDADE
 function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Order[], clients: Client[], user: any, isUserLoading: boolean }) {
   const { toast } = useToast();
@@ -145,9 +148,10 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
   const [preview, setPreview] = useState<{ clients: Client[], message: string, includeGeo: boolean } | null>(null);
   const [isBuildingPreview, setIsBuildingPreview] = useState(false);
 
-  const form = useForm<NewAvisameCampaign>({
-    resolver: zodResolver(avisameCampaignSchema),
+  const form = useForm<CampaignFormData>({
+    resolver: zodResolver(avisameCampaignSchema.extend({ target: z.enum(['city', 'all']) })),
     defaultValues: {
+      target: 'city',
       city: '',
       driverId: undefined,
       messageTemplate: 'Olá, {cliente}! Estaremos com entregas em {cidade} em breve.\nMotorista: {motorista_nome} ({motorista_telefone})\n{ponto_encontro}\nSe quiser, me chama por aqui e já separo seu pedido 🙂',
@@ -158,6 +162,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
   });
 
   const sendNow = form.watch('sendNow');
+  const target = form.watch('target');
   
   const driversQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;
@@ -166,26 +171,31 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
 
   const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
-  const uniqueCities = useMemo(() => {
-    if (!orders) return [];
-    const cities = orders.map((order) => {
-        const parts = order.destino.split(',');
-        return parts.length > 2 ? parts[parts.length - 2].trim() : 'Desconhecida';
-    });
-    return [...new Set(cities)].filter(city => city !== 'Desconhecida').sort();
-  }, [orders]);
-  
-  const handleBuildPreview = async (data: NewAvisameCampaign) => {
+  const handleBuildPreview = async (data: CampaignFormData) => {
     setIsBuildingPreview(true);
+    let clientsToNotify: Client[] = [];
 
-    const ordersInCity = orders?.filter(o => o.destino.toLowerCase().includes(data.city.toLowerCase()));
-    const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
-    const clientsToNotify = clients?.filter(c => clientIdsInCity.includes(c.id)) || [];
-
+    if (data.target === 'all') {
+      clientsToNotify = clients || [];
+    } else {
+      if (!data.city) {
+         toast({
+          title: 'Cidade obrigatória',
+          description: `Por favor, informe a cidade para a campanha.`,
+          variant: 'destructive'
+        });
+        setIsBuildingPreview(false);
+        return;
+      }
+      const ordersInCity = orders?.filter(o => o.destino.toLowerCase().includes(data.city.toLowerCase()));
+      const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
+      clientsToNotify = clients?.filter(c => clientIdsInCity.includes(c.id)) || [];
+    }
+    
     if (clientsToNotify.length === 0) {
       toast({
         title: 'Nenhum cliente',
-        description: `Nenhum cliente encontrado para a cidade de ${data.city}.`,
+        description: `Nenhum cliente encontrado para o critério selecionado.`,
         variant: 'destructive'
       });
       setIsBuildingPreview(false);
@@ -212,7 +222,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
     const driver = drivers?.find(d => d.id === data.driverId);
     const vars: Vars = {
         cliente: '{cliente}', // keep placeholder for preview
-        cidade: data.city,
+        cidade: data.city || 'sua região',
         motorista_nome: driver?.nome ?? '',
         motorista_telefone: driver?.telefone ?? '',
         ponto_encontro: locationText
@@ -230,13 +240,14 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
       try {
         await scheduleAvisameCampaign({
           ...campaignData,
+          city: campaignData.target === 'all' ? 'Todos os Clientes' : campaignData.city,
           createdBy: user.uid,
           scheduledAt: campaignData.sendNow ? new Date() : campaignData.scheduledAt,
         });
 
         toast({
           title: "Campanha Agendada!",
-          description: `Sua campanha para ${campaignData.city} foi agendada com sucesso.`,
+          description: `Sua campanha foi agendada com sucesso.`,
         });
         setPreview(null);
         form.reset();
@@ -258,7 +269,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
         <CardHeader>
           <CardTitle>Nova Campanha de Avisos</CardTitle>
           <CardDescription>
-            Agende ou envie uma notificação em massa para todos os clientes de uma cidade.
+            Agende ou envie uma notificação em massa para os seus clientes.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -266,7 +277,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                 <Megaphone className="h-4 w-4" />
                 <AlertTitle>Como Funciona?</AlertTitle>
                 <AlertDescription>
-                   Selecione uma cidade, um motorista (opcional) e escreva sua mensagem. Use {'{cliente}'}, {'{cidade}'}, {'{motorista_nome}'}, {'{motorista_telefone}'} e {'{ponto_encontro}'} para personalizar.
+                   Selecione o público, um motorista (opcional) e escreva sua mensagem. Use {'{cliente}'}, {'{cidade}'}, {'{motorista_nome}'}, {'{motorista_telefone}'} e {'{ponto_encontro}'} para personalizar.
                 </AlertDescription>
             </Alert>
           {pageIsLoading ? (
@@ -277,54 +288,66 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
-                      name="city"
+                      name="target"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Cidade de Destino</FormLabel>
+                          <FormLabel>Público-Alvo</FormLabel>
                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Selecione uma cidade" />
+                                <SelectValue placeholder="Selecione o público" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {uniqueCities.map((city) => (
-                                <SelectItem key={city} value={city}>
-                                  {city}
-                                </SelectItem>
-                              ))}
+                                <SelectItem value="city">Cidade Específica</SelectItem>
+                                <SelectItem value="all">Todos os Clientes</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                     <FormField
-                      control={form.control}
-                      name="driverId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Motorista (Opcional)</FormLabel>
-                           <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingDrivers}>
-                             <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione um motorista" />
-                                </SelectTrigger>
-                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">Nenhum</SelectItem>
-                              {drivers?.map((driver) => (
-                                <SelectItem key={driver.id} value={driver.id}>
-                                  {driver.nome}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {target === 'city' && (
+                        <FormField
+                            control={form.control}
+                            name="city"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Cidade de Destino</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} placeholder="Digite o nome da cidade" />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
                   </div>
+                   <FormField
+                    control={form.control}
+                    name="driverId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Motorista (Opcional)</FormLabel>
+                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingDrivers}>
+                           <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione um motorista" />
+                              </SelectTrigger>
+                           </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {drivers?.map((driver) => (
+                              <SelectItem key={driver.id} value={driver.id}>
+                                {driver.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                  <FormField
                   control={form.control}
                   name="messageTemplate"
@@ -460,7 +483,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                 <AlertDialogHeader>
                     <AlertDialogTitle>Confirmar e Agendar Campanha?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        A campanha será agendada para <span className="font-bold">{form.getValues('city')}</span>.
+                        A campanha será agendada para <span className="font-bold">{form.getValues('city') || 'Todos os Clientes'}</span>.
                         Serão notificados <span className="font-bold">{preview.clients.length} clientes</span>.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -651,3 +674,5 @@ function RadarTab({ clients, isUserLoading }: { clients: Client[], isUserLoading
         </Card>
     )
 }
+
+    
