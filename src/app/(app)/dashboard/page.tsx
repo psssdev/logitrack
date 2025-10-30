@@ -83,7 +83,7 @@ export default function DashboardPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loadingSummary ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.pendentes}</div>}
+            {loadingSummary || isUserLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.pendentes}</div>}
             <p className="text-xs text-muted-foreground">
               Aguardando para sair para entrega
             </p>
@@ -95,7 +95,7 @@ export default function DashboardPage() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loadingSummary ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.emRota}</div>}
+            {loadingSummary || isUserLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.emRota}</div>}
             <p className="text-xs text-muted-foreground">
               Encomendas em trânsito
             </p>
@@ -107,7 +107,7 @@ export default function DashboardPage() {
             <PackageCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loadingSummary ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.entregues}</div>}
+            {loadingSummary || isUserLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.entregues}</div>}
             <p className="text-xs text-muted-foreground">
               Total de entregas concluídas
             </p>
@@ -119,7 +119,7 @@ export default function DashboardPage() {
              <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {loadingSummary ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.total}</div>}
+             {loadingSummary || isUserLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.total}</div>}
             <p className="text-xs text-muted-foreground">
               Total de registros no sistema
             </p>
