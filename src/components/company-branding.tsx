@@ -15,7 +15,7 @@ export function CompanyBranding() {
   const { isUserLoading } = useUser();
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading) return null; // Wait for user to be loaded
     return doc(firestore, 'companies', COMPANY_ID);
   }, [firestore, isUserLoading]);
 
