@@ -1,14 +1,29 @@
+/**
+ * @file Firestore Security Rules
+ * @core_philosophy This ruleset enforces a multi-tenant security model where users and data are segregated by company.
+ *  Each company has its own isolated data store, and users are only authorized to access data within their assigned company.
+ *  User profiles are stored at the root level for easy access, but their `companyId` field is used to enforce data access restrictions.
+ * @data_structure The database is structured with top-level collections for `users` and `companies`.
+ *  Company-specific data (clients, orders, drivers, origins) is stored in subcollections under the respective `companies/{companyId}` document.
+ *  This hierarchical structure simplifies security rules and improves query performance.
+ * @key_security_decisions
+ *  - Users can only read and write their own profile data.
+ *  - Companies are publicly readable to facilitate discovery, but write access is restricted (TODO: implement admin role).
+ *  - Data within a company (clients, orders, drivers, origins) can only be accessed by authenticated users belonging to that company.
+ *  - Listing of user documents is disallowed to prevent enumeration.
+ *  - Strict ownership is enforced for all write operations.
+ * @denormalization_for_authorization The `companyId` field is denormalized onto user profiles and other company-specific documents to enable efficient authorization checks.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile information.
+     * @description Allows users to read and write their own profile data.
      * @path /users/{userId}
-     * @allow (get, create, update, delete): User with ID 'user123' can read, create, update, and delete their own profile.
-     *   - Request: auth.uid == 'user123'
-     * @deny (get, create, update, delete): User with ID 'user456' cannot access profile of user 'user123'.
-     *   - Request: auth.uid == 'user456'
+     * @allow (get, update, delete) User with ID 'user123' can read/write their own profile.
+     * @allow (create) User with ID 'user123' can create their own profile.
+     * @deny (get, update, delete) User with ID 'user123' cannot read/write the profile of user 'user456'.
      * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
@@ -19,165 +34,184 @@ service cloud.firestore {
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource.data.id == userId;
+      allow delete: if isSignedIn() && isOwner(userId) && resource.data.id == userId;
     }
 
     /**
-     * @description Controls access to company settings.
+     * @description Allows anyone to read company data, but restricts creation, updates, and deletion.
      * @path /companies/{companyId}
-     * @allow get: Any signed-in user can read company settings.
-     * @deny create, update, delete: No one can create, update, or delete company settings.
-     * @principle  Company settings are read-only.
+     * @allow (get, list) Any user can read company data.
+     * @deny (create, update, delete) No one can create, update, or delete company data without proper authorization (TODO: Implement admin role).
+     * @principle Allows public read access for company information while restricting write access.
      */
     match /companies/{companyId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
-        allow get: if isSignedIn();
-        allow list: if false;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false; // TODO: Add company admin role check
     }
 
     /**
-     * @description Controls access to client information for a specific company.
+     * @description Allows company users to manage their clients.
      * @path /companies/{companyId}/clients/{clientId}
-     * @allow get, list, create: Any signed-in user can read or create clients for their company.
-     *   - Request: auth.uid != null && request.resource.data.companyId == companyId
-     * @allow update, delete: Only a signed-in user can update or delete a client for their company if the document exists.
-     *   - Request: auth.uid != null && resource.data.companyId == companyId
-     * @deny create, update: if request.resource.data.companyId != companyId
-     * @principle Enforces company-based access control for clients.
+     * @allow (create) User in company 'company123' can create a client.
+     * @allow (get, list, update, delete) User in company 'company123' can read/write clients within their company.
+     * @deny (create, get, list, update, delete) User in company 'company456' cannot access clients of 'company123'.
+     * @principle Enforces multi-tenancy: only users within the specified company can access client data.
      */
     match /companies/{companyId}/clients/{clientId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      function isMemberOfCompany(companyId) {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+      }
+
+      allow get, list: if isMemberOfCompany(companyId);
+      allow create: if isMemberOfCompany(companyId);
+      allow update: if isMemberOfCompany(companyId);
+      allow delete: if isMemberOfCompany(companyId);
     }
 
     /**
-     * @description Controls access to shipment origin points for a specific company.
+     * @description Allows company users to manage their shipment origins.
      * @path /companies/{companyId}/origins/{originId}
-     * @allow get, list, create: Any signed-in user can read or create origins for their company.
-     *   - Request: auth.uid != null && request.resource.data.companyId == companyId
-     * @allow update, delete: Only a signed-in user can update or delete an origin for their company if the document exists.
-     *   - Request: auth.uid != null && resource.data.companyId == companyId
-     * @deny create, update: if request.resource.data.companyId != companyId
-     * @principle Enforces company-based access control for shipment origins.
+     * @allow (create) User in company 'company123' can create an origin.
+     * @allow (get, list, update, delete) User in company 'company123' can read/write origins within their company.
+     * @deny (create, get, list, update, delete) User in company 'company456' cannot access origins of 'company123'.
+     * @principle Enforces multi-tenancy: only users within the specified company can access origin data.
      */
     match /companies/{companyId}/origins/{originId} {
         function isSignedIn() {
           return request.auth != null;
         }
 
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+        function isMemberOfCompany(companyId) {
+          return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+        }
+
+        allow get, list: if isMemberOfCompany(companyId);
+        allow create: if isMemberOfCompany(companyId);
+        allow update: if isMemberOfCompany(companyId);
+        allow delete: if isMemberOfCompany(companyId);
     }
 
     /**
-     * @description Controls access to client addresses for a specific client within a company.
+     * @description Allows company users to manage client addresses.
      * @path /companies/{companyId}/clients/{clientId}/addresses/{addressId}
-     * @allow get, list, create: Any signed-in user can read or create addresses for a client within their company.
-     * @allow update, delete: Only a signed-in user can update or delete an address for a client within their company if the document exists.
-     * @principle Enforces company and client-based access control for addresses.
+     * @allow (create) User in company 'company123' can create an address for a client.
+     * @allow (get, list, update, delete) User in company 'company123' can read/write addresses for clients within their company.
+     * @deny (create, get, list, update, delete) User in company 'company456' cannot access addresses of clients in 'company123'.
+     * @principle Enforces multi-tenancy: only users within the specified company can access client address data.
      */
     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      function isMemberOfCompany(companyId) {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+      }
+
+      allow get, list: if isMemberOfCompany(companyId);
+      allow create: if isMemberOfCompany(companyId);
+      allow update: if isMemberOfCompany(companyId);
+      allow delete: if isMemberOfCompany(companyId);
     }
 
     /**
-     * @description Controls access to orders for a specific company.
+     * @description Allows company users to manage their orders.
      * @path /companies/{companyId}/orders/{orderId}
-     * @allow get, list, create: Any signed-in user can read or create orders for their company.
-     *   - Request: auth.uid != null && request.resource.data.companyId == companyId
-     * @allow update, delete: Only a signed-in user can update or delete an order for their company if the document exists.
-     *   - Request: auth.uid != null && resource.data.companyId == companyId
-     * @deny create, update: if request.resource.data.companyId != companyId
-     * @principle Enforces company-based access control for orders.
+     * @allow (create) User in company 'company123' can create an order.
+     * @allow (get, list, update, delete) User in company 'company123' can read/write orders within their company.
+     * @deny (create, get, list, update, delete) User in company 'company456' cannot access orders of 'company123'.
+     * @principle Enforces multi-tenancy: only users within the specified company can access order data.
      */
     match /companies/{companyId}/orders/{orderId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      function isMemberOfCompany(companyId) {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+      }
+
+      allow get, list: if isMemberOfCompany(companyId);
+      allow create: if isMemberOfCompany(companyId);
+      allow update: if isMemberOfCompany(companyId);
+      allow delete: if isMemberOfCompany(companyId);
     }
 
      /**
-     * @description Controls access to bulk notification campaigns for a specific company.
-     * @path /companies/{companyId}/avisame_campaigns/{campaignId}
-     * @allow get, list, create: Any signed-in user can read or create campaigns for their company.
-     *   - Request: auth.uid != null && request.resource.data.companyId == companyId
-     * @allow update, delete: Only a signed-in user can update or delete a campaign for their company if the document exists.
-     *   - Request: auth.uid != null && resource.data.companyId == companyId
-     * @deny create, update: if request.resource.data.companyId != companyId
-     * @principle Enforces company-based access control for campaigns.
-     */
+      * @description Allows company users to manage their Avisame campaigns.
+      * @path /companies/{companyId}/avisame_campaigns/{campaignId}
+      * @allow (create) User in company 'company123' can create an Avisame campaign.
+      * @allow (get, list, update, delete) User in company 'company123' can read/write Avisame campaigns within their company.
+      * @deny (create, get, list, update, delete) User in company 'company456' cannot access Avisame campaigns of 'company123'.
+      * @principle Enforces multi-tenancy: only users within the specified company can access Avisame campaign data.
+      */
     match /companies/{companyId}/avisame_campaigns/{campaignId} {
         function isSignedIn() {
           return request.auth != null;
         }
 
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+        function isMemberOfCompany(companyId) {
+          return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+        }
+
+        allow get, list: if isMemberOfCompany(companyId);
+        allow create: if isMemberOfCompany(companyId);
+        allow update: if isMemberOfCompany(companyId);
+        allow delete: if isMemberOfCompany(companyId);
     }
 
     /**
-     * @description Controls access to individual Avisame deliveries.
+     * @description Allows company users to manage their Avisame delivery statuses.
      * @path /companies/{companyId}/avisame_deliveries/{deliveryId}
-     * @allow get: Any signed-in user can read deliveries for their company.
-     *   - Request: auth.uid != null
-     * @deny list: Listing deliveries is disabled.
-     * @allow create: Any signed-in user can create deliveries for their company.
-     *   - Request: auth.uid != null
-     * @allow update, delete: Only a signed-in user can update or delete a delivery for their company if the document exists.
-     *   - Request: auth.uid != null && resource != null
-     * @principle Enforces company-based access control for deliveries.  Listing is disabled.
+     * @allow (create) User in company 'company123' can create an Avisame delivery status.
+     * @allow (get, list, update, delete) User in company 'company123' can read/write Avisame delivery statuses within their company.
+     * @deny (create, get, list, update, delete) User in company 'company456' cannot access Avisame delivery statuses of 'company123'.
+     * @principle Enforces multi-tenancy: only users within the specified company can access Avisame delivery data.
      */
     match /companies/{companyId}/avisame_deliveries/{deliveryId} {
         function isSignedIn() {
           return request.auth != null;
         }
 
-        allow get: if isSignedIn();
-        allow list: if false;
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+        function isMemberOfCompany(companyId) {
+          return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+        }
+
+        allow get, list: if isMemberOfCompany(companyId);
+        allow create: if isMemberOfCompany(companyId);
+        allow update: if isMemberOfCompany(companyId);
+        allow delete: if isMemberOfCompany(companyId);
+    }
+
+    /**
+     * @description Allows company users to manage their drivers.
+     * @path /companies/{companyId}/drivers/{driverId}
+     * @allow (create) User in company 'company123' can create a driver.
+     * @allow (get, list, update, delete) User in company 'company123' can read/write drivers within their company.
+     * @deny (create, get, list, update, delete) User in company 'company456' cannot access drivers of 'company123'.
+     * @principle Enforces multi-tenancy: only users within the specified company can access driver data.
+     */
+     match /companies/{companyId}/drivers/{driverId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isMemberOfCompany(companyId) {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+      }
+
+      allow get, list: if isMemberOfCompany(companyId);
+      allow create: if isMemberOfCompany(companyId);
+      allow update: if isMemberOfCompany(companyId);
+      allow delete: if isMemberOfCompany(companyId);
     }
   }
 }
