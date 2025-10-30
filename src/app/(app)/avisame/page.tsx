@@ -18,7 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Driver, Client, Address } from '@/lib/types';
-import { collection, query, orderBy, getDocs, collectionGroup } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Megaphone, Send, Search, Radar, User, MoveRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -100,17 +100,12 @@ export default function AvisamePage() {
     return query(collection(firestore, 'companies', COMPANY_ID, 'orders'));
   }, [firestore, isUserLoading]);
   
-  const allAddressesQuery = useMemoFirebase(() => {
-    if(!firestore || isUserLoading) return null;
-    return collectionGroup(firestore, 'addresses');
-  }, [firestore, isUserLoading]);
 
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
-  const { data: allAddresses, isLoading: isLoadingAddresses } = useCollection<Address>(allAddressesQuery);
 
 
-  const pageIsLoading = isUserLoading || isLoadingClients || isLoadingOrders || isLoadingAddresses;
+  const pageIsLoading = isUserLoading || isLoadingClients || isLoadingOrders;
   
   return (
     <div className="flex flex-col gap-6">
@@ -134,7 +129,6 @@ export default function AvisamePage() {
         <TabsContent value="radar">
             <RadarTab 
                 clients={clients || []}
-                allAddresses={allAddresses || []}
                 isUserLoading={pageIsLoading}
             />
         </TabsContent>
@@ -500,8 +494,9 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
 
 type FoundClient = Client & { distance: number };
 
-function RadarTab({ clients, allAddresses, isUserLoading }: { clients: Client[], allAddresses: Address[], isUserLoading: boolean }) {
+function RadarTab({ clients, isUserLoading }: { clients: Client[], isUserLoading: boolean }) {
     const { toast } = useToast();
+    const firestore = useFirestore();
     const [isSearching, setIsSearching] = useState(false);
     const [nearbyClients, setNearbyClients] = useState<FoundClient[]>([]);
     const [searchRadius, setSearchRadius] = useState<number>(5);
@@ -521,35 +516,39 @@ function RadarTab({ clients, allAddresses, isUserLoading }: { clients: Client[],
         setIsSearching(true);
         setNearbyClients([]);
         
+        if (!firestore) {
+            toast({ variant: 'destructive', title: 'Erro de conexão' });
+            setIsSearching(false);
+            return;
+        }
+
         try {
             const position = await getCurrentPosition();
             const myLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-
-            if (!allAddresses || allAddresses.length === 0) {
-                 toast({ variant: 'destructive', title: 'Nenhum endereço', description: 'Nenhum endereço de cliente foi encontrado no sistema.' });
-                 setIsSearching(false);
-                 return;
-            }
             
             const foundClientsMap = new Map<string, FoundClient>();
 
-            allAddresses.forEach(address => {
-                if (address.latitude && address.longitude) {
-                    const clientLocation = { lat: address.latitude, lng: address.longitude };
-                    const distance = haversineDistance(myLocation, clientLocation);
+            // Iterate through each client to fetch their addresses
+            for (const client of clients) {
+                const addressesCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', client.id, 'addresses');
+                const addressesSnapshot = await getDocs(addressesCollection);
+                const clientAddresses = addressesSnapshot.docs.map(doc => doc.data() as Address);
 
-                    if (distance <= searchRadius) {
-                        const clientData = clients.find(c => c.id === address.clientId);
-                        if (clientData) {
+                for (const address of clientAddresses) {
+                     if (address.latitude && address.longitude) {
+                        const clientLocation = { lat: address.latitude, lng: address.longitude };
+                        const distance = haversineDistance(myLocation, clientLocation);
+
+                        if (distance <= searchRadius) {
                             // If client is already found, check if this new address is closer
-                            const existingClient = foundClientsMap.get(clientData.id);
+                            const existingClient = foundClientsMap.get(client.id);
                             if (!existingClient || distance < existingClient.distance) {
-                                foundClientsMap.set(clientData.id, { ...clientData, distance });
+                                foundClientsMap.set(client.id, { ...client, distance });
                             }
                         }
                     }
                 }
-            });
+            }
             
             const foundClients = Array.from(foundClientsMap.values()).sort((a,b) => a.distance - b.distance);
             setNearbyClients(foundClients);
