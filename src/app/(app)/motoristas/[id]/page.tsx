@@ -40,7 +40,7 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
   }, [firestore, isUserLoading, driverId]);
 
   const driverOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !driverId) return null;
     return query(
       collection(firestore, 'companies', '1', 'orders'),
       where('motoristaId', '==', driverId)
