@@ -50,10 +50,10 @@ export default function EncomendasPage() {
     if (!orders) return [];
     const cities = orders.map((order) => {
       // Defensive check to prevent crash if destino is not a string
-      if (typeof order.destino !== 'string') {
+      if (typeof order.destino?.full !== 'string') {
         return 'Desconhecida';
       }
-      const parts = order.destino.split(',');
+      const parts = order.destino.full.split(',');
       return parts.length > 2 ? parts[parts.length - 2].trim() : 'Desconhecida';
     });
     return [...new Set(cities)].filter((city) => city !== 'Desconhecida').sort();
@@ -116,7 +116,7 @@ export default function EncomendasPage() {
 
         {orders && !pageIsLoading && statuses.map((status) => {
             const filteredByStatus = status === 'TODAS' ? orders : orders.filter((order) => order.status === status);
-            const filteredOrders = selectedCity === 'all' ? filteredByStatus : filteredByStatus.filter(order => order.destino && typeof order.destino === 'string' && order.destino.includes(selectedCity));
+            const filteredOrders = selectedCity === 'all' ? filteredByStatus : filteredByStatus.filter(order => order.destino?.full && typeof order.destino.full === 'string' && order.destino.full.includes(selectedCity));
 
             return (
               <TabsContent key={status} value={status}>

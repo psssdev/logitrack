@@ -61,15 +61,21 @@ export async function runAvisameCampaign(campaignId: string) {
         const allOrders = ordersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Order));
         const allClients = clientsSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Client));
         
-        // 2. Filter clients in the target city
-        const ordersInCity = allOrders.filter(o => o.destino.toLowerCase().includes(campaign.city.toLowerCase()));
-        const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
-        const clientsToNotify = allClients?.filter(c => clientIdsInCity.includes(c.id)) || [];
+        // 2. Filter clients based on campaign target
+        let clientsToNotify: Client[] = [];
+        if (campaign.city === 'Todos os Clientes') {
+            clientsToNotify = allClients;
+        } else {
+            const ordersInCity = allOrders.filter(o => o.destino.full.toLowerCase().includes(campaign.city.toLowerCase()));
+            const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
+            clientsToNotify = allClients?.filter(c => clientIdsInCity.includes(c.id)) || [];
+        }
+
 
         if (clientsToNotify.length === 0) {
             batch.update(campaignRef, { status: 'failed', 'stats.failed': 1, error: 'Nenhum cliente encontrado.' });
             await batch.commit();
-            throw new Error('Nenhum cliente encontrado para a cidade desta campanha.');
+            throw new Error('Nenhum cliente encontrado para o critério desta campanha.');
         }
         
         // 3. Update campaign status to 'running'

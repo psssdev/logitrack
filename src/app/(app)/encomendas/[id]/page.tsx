@@ -156,7 +156,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                     </div>
                     <div className="flex items-center justify-between">
                       <dt className="text-muted-foreground">Destino</dt>
-                      <dd>{order.destino}</dd>
+                      <dd>{order.destino.full}</dd>
                     </div>
                     {order.numeroNota && (
                       <div className="flex items-center justify-between">

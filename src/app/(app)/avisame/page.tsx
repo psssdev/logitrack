@@ -188,7 +188,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
         setIsBuildingPreview(false);
         return;
       }
-      const ordersInCity = orders?.filter(o => o.destino.toLowerCase().includes(data.city.toLowerCase()));
+      const ordersInCity = orders?.filter(o => o.destino.full.toLowerCase().includes(data.city.toLowerCase()));
       const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
       clientsToNotify = clients?.filter(c => clientIdsInCity.includes(c.id)) || [];
     }

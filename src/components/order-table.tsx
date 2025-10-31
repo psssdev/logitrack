@@ -399,7 +399,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                   <TableCell>
                     <div className="font-medium">{order.nomeCliente}</div>
                     <div className="text-sm text-muted-foreground">
-                      {order.destino}
+                      {order.destino.full}
                     </div>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">

@@ -157,7 +157,7 @@ export default function RastreioPage({
                 <Separator className="my-1 sm:hidden" />
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                   <dt className="text-muted-foreground">Para</dt>
-                  <dd className="font-medium">{order.destino}</dd>
+                  <dd className="font-medium">{order.destino.full}</dd>
                 </div>
               </dl>
             </div>
@@ -170,15 +170,15 @@ export default function RastreioPage({
             </div>
           </CardContent>
         </Card>
+      </div>
 
-        <div className="text-center">
-          <Button variant="outline" asChild>
-            <Link href="/rastreio">
-              <Search className="mr-2 h-4 w-4" />
-              Rastrear outra encomenda
-            </Link>
-          </Button>
-        </div>
+      <div className="text-center">
+        <Button variant="outline" asChild>
+          <Link href="/rastreio">
+            <Search className="mr-2 h-4 w-4" />
+            Rastrear outra encomenda
+          </Link>
+        </Button>
       </div>
       <footer className="mt-12 text-center text-sm text-muted-foreground">
         &copy; {new Date().getFullYear()} LogiTrack. Todos os direitos
