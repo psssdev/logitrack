@@ -192,7 +192,8 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
     if (data.target === 'all') {
       clientsToNotify = clients || [];
     } else {
-      if (!data.city) {
+      const city = data.city;
+      if (!city) {
          toast({
           title: 'Cidade obrigatória',
           description: `Por favor, selecione uma cidade para a campanha.`,
@@ -201,7 +202,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
         setIsBuildingPreview(false);
         return;
       }
-      const ordersInCity = orders?.filter(o => o.destino.full.toLowerCase().includes(data.city.toLowerCase()));
+      const ordersInCity = orders?.filter(o => o.destino.full.toLowerCase().includes(city.toLowerCase()));
       const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
       clientsToNotify = clients?.filter(c => clientIdsInCity.includes(c.id)) || [];
     }
@@ -697,3 +698,5 @@ function RadarTab({ clients, isUserLoading }: { clients: Client[], isUserLoading
         </Card>
     )
 }
+
+    
