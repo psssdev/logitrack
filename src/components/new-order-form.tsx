@@ -159,15 +159,11 @@ export function NewOrderForm({
   const selectedClientId = form.watch('clientId');
   const items = form.watch('items');
 
-  const totalValue = React.useMemo(
-    () => (items || []).reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0),
-    [items]
-  );
+  // Directly calculate totalValue and totalVolumes based on watched 'items'
+  const watchedItems = form.watch('items');
+  const totalValue = (watchedItems || []).reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0);
+  const totalVolumes = (watchedItems || []).reduce((acc, item) => acc + (item.quantity || 0), 0);
 
-  const totalVolumes = React.useMemo(
-    () => (items || []).reduce((acc, item) => acc + (item.quantity || 0), 0),
-    [items]
-  );
 
   // ---- drivers
   const driversQuery = useMemoFirebase(() => {
@@ -551,7 +547,11 @@ export function NewOrderForm({
                                   min={1}
                                   step={1}
                                   {...field}
-                                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+                                  onChange={(e) => {
+                                      const value = parseInt(e.target.value, 10);
+                                      field.onChange(isNaN(value) ? 0 : value);
+                                      form.trigger('items');
+                                  }}
                                   className="w-20"
                                   aria-label="Quantidade"
                                 />
@@ -573,7 +573,11 @@ export function NewOrderForm({
                                   min={0}
                                   step="0.01"
                                   {...field}
-                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                  onChange={(e) => {
+                                    const value = parseFloat(e.target.value);
+                                    field.onChange(isNaN(value) ? 0 : value);
+                                    form.trigger('items');
+                                  }}
                                   className="w-24"
                                   aria-label="Valor unitário"
                                 />
