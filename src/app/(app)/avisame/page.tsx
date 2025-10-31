@@ -329,7 +329,13 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Cidade de Destino</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select 
+                                      onValueChange={(value) => {
+                                        field.onChange(value);
+                                        form.setValue('city', value);
+                                      }} 
+                                      defaultValue={field.value}
+                                    >
                                       <FormControl>
                                         <SelectTrigger>
                                           <SelectValue placeholder="Selecione uma cidade" />
@@ -698,5 +704,3 @@ function RadarTab({ clients, isUserLoading }: { clients: Client[], isUserLoading
         </Card>
     )
 }
-
-    
