@@ -149,6 +149,19 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
   const [preview, setPreview] = useState<{ clients: Client[], message: string, includeGeo: boolean } | null>(null);
   const [isBuildingPreview, setIsBuildingPreview] = useState(false);
 
+  const uniqueCities = useMemo(() => {
+    if (!orders) return [];
+    const cities = orders.map((order) => {
+      if (typeof order.destino?.full !== 'string') {
+        return null;
+      }
+      const parts = order.destino.full.split(',');
+      return parts.length > 2 ? parts[parts.length - 2].trim() : null;
+    });
+    return [...new Set(cities)].filter((city): city is string => city !== null).sort();
+  }, [orders]);
+
+
   const form = useForm<CampaignFormData>({
     resolver: zodResolver(avisameCampaignSchema.extend({ target: z.enum(['city', 'all']) })),
     defaultValues: {
@@ -182,7 +195,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
       if (!data.city) {
          toast({
           title: 'Cidade obrigatória',
-          description: `Por favor, informe a cidade para a campanha.`,
+          description: `Por favor, selecione uma cidade para a campanha.`,
           variant: 'destructive'
         });
         setIsBuildingPreview(false);
@@ -315,9 +328,18 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Cidade de Destino</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder="Digite o nome da cidade" />
-                                    </FormControl>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Selecione uma cidade" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {uniqueCities.map(city => (
+                                          <SelectItem key={city} value={city}>{city}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}
