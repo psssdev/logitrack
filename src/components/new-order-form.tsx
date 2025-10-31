@@ -271,7 +271,7 @@ export function NewOrderForm({
       const address = addresses?.find((a) => a.id === data.destino) || null;
       const destino = address ? { id: address.id, full: address.fullAddress } : null;
 
-      const now = serverTimestamp();
+      const createdAtTimestamp = serverTimestamp();
 
       // código de rastreio (pode trocar por nanoid se preferir)
       const trackingPrefix = 'TR';
@@ -292,9 +292,9 @@ export function NewOrderForm({
         telefone: client.telefone,
         codigoRastreio: trackingCode,
         status: 'PENDENTE',
-        createdAt: now,
+        createdAt: createdAtTimestamp,
         createdBy: user.uid,
-        timeline: [{ status: 'PENDENTE', at: now, userId: user.uid }],
+        timeline: [{ status: 'PENDENTE', at: new Date(), userId: user.uid }],
         messages: [],
       };
 
