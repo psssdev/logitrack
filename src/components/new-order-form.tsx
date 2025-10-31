@@ -551,10 +551,7 @@ export function NewOrderForm({
                                   min={1}
                                   step={1}
                                   {...field}
-                                  onChange={(e) => {
-                                    const v = e.target.valueAsNumber;
-                                    field.onChange(Number.isFinite(v) && v >= 1 ? v : 1);
-                                  }}
+                                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
                                   className="w-20"
                                   aria-label="Quantidade"
                                 />
@@ -576,10 +573,7 @@ export function NewOrderForm({
                                   min={0}
                                   step="0.01"
                                   {...field}
-                                  onChange={(e) => {
-                                    const v = e.target.valueAsNumber;
-                                    field.onChange(Number.isFinite(v) && v >= 0 ? v : 0);
-                                  }}
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                   className="w-24"
                                   aria-label="Valor unitário"
                                 />
