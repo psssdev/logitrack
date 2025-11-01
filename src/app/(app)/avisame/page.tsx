@@ -139,7 +139,7 @@ export default function AvisamePage() {
 }
 
 // Custom Type for Form Data
-type CampaignFormData = NewAvisameCampaign & { target: 'city' | 'all' };
+type CampaignFormData = NewAvisameCampaign;
 
 // TAB 1: CAMPANHA POR CIDADE
 function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Order[], clients: Client[], user: any, isUserLoading: boolean }) {
@@ -163,7 +163,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
 
 
   const form = useForm<CampaignFormData>({
-    resolver: zodResolver(avisameCampaignSchema.extend({ target: z.enum(['city', 'all']) })),
+    resolver: zodResolver(avisameCampaignSchema),
     defaultValues: {
       target: 'city',
       city: '',

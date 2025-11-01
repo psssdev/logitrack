@@ -161,7 +161,8 @@ export const newOriginSchema = originSchema.omit({
 export const avisameCampaignStatusSchema = z.enum(['scheduled', 'running', 'done', 'failed']);
 
 export const avisameCampaignSchema = z.object({
-  city: z.string().min(1, "Cidade é obrigatória"),
+  target: z.enum(['city', 'all']),
+  city: z.string().optional(),
   messageTemplate: z.string().min(1, "A mensagem é obrigatória"),
   driverId: z.string().optional(),
   includeGeo: z.boolean().default(false),
@@ -175,6 +176,14 @@ export const avisameCampaignSchema = z.object({
   }).default({ queued: 0, sent: 0, failed: 0 }),
   createdAt: z.any(),
   createdBy: z.string(),
+}).refine(data => {
+    if (data.target === 'city') {
+        return !!data.city && data.city.length > 0;
+    }
+    return true;
+}, {
+    message: "Cidade é obrigatória para este tipo de campanha.",
+    path: ["city"],
 });
 
 export const avisameDeliveryStatusSchema = z.enum(['queued', 'sent', 'failed']);
@@ -189,3 +198,4 @@ export const avisameDeliverySchema = z.object({
 });
 
     
+
