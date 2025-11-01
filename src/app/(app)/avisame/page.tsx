@@ -192,67 +192,72 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
     setIsBuildingPreview(true);
     let clientsToNotify: Client[] = [];
     let targetDescription = '';
-
+  
     if (data.target === 'all') {
       clientsToNotify = clients || [];
       targetDescription = 'Todos os Clientes';
     } else {
       const city = data.city;
       if (!city) {
-         toast({
+        toast({
           title: 'Cidade obrigatória',
           description: `Por favor, selecione uma cidade para a campanha.`,
-          variant: 'destructive'
+          variant: 'destructive',
         });
         setIsBuildingPreview(false);
         return;
       }
       targetDescription = city;
-      const ordersInCity = orders?.filter(o => o.destino.full.toLowerCase().includes(city.toLowerCase()));
+      // Filter orders by the selected city
+      const ordersInCity = orders?.filter(o =>
+        o.destino?.full?.toLowerCase().includes(city.toLowerCase())
+      );
+      // Get unique client IDs from the filtered orders
       const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
+      // Filter clients based on the IDs found
       clientsToNotify = clients?.filter(c => clientIdsInCity.includes(c.id)) || [];
     }
-    
+  
     if (clientsToNotify.length === 0) {
       toast({
-        title: 'Nenhum cliente',
-        description: `Nenhum cliente encontrado para o critério selecionado.`,
-        variant: 'destructive'
+        title: 'Nenhum cliente encontrado',
+        description: `Nenhum cliente encontrado para o critério selecionado: ${targetDescription}.`,
+        variant: 'destructive',
       });
       setIsBuildingPreview(false);
       return;
     }
-    
+  
     let locationText = '';
     if (data.includeGeo) {
-        try {
-            const position = await getCurrentPosition();
-            const { latitude, longitude } = position.coords;
-            locationText = `Ponto de encontro: ${mapsLink(latitude, longitude)}`;
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Erro de Localização',
-                description: error.message || 'Não foi possível obter sua localização.'
-            });
-            setIsBuildingPreview(false);
-            return;
-        }
+      try {
+        const position = await getCurrentPosition();
+        const { latitude, longitude } = position.coords;
+        locationText = `Ponto de encontro: ${mapsLink(latitude, longitude)}`;
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro de Localização',
+          description: error.message || 'Não foi possível obter sua localização.',
+        });
+        setIsBuildingPreview(false);
+        return;
+      }
     }
-    
+  
     const driver = drivers?.find(d => d.id === data.driverId);
     const vars: Vars = {
-        cliente: '{cliente}', // keep placeholder for preview
-        cidade: targetDescription,
-        motorista_nome: driver?.nome ?? '',
-        motorista_telefone: driver?.telefone ?? '',
-        ponto_encontro: locationText
+      cliente: '{cliente}', // keep placeholder for preview
+      cidade: targetDescription,
+      motorista_nome: driver?.nome ?? '',
+      motorista_telefone: driver?.telefone ?? '',
+      ponto_encontro: locationText,
     };
     const finalMessage = renderTemplate(data.messageTemplate, vars);
-
+  
     setPreview({ clients: clientsToNotify, message: finalMessage, includeGeo: data.includeGeo });
     setIsBuildingPreview(false);
-  }
+  };
 
   const handleConfirmAndSchedule = async () => {
       if (!preview || !user) return;
@@ -708,3 +713,5 @@ function RadarTab({ clients, isUserLoading }: { clients: Client[], isUserLoading
         </Card>
     )
 }
+
+    
