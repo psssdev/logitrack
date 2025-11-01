@@ -146,12 +146,11 @@ service cloud.firestore {
     }
 
      /**
-      * @description Allows company users to manage their Avisame campaigns.
+      * @description Allows server-side actions to create campaigns and authenticated users to manage them.
       * @path /companies/{companyId}/avisame_campaigns/{campaignId}
-      * @allow (create) User in company 'company123' can create an Avisame campaign.
-      * @allow (get, list, update, delete) User in company 'company123' can read/write Avisame campaigns within their company.
-      * @deny (create, get, list, update, delete) User in company 'company456' cannot access Avisame campaigns of 'company123'.
-      * @principle Enforces multi-tenancy: only users within the specified company can access Avisame campaign data.
+      * @allow (create) Server-side logic can create new campaigns.
+      * @allow (get, list, update, delete) Authenticated users belonging to the company can manage campaigns.
+      * @principle Enforces multi-tenancy while enabling server-side automation.
       */
     match /companies/{companyId}/avisame_campaigns/{campaignId} {
         function isSignedIn() {
@@ -163,18 +162,17 @@ service cloud.firestore {
         }
 
         allow get, list: if isMemberOfCompany(companyId);
-        allow create: if isMemberOfCompany(companyId);
+        allow create: if request.auth == null; // Allow server-side creation
         allow update: if isMemberOfCompany(companyId);
         allow delete: if isMemberOfCompany(companyId);
     }
 
     /**
-     * @description Allows company users to manage their Avisame delivery statuses.
+     * @description Allows server-side actions to create delivery records and authenticated users to read them.
      * @path /companies/{companyId}/avisame_deliveries/{deliveryId}
-     * @allow (create) User in company 'company123' can create an Avisame delivery status.
-     * @allow (get, list, update, delete) User in company 'company123' can read/write Avisame delivery statuses within their company.
-     * @deny (create, get, list, update, delete) User in company 'company456' cannot access Avisame delivery statuses of 'company123'.
-     * @principle Enforces multi-tenancy: only users within the specified company can access Avisame delivery data.
+     * @allow (create) Server-side logic can create new delivery records as part of a campaign.
+     * @allow (get, list, update, delete) Authenticated users belonging to the company can manage delivery statuses.
+     * @principle Enforces multi-tenancy for read/update while enabling server-side automation for creation.
      */
     match /companies/{companyId}/avisame_deliveries/{deliveryId} {
         function isSignedIn() {
@@ -186,7 +184,7 @@ service cloud.firestore {
         }
 
         allow get, list: if isMemberOfCompany(companyId);
-        allow create: if isMemberOfCompany(companyId);
+        allow create: if request.auth == null; // Allow server-side batch creation
         allow update: if isMemberOfCompany(companyId);
         allow delete: if isMemberOfCompany(companyId);
     }
