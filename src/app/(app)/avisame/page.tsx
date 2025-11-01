@@ -48,7 +48,7 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
-import { scheduleAvisameCampaign } from '@/lib/avisame-actions';
+import { runAvisameCampaign } from '@/lib/avisame-actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { WhatsApp } from '@/components/ui/icons';
@@ -173,12 +173,9 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
       driverId: undefined,
       messageTemplate: 'Olá, {cliente}! Estaremos com entregas em {cidade} em breve.\nMotorista: {motorista_nome} ({motorista_telefone})\n{ponto_encontro}\nSe quiser, me chama por aqui e já separo seu pedido 🙂',
       includeGeo: false,
-      sendNow: true,
-      scheduledAt: new Date(),
     },
   });
 
-  const sendNow = form.watch('sendNow');
   const target = form.watch('target');
   
   const driversQuery = useMemoFirebase(() => {
@@ -259,20 +256,19 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
     setIsBuildingPreview(false);
   };
 
-  const handleConfirmAndSchedule = async () => {
+  const handleConfirmAndSend = async () => {
       if (!preview || !user) return;
       const campaignData = form.getValues();
       
       try {
-        await scheduleAvisameCampaign({
+        await runAvisameCampaign({
           ...campaignData,
           createdBy: user.uid,
-          scheduledAt: campaignData.sendNow ? new Date() : campaignData.scheduledAt,
         });
 
         toast({
-          title: "Campanha Agendada!",
-          description: `Sua campanha foi agendada. ${campaignData.sendNow ? 'A execução foi iniciada em segundo plano.' : 'Acesse a tela de campanhas para executá-la.'}`,
+          title: "Campanha em Execução!",
+          description: `Sua campanha foi iniciada em segundo plano.`,
         });
         setPreview(null);
         form.reset();
@@ -281,8 +277,8 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
       } catch(e: any) {
         toast({
           variant: "destructive",
-          title: "Erro ao agendar",
-          description: e.message || "Não foi possível salvar a campanha."
+          title: "Erro ao executar campanha",
+          description: e.message || "Não foi possível iniciar a campanha."
         })
       }
   }
@@ -296,7 +292,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
         <CardHeader>
           <CardTitle>Nova Campanha de Avisos</CardTitle>
           <CardDescription>
-            Agende ou envie uma notificação em massa para os seus clientes.
+            Envie uma notificação em massa para os seus clientes.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -405,82 +401,8 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                   )}
                 />
                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-4 rounded-md border p-4">
-                       <FormField
-                        control={form.control}
-                        name="sendNow"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between">
-                            <div className="space-y-0.5">
-                              <FormLabel>Enviar Imediatamente</FormLabel>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      {!sendNow && (
-                         <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="scheduledAt"
-                              render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                  <FormLabel>Data</FormLabel>
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <FormControl>
-                                        <Button
-                                          variant={"outline"}
-                                          className={cn(
-                                            "pl-3 text-left font-normal",
-                                            !field.value && "text-muted-foreground"
-                                          )}
-                                        >
-                                          {field.value ? (
-                                            format(field.value, "dd/MM/yyyy")
-                                          ) : (
-                                            <span>Escolha uma data</span>
-                                          )}
-                                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                      </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <CalendarComponent
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        disabled={(date) =>
-                                          date < new Date(new Date().setHours(0,0,0,0))
-                                        }
-                                        initialFocus
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                             <FormItem>
-                                <FormLabel>Hora</FormLabel>
-                                <FormControl>
-                                  <Input type="time" defaultValue={format(form.getValues('scheduledAt'), "HH:mm")} onChange={(e) => {
-                                      const [hours, minutes] = e.target.value.split(':').map(Number);
-                                      const newDate = new Date(form.getValues('scheduledAt'));
-                                      newDate.setHours(hours, minutes);
-                                      form.setValue('scheduledAt', newDate);
-                                  }} />
-                                </FormControl>
-                            </FormItem>
-                         </div>
-                      )}
-                    </div>
-                     <div className="space-y-4 rounded-md border p-4">
+                    
+                     <div className="space-y-4 rounded-md border p-4 md:col-span-2">
                        <FormField
                         control={form.control}
                         name="includeGeo"
@@ -507,7 +429,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                 <div className="flex justify-end">
                     <Button type="submit" disabled={isBuildingPreview || form.formState.isSubmitting}>
                         {isBuildingPreview ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                        Agendar / Visualizar Envio
+                        Visualizar e Enviar
                     </Button>
                 </div>
               </form>
@@ -520,9 +442,9 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
         <AlertDialog open={!!preview} onOpenChange={() => setPreview(null)}>
             <AlertDialogContent className="max-w-2xl">
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Confirmar e Agendar Campanha?</AlertDialogTitle>
+                    <AlertDialogTitle>Confirmar e Enviar Campanha?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        A campanha será agendada para <span className="font-bold">{form.getValues('target') === 'all' ? 'Todos os Clientes' : form.getValues('city')}</span>.
+                        A campanha será enviada para <span className="font-bold">{form.getValues('target') === 'all' ? 'Todos os Clientes' : form.getValues('city')}</span>.
                         Serão notificados <span className="font-bold">{preview.clients.length} clientes</span>.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -543,8 +465,8 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                 </div>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleConfirmAndSchedule} disabled={form.formState.isSubmitting}>
-                         {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirmar e Agendar"}
+                    <AlertDialogAction onClick={handleConfirmAndSend} disabled={form.formState.isSubmitting}>
+                         {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirmar e Enviar"}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -713,5 +635,3 @@ function RadarTab({ clients, isUserLoading }: { clients: Client[], isUserLoading
         </Card>
     )
 }
-
-    

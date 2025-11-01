@@ -85,8 +85,14 @@ export type Company = {
 // Avisame types
 export type AvisameCampaign = Omit<z.infer<typeof avisameCampaignSchema>, 'createdAt' | 'scheduledAt'> & {
     id: string;
+    status: 'scheduled' | 'running' | 'done' | 'failed';
+    stats: {
+        queued: number;
+        sent: number;
+        failed: number;
+      };
     createdAt: Date | Timestamp;
-    scheduledAt: Date | Timestamp;
+    scheduledAt: Date | Timestamp; // Still useful for knowing when it was triggered
 };
 
 export type NewAvisameCampaign = z.infer<typeof avisameCampaignSchema>;
@@ -97,4 +103,3 @@ export type AvisameDelivery = z.infer<typeof avisameDeliverySchema>;
     
 
     
-

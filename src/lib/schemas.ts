@@ -166,16 +166,9 @@ export const avisameCampaignSchema = z.object({
   messageTemplate: z.string().min(1, "A mensagem é obrigatória"),
   driverId: z.string().optional(),
   includeGeo: z.boolean().default(false),
-  sendNow: z.boolean().default(true),
-  scheduledAt: z.any(),
-  status: avisameCampaignStatusSchema.default('scheduled'),
-  stats: z.object({
-    queued: z.number().default(0),
-    sent: z.number().default(0),
-    failed: z.number().default(0),
-  }).default({ queued: 0, sent: 0, failed: 0 }),
-  createdAt: z.any(),
-  createdBy: z.string(),
+  // Scheduling fields are no longer needed
+  // sendNow: z.boolean().default(true),
+  // scheduledAt: z.any(),
 }).refine(data => {
     if (data.target === 'city') {
         return !!data.city && data.city.length > 0;
@@ -198,4 +191,5 @@ export const avisameDeliverySchema = z.object({
 });
 
     
+
 

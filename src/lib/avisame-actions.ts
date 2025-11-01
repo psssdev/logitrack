@@ -3,66 +3,36 @@
 
 import { getFirestoreServer } from '@/firebase/server-init';
 import type { AvisameCampaign, Client, NewAvisameCampaign, Order } from './types';
-import { addDoc, collection, serverTimestamp, writeBatch, getDocs, query, where, doc, runTransaction } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, writeBatch, getDocs, query, where, doc, runTransaction, updateDoc } from 'firebase/firestore';
 import { triggerRevalidation } from './actions';
 
 const COMPANY_ID = '1';
 
-export async function scheduleAvisameCampaign(campaignData: NewAvisameCampaign & { createdBy: string }) {
-  const firestore = getFirestoreServer();
-  const campaignCollection = collection(firestore, 'companies', COMPANY_ID, 'avisame_campaigns');
-
-  try {
-    const isSendNow = campaignData.sendNow;
-    const dataToSave = {
-      ...campaignData,
-      createdAt: serverTimestamp(),
-      scheduledAt: campaignData.scheduledAt,
-      stats: {
-        queued: 0,
-        sent: 0,
-        failed: 0,
-      },
-      status: 'scheduled',
-    };
-    
-    // We don't need sendNow in the database
-    delete (dataToSave as any).sendNow;
-
-    const docRef = await addDoc(campaignCollection, dataToSave);
-    await triggerRevalidation('/avisame/campanhas');
-
-    if (isSendNow) {
-        // Don't await this, let it run in the background
-        runAvisameCampaign(docRef.id).catch(console.error);
-    }
-
-    return { success: true, id: docRef.id };
-  } catch (error: any) {
-    console.error("Error scheduling Avisame campaign: ", error);
-    throw new Error('Failed to schedule campaign in database.');
-  }
-}
-
-export async function runAvisameCampaign(campaignId: string) {
+export async function runAvisameCampaign(campaignData: Omit<NewAvisameCampaign, 'scheduledAt' | 'status' | 'stats'> & { createdBy: string }) {
     const firestore = getFirestoreServer();
     
+    // Create the campaign document first
+    const campaignCollection = collection(firestore, 'companies', COMPANY_ID, 'avisame_campaigns');
+    const campaignDocData = {
+        ...campaignData,
+        createdAt: serverTimestamp(),
+        scheduledAt: serverTimestamp(), // Sent immediately
+        stats: {
+          queued: 0,
+          sent: 0,
+          failed: 0,
+        },
+        status: 'running', // Start as running
+      };
+      
+    const campaignRef = await addDoc(campaignCollection, campaignDocData);
+    const campaignId = campaignRef.id;
+
     try {
-        // 1. Get Campaign and Clients/Orders
-        const campaignRef = doc(firestore, 'companies', COMPANY_ID, 'avisame_campaigns', campaignId);
+        // 1. Get Clients/Orders
         const ordersRef = collection(firestore, 'companies', COMPANY_ID, 'orders');
         const clientsRef = collection(firestore, 'companies', COMPANY_ID, 'clients');
         
-        const campaignDoc = await runTransaction(firestore, async t => {
-            const doc = await t.get(campaignRef);
-            if (!doc.exists()) throw new Error('Campanha não encontrada.');
-            const campaignData = doc.data() as AvisameCampaign;
-            if (campaignData.status !== 'scheduled') throw new Error(`A campanha já está no status '${campaignData.status}'.`);
-            
-            t.update(campaignRef, { status: 'running' });
-            return campaignData;
-        });
-
         const [ordersSnapshot, clientsSnapshot] = await Promise.all([
             getDocs(ordersRef),
             getDocs(clientsRef)
@@ -73,10 +43,12 @@ export async function runAvisameCampaign(campaignId: string) {
         
         // 2. Filter clients based on campaign target
         let clientsToNotify: Client[] = [];
-        if (campaignDoc.target === 'all') {
+        if (campaignDocData.target === 'all') {
             clientsToNotify = allClients;
         } else {
-            const cityFilter = campaignDoc.city.toLowerCase();
+            const cityFilter = campaignDocData.city?.toLowerCase();
+            if (!cityFilter) throw new Error("A cidade é obrigatória para este tipo de campanha.");
+
             const ordersInCity = allOrders.filter(o => o.destino?.full?.toLowerCase().includes(cityFilter));
             const clientIdsInCity = [...new Set(ordersInCity.map(o => o.clientId))];
             clientsToNotify = allClients.filter(c => clientIdsInCity.includes(c.id));
@@ -118,7 +90,6 @@ export async function runAvisameCampaign(campaignId: string) {
         console.error("Error running Avisame campaign:", error);
         // If something fails, try to mark the campaign as failed
         try {
-            const campaignRef = doc(firestore, 'companies', COMPANY_ID, 'avisame_campaigns', campaignId);
             await updateDoc(campaignRef, { status: 'failed', error: error.message });
             await triggerRevalidation('/avisame/campanhas');
         } catch (e) {
