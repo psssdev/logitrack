@@ -480,7 +480,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
         </AlertDialog>
     )}
     </>
-  )
+  );
 }
 
 type FoundClient = Client & { distance: number };
