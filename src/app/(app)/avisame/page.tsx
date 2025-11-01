@@ -1,6 +1,7 @@
 
 'use client';
 import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -336,7 +337,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                                 <FormItem>
                                     <FormLabel>Cidade de Destino</FormLabel>
                                     <Select 
-                                      onValueChange={(value) => field.onChange(value)} 
+                                      onValueChange={(value) => form.setValue('city', value)}
                                       value={field.value}
                                     >
                                       <FormControl>
