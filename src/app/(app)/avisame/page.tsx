@@ -25,7 +25,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Megaphone, Send, Search, Radar, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getCityFromCoordinates } from '@/lib/actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +39,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { avisameCampaignSchema } from '@/lib/schemas';
 import type { NewAvisameCampaign } from '@/lib/types';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
