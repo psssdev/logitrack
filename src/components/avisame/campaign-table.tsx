@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, PlayCircle } from 'lucide-react';
+import { MoreHorizontal, PlayCircle, Loader2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { Timestamp } from 'firebase/firestore';
 import { Progress } from '../ui/progress';
@@ -59,10 +59,10 @@ export function CampaignTable({ campaigns }: { campaigns: AvisameCampaign[] }) {
   };
 
   const calculateProgress = (stats: AvisameCampaign['stats']) => {
-    if (!stats) return 0;
-    const total = stats.queued + stats.sent + stats.failed;
+    if (!stats || !stats.queued) return 0;
+    const total = stats.queued;
     if (total === 0) return 0;
-    const completed = stats.sent + stats.failed;
+    const completed = (stats.sent || 0) + (stats.failed || 0);
     return (completed / total) * 100;
   };
   
@@ -71,7 +71,7 @@ export function CampaignTable({ campaigns }: { campaigns: AvisameCampaign[] }) {
     try {
         const result = await runAvisameCampaign(campaignId);
         toast({
-            title: 'Campanha Executada!',
+            title: 'Campanha em Execução!',
             description: `${result.clientsNotified} clientes foram colocados na fila de envio.`
         })
     } catch(e: any) {
@@ -101,7 +101,7 @@ export function CampaignTable({ campaigns }: { campaigns: AvisameCampaign[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Cidade</TableHead>
+            <TableHead>Público</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="hidden md:table-cell">Agendada Para</TableHead>
             <TableHead className="hidden lg:table-cell">Progresso</TableHead>
@@ -111,42 +111,52 @@ export function CampaignTable({ campaigns }: { campaigns: AvisameCampaign[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {campaigns.map((campaign) => (
-            <TableRow key={campaign.id}>
-              <TableCell className="font-medium">{campaign.city}</TableCell>
-              <TableCell>{getStatusBadge(campaign.status)}</TableCell>
-              <TableCell className="hidden md:table-cell">
-                {formatDate(campaign.scheduledAt)}
-              </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                 <div className="flex items-center gap-2">
-                    <Progress value={calculateProgress(campaign.stats)} className="w-32 h-2" />
-                    <span className="text-xs text-muted-foreground">{`${campaign.stats.sent + campaign.stats.failed}/${campaign.stats.queued + campaign.stats.sent + campaign.stats.failed}`}</span>
-                </div>
-              </TableCell>
-              <TableCell className="text-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button aria-haspopup="true" size="icon" variant="ghost" disabled={runningCampaignId === campaign.id}>
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Abrir menu</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {campaign.status === 'scheduled' && (
-                        <DropdownMenuItem onClick={() => handleRunCampaign(campaign.id)} disabled={runningCampaignId !== null}>
-                            <PlayCircle className="mr-2 h-4 w-4" />
-                            {runningCampaignId === campaign.id ? 'Executando...' : 'Executar Agora'}
-                        </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem className="text-destructive" disabled={campaign.status === 'running'}>
-                      Cancelar Campanha
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
+          {campaigns.map((campaign) => {
+            const totalDeliveries = campaign.stats?.queued ?? 0;
+            const completedDeliveries = (campaign.stats?.sent ?? 0) + (campaign.stats?.failed ?? 0);
+
+            return (
+              <TableRow key={campaign.id}>
+                <TableCell className="font-medium">{campaign.target === 'all' ? 'Todos os Clientes' : campaign.city}</TableCell>
+                <TableCell>{getStatusBadge(campaign.status)}</TableCell>
+                <TableCell className="hidden md:table-cell">
+                  {formatDate(campaign.scheduledAt)}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  {campaign.status !== 'scheduled' && (
+                    <div className="flex items-center gap-2">
+                      <Progress value={calculateProgress(campaign.stats)} className="w-32 h-2" />
+                      <span className="text-xs text-muted-foreground">{`${completedDeliveries}/${totalDeliveries}`}</span>
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="text-center">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button aria-haspopup="true" size="icon" variant="ghost" disabled={runningCampaignId === campaign.id}>
+                         {runningCampaignId === campaign.id ? 
+                            <Loader2 className="h-4 w-4 animate-spin" /> : 
+                            <MoreHorizontal className="h-4 w-4" />
+                         }
+                        <span className="sr-only">Abrir menu</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {campaign.status === 'scheduled' && (
+                          <DropdownMenuItem onClick={() => handleRunCampaign(campaign.id)} disabled={runningCampaignId !== null}>
+                              <PlayCircle className="mr-2 h-4 w-4" />
+                              Executar Agora
+                          </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem className="text-destructive" disabled={campaign.status === 'running'}>
+                        Cancelar Campanha
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
     </div>

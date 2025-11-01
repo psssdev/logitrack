@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import {
@@ -20,7 +21,7 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebas
 import type { Order, Driver, Client, Address } from '@/lib/types';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Megaphone, Send, Search, Radar, User, MoveRight } from 'lucide-react';
+import { Loader2, Megaphone, Send, Search, Radar, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getCityFromCoordinates } from '@/lib/actions';
@@ -145,6 +146,7 @@ type CampaignFormData = NewAvisameCampaign;
 function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Order[], clients: Client[], user: any, isUserLoading: boolean }) {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const router = useRouter();
 
   const [preview, setPreview] = useState<{ clients: Client[], message: string, includeGeo: boolean } | null>(null);
   const [isBuildingPreview, setIsBuildingPreview] = useState(false);
@@ -188,9 +190,11 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
   const handleBuildPreview = async (data: CampaignFormData) => {
     setIsBuildingPreview(true);
     let clientsToNotify: Client[] = [];
+    let targetDescription = '';
 
     if (data.target === 'all') {
       clientsToNotify = clients || [];
+      targetDescription = 'Todos os Clientes';
     } else {
       const city = data.city;
       if (!city) {
@@ -202,6 +206,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
         setIsBuildingPreview(false);
         return;
       }
+      targetDescription = city;
       const ordersInCity = orders?.filter(o => o.destino.full.toLowerCase().includes(city.toLowerCase()));
       const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
       clientsToNotify = clients?.filter(c => clientIdsInCity.includes(c.id)) || [];
@@ -237,7 +242,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
     const driver = drivers?.find(d => d.id === data.driverId);
     const vars: Vars = {
         cliente: '{cliente}', // keep placeholder for preview
-        cidade: data.city || 'sua região',
+        cidade: targetDescription,
         motorista_nome: driver?.nome ?? '',
         motorista_telefone: driver?.telefone ?? '',
         ponto_encontro: locationText
@@ -255,17 +260,18 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
       try {
         await scheduleAvisameCampaign({
           ...campaignData,
-          city: campaignData.target === 'all' ? 'Todos os Clientes' : campaignData.city,
           createdBy: user.uid,
           scheduledAt: campaignData.sendNow ? new Date() : campaignData.scheduledAt,
         });
 
         toast({
           title: "Campanha Agendada!",
-          description: `Sua campanha foi agendada com sucesso.`,
+          description: `Sua campanha foi agendada. ${campaignData.sendNow ? 'A execução foi iniciada em segundo plano.' : 'Acesse a tela de campanhas para executá-la.'}`,
         });
         setPreview(null);
         form.reset();
+        router.push('/avisame/campanhas');
+
       } catch(e: any) {
         toast({
           variant: "destructive",
@@ -330,11 +336,8 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                                 <FormItem>
                                     <FormLabel>Cidade de Destino</FormLabel>
                                     <Select 
-                                      onValueChange={(value) => {
-                                        field.onChange(value);
-                                        form.setValue('city', value);
-                                      }} 
-                                      defaultValue={field.value}
+                                      onValueChange={(value) => field.onChange(value)} 
+                                      value={field.value}
                                     >
                                       <FormControl>
                                         <SelectTrigger>
@@ -359,7 +362,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Motorista (Opcional)</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingDrivers}>
+                         <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingDrivers}>
                            <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione um motorista" />
@@ -513,7 +516,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                 <AlertDialogHeader>
                     <AlertDialogTitle>Confirmar e Agendar Campanha?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        A campanha será agendada para <span className="font-bold">{form.getValues('city') || 'Todos os Clientes'}</span>.
+                        A campanha será agendada para <span className="font-bold">{form.getValues('target') === 'all' ? 'Todos os Clientes' : form.getValues('city')}</span>.
                         Serão notificados <span className="font-bold">{preview.clients.length} clientes</span>.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
