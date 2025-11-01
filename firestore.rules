@@ -163,7 +163,7 @@ service cloud.firestore {
 
         allow get, list: if isMemberOfCompany(companyId);
         allow create: if request.auth == null; // Allow server-side creation
-        allow update: if isMemberOfCompany(companyId);
+        allow update: if isMemberOfCompany(companyId) || request.auth == null;
         allow delete: if isMemberOfCompany(companyId);
     }
 
