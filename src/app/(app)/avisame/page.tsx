@@ -368,7 +368,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                            <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione um motorista" />
-                              </SelectTrigger>
+                              </Trigger>
                            </FormControl>
                           <SelectContent>
                             <SelectItem value="none">Nenhum</SelectItem>
@@ -450,10 +450,11 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                 </AlertDialogHeader>
                 <div className="max-h-80 overflow-y-auto space-y-4 pr-4">
                   <div>
-                    <h4 className="font-semibold mb-2">Pré-visualização da Mensagem:</h4>
+                    <h4 className="font-semibold mb-2">Modelo da Mensagem:</h4>
                     <p className="text-sm bg-muted p-3 rounded-md whitespace-pre-wrap">
-                      {preview.message.replace('{cliente}', preview.clients[0]?.nome || 'Cliente Exemplo')}
+                      {preview.message}
                     </p>
+                    <p className="text-xs text-muted-foreground mt-2">A variável {'{cliente}'} será substituída pelo nome de cada destinatário no momento do envio.</p>
                   </div>
                    <div>
                     <h4 className="font-semibold mb-2">Primeiros clientes na lista:</h4>
