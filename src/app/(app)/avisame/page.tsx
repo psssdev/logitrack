@@ -370,12 +370,16 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Motorista (Opcional)</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingDrivers}>
-                           <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione um motorista" />
-                              </Trigger>
-                           </FormControl>
+                        <Select
+                          onValueChange={(v) => field.onChange(v === 'none' ? undefined : v)}
+                          value={field.value}
+                          disabled={isLoadingDrivers}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um motorista" />
+                            </SelectTrigger>
+                          </FormControl>
                           <SelectContent>
                             <SelectItem value="none">Nenhum</SelectItem>
                             {drivers?.map((driver) => (
@@ -385,7 +389,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
                             ))}
                           </SelectContent>
                         </Select>
-                         <FormMessage />
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -642,5 +646,3 @@ function RadarTab({ clients, isUserLoading }: { clients: Client[], isUserLoading
         </Card>
     )
 }
-
-    
