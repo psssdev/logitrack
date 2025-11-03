@@ -162,7 +162,7 @@ service cloud.firestore {
         }
 
         allow get, list: if isMemberOfCompany(companyId);
-        allow create: if request.auth == null; // Allow server-side creation
+        allow create: if request.auth == null;
         allow update: if isMemberOfCompany(companyId) || request.auth == null;
         allow delete: if isMemberOfCompany(companyId);
     }
@@ -184,7 +184,7 @@ service cloud.firestore {
         }
 
         allow get, list: if isMemberOfCompany(companyId);
-        allow create: if request.auth == null; // Allow server-side batch creation
+        allow create: if request.auth == null;
         allow update: if isMemberOfCompany(companyId);
         allow delete: if isMemberOfCompany(companyId);
     }
