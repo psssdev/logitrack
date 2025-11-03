@@ -52,6 +52,14 @@ service cloud.firestore {
       allow get, list: if true;
       allow create, update, delete: if false; // TODO: Add company admin role check
     }
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMemberOfCompany(companyId) {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+    }
 
     /**
      * @description Allows company users to manage their clients.
@@ -62,14 +70,6 @@ service cloud.firestore {
      * @principle Enforces multi-tenancy: only users within the specified company can access client data.
      */
     match /companies/{companyId}/clients/{clientId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isMemberOfCompany(companyId) {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
-      }
-
       allow get, list: if isMemberOfCompany(companyId);
       allow create: if isMemberOfCompany(companyId);
       allow update: if isMemberOfCompany(companyId);
@@ -85,14 +85,6 @@ service cloud.firestore {
      * @principle Enforces multi-tenancy: only users within the specified company can access origin data.
      */
     match /companies/{companyId}/origins/{originId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
-
-        function isMemberOfCompany(companyId) {
-          return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
-        }
-
         allow get, list: if isMemberOfCompany(companyId);
         allow create: if isMemberOfCompany(companyId);
         allow update: if isMemberOfCompany(companyId);
@@ -108,14 +100,6 @@ service cloud.firestore {
      * @principle Enforces multi-tenancy: only users within the specified company can access client address data.
      */
     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isMemberOfCompany(companyId) {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
-      }
-
       allow get, list: if isMemberOfCompany(companyId);
       allow create: if isMemberOfCompany(companyId);
       allow update: if isMemberOfCompany(companyId);
@@ -131,14 +115,6 @@ service cloud.firestore {
      * @principle Enforces multi-tenancy: only users within the specified company can access order data.
      */
     match /companies/{companyId}/orders/{orderId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isMemberOfCompany(companyId) {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
-      }
-
       allow get, list: if isMemberOfCompany(companyId);
       allow create: if isMemberOfCompany(companyId);
       allow update: if isMemberOfCompany(companyId);
@@ -153,17 +129,9 @@ service cloud.firestore {
       * @principle Enforces multi-tenancy while enabling server-side automation.
       */
     match /companies/{companyId}/avisame_campaigns/{campaignId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
-
-        function isMemberOfCompany(companyId) {
-          return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
-        }
-
         allow get, list: if isMemberOfCompany(companyId);
-        allow create: if request.auth == null;
-        allow update: if isMemberOfCompany(companyId) || request.auth == null;
+        allow create: if request.auth == null; // Allow unauthenticated (server-side) create
+        allow update: if isMemberOfCompany(companyId);
         allow delete: if isMemberOfCompany(companyId);
     }
 
@@ -175,16 +143,8 @@ service cloud.firestore {
      * @principle Enforces multi-tenancy for read/update while enabling server-side automation for creation.
      */
     match /companies/{companyId}/avisame_deliveries/{deliveryId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
-
-        function isMemberOfCompany(companyId) {
-          return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
-        }
-
         allow get, list: if isMemberOfCompany(companyId);
-        allow create: if request.auth == null;
+        allow create: if request.auth == null; // Allow unauthenticated (server-side) create
         allow update: if isMemberOfCompany(companyId);
         allow delete: if isMemberOfCompany(companyId);
     }
@@ -198,14 +158,6 @@ service cloud.firestore {
      * @principle Enforces multi-tenancy: only users within the specified company can access driver data.
      */
      match /companies/{companyId}/drivers/{driverId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isMemberOfCompany(companyId) {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
-      }
-
       allow get, list: if isMemberOfCompany(companyId);
       allow create: if isMemberOfCompany(companyId);
       allow update: if isMemberOfCompany(companyId);
