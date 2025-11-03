@@ -1,26 +1,24 @@
 
 import * as admin from 'firebase-admin';
-import { config } from 'dotenv';
 
-// Carrega as variáveis de ambiente do arquivo .env.local
-config();
+let app: admin.app.App | null = null;
 
-// Variáveis de ambiente para o Admin SDK
-const serviceAccount = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  // A chave privada precisa ter as quebras de linha restauradas.
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-};
-
-/**
- * Initializes and returns a Firestore instance for server-side usage using the Admin SDK.
- * It ensures that the Firebase app is initialized only once (singleton pattern).
- */
 export function getFirestoreServer() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+  if (!app) {
+    const projectId = process.env.FIREBASE_PROJECT_ID!;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL!;
+    // IMPORTANTE: substituir \\n por \n
+    const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '')
+      .replace(/\\n/g, '\n')
+      .replace(/\r\n/g, '\n')
+      .trim();
+
+    if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+      throw new Error('FIREBASE_PRIVATE_KEY inválida: faltando BEGIN/END PRIVATE KEY');
+    }
+
+    app = admin.initializeApp({
+      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
     });
   }
   return admin.firestore();
