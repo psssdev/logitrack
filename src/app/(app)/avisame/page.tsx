@@ -216,7 +216,7 @@ function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Ord
         o.destino?.full?.toLowerCase().includes(city.toLowerCase())
       );
       // Get unique client IDs from the filtered orders
-      const clientIdsInCity = [...new Set(ordersInCity?.map(o => o.clientId))];
+      const clientIdsInCity = [...new Set(ordersInCity?.map(o => (o as any).clientId))];
       // Filter clients based on the IDs found
       clientsToNotify = clients?.filter(c => clientIdsInCity.includes(c.id)) || [];
     }
