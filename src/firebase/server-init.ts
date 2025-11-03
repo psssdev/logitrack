@@ -1,3 +1,4 @@
+
 import * as admin from 'firebase-admin';
 import { config } from 'dotenv';
 
@@ -7,8 +8,8 @@ config();
 // Variáveis de ambiente para o Admin SDK
 const serviceAccount = {
   projectId: process.env.FIREBASE_PROJECT_ID,
-  // A chave privada é lida diretamente, o dotenv cuida das quebras de linha
-  privateKey: process.env.FIREBASE_PRIVATE_KEY,
+  // A chave privada precisa ter as quebras de linha restauradas.
+  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
 };
 
