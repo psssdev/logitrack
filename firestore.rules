@@ -1,3 +1,4 @@
+
 /**
  * @file Firestore Security Rules
  * @core_philosophy This ruleset enforces a multi-tenant security model where users and data are segregated by company.
@@ -129,10 +130,8 @@ service cloud.firestore {
       * @principle Enforces multi-tenancy while enabling server-side automation.
       */
     match /companies/{companyId}/avisame_campaigns/{campaignId} {
-        allow get, list: if isMemberOfCompany(companyId);
+        allow get, list, update, delete: if isMemberOfCompany(companyId);
         allow create: if request.auth == null; // Allow unauthenticated (server-side) create
-        allow update: if isMemberOfCompany(companyId);
-        allow delete: if isMemberOfCompany(companyId);
     }
 
     /**
@@ -143,10 +142,8 @@ service cloud.firestore {
      * @principle Enforces multi-tenancy for read/update while enabling server-side automation for creation.
      */
     match /companies/{companyId}/avisame_deliveries/{deliveryId} {
-        allow get, list: if isMemberOfCompany(companyId);
+        allow get, list, update, delete: if isMemberOfCompany(companyId);
         allow create: if request.auth == null; // Allow unauthenticated (server-side) create
-        allow update: if isMemberOfCompany(companyId);
-        allow delete: if isMemberOfCompany(companyId);
     }
 
     /**
@@ -165,3 +162,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
