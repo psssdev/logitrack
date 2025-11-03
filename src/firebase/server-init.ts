@@ -1,10 +1,14 @@
-
 import * as admin from 'firebase-admin';
+import { config } from 'dotenv';
+
+// Carrega as variáveis de ambiente do arquivo .env.local
+config();
 
 // Variáveis de ambiente para o Admin SDK
 const serviceAccount = {
   projectId: process.env.FIREBASE_PROJECT_ID,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  // A chave privada é lida diretamente, o dotenv cuida das quebras de linha
+  privateKey: process.env.FIREBASE_PRIVATE_KEY,
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
 };
 
@@ -15,7 +19,7 @@ const serviceAccount = {
 export function getFirestoreServer() {
   if (!admin.apps.length) {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
     });
   }
   return admin.firestore();
