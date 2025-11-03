@@ -1,5 +1,5 @@
 'use server';
-
+import 'dotenv/config';
 import { getFirestoreServer } from '@/firebase/server-init';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Client, Order } from '@/lib/types';
