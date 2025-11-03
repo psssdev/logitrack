@@ -150,7 +150,7 @@ service cloud.firestore {
      * @description Allows company users to manage their drivers.
      * @path /companies/{companyId}/drivers/{driverId}
      * @allow (create) User in company 'company123' can create a driver.
-     * @allow (get, list, update, delete) User in company 'company123' can read/write drivers within their company.
+     * @allow (get, list, update, delete) User in company 'company12.tsx' can read/write drivers within their company.
      * @deny (create, get, list, update, delete) User in company 'company456' cannot access drivers of 'company123'.
      * @principle Enforces multi-tenancy: only users within the specified company can access driver data.
      */
@@ -162,5 +162,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
