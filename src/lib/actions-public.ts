@@ -1,6 +1,5 @@
 
 'use server';
-import 'dotenv/config';
 
 // IMPORTANT: This file is for server actions that should be publicly accessible.
 // Do not import from '@/firebase' here, as it contains client-side code.

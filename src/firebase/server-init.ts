@@ -1,4 +1,5 @@
 // src/firebase/server-init.ts
+import 'dotenv/config';
 import * as admin from 'firebase-admin';
 
 let app: admin.app.App | null = null;
