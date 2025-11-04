@@ -1,3 +1,4 @@
+
 const fs = require('fs');
 const path = require('path');
 
@@ -14,9 +15,9 @@ try {
   const buff = Buffer.from(serviceAccount);
   const base64data = buff.toString('base64');
   
-  console.log('\x1b[32m%s\x1b[0m', '✅ String Base64 gerada com sucesso!\n');
-  console.log('Copie a string abaixo e cole no seu arquivo .env.local na variável FIREBASE_SERVICE_ACCOUNT_B64:\n');
-  console.log('\x1b[33m%s\xib[0m', base64data);
+  console.log('\n\x1b[32m%s\x1b[0m', '✅ String Base64 gerada com sucesso!\n');
+  console.log('Copie a linha abaixo e cole no seu arquivo .env.local:\n');
+  console.log('\x1b[33m%s\x1b[0m', `FIREBASE_SERVICE_ACCOUNT_B64=${base64data}`);
   console.log('\n');
 
 } catch (error) {
