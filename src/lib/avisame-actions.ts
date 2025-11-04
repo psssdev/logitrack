@@ -4,7 +4,7 @@
 import { getFirestoreServer } from '@/firebase/server-init';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Client, Order } from '@/lib/types';
-import { renderTemplate, normalizePhone, normalizeText } from './utils';
+import { normalizePhone, normalizeText } from './utils';
 
 const COMPANY_ID = '1';
 
@@ -76,12 +76,11 @@ function phoneSeenAndNotMine(raw: string, normalized: string, c: Client, kept: C
 export async function runAvisameCampaign(input: any): Promise<RunCampaignResult> {
   // A API do Admin SDK ignora as regras de segurança, resolvendo o PERMISSION_DENIED
   const db = getFirestoreServer();
+  const companyRef = db.collection('companies').doc(COMPANY_ID);
 
   // 1) Criar/registrar campanha
   const now = FieldValue.serverTimestamp();
-  const campaignRef = db
-    .collection('companies').doc(COMPANY_ID)
-    .collection('avisame_campaigns').doc();
+  const campaignRef = companyRef.collection('avisame_campaigns').doc();
 
   const baseCampaign = {
     name: input.name || `Campanha ${new Date().toISOString()}`,
@@ -103,8 +102,8 @@ export async function runAvisameCampaign(input: any): Promise<RunCampaignResult>
   try {
     // 2) Ler dados necessários
     const [ordersSnap, clientsSnap] = await Promise.all([
-      db.collection('companies').doc(COMPANY_ID).collection('orders').get(),
-      db.collection('companies').doc(COMPANY_ID).collection('clients').get(),
+      companyRef.collection('orders').get(),
+      companyRef.collection('clients').get(),
     ]);
 
     const allOrders = ordersSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Order));
@@ -165,7 +164,7 @@ export async function runAvisameCampaign(input: any): Promise<RunCampaignResult>
     }
 
     // 6) Gravar deliveries em lotes
-    const deliveriesCol = db.collection('companies').doc(COMPANY_ID).collection('avisame_deliveries');
+    const deliveriesCol = companyRef.collection('avisame_deliveries');
     const chunks: Client[][] = chunk(deduped, 450);
     
     for (const group of chunks) {

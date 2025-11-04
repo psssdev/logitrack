@@ -3,8 +3,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { getFirestoreServer } from '@/firebase/server-init';
-import { collection, getDocs, where, query } from 'firebase/firestore';
-
 
 // This is a temporary measure for the prototype.
 // In a real app, this would come from the authenticated user's session.
@@ -42,19 +40,19 @@ export async function getCityFromCoordinates(lat: number, lng: number): Promise<
 
 export async function getDashboardSummary() {
     const firestore = getFirestoreServer();
-    const ordersCollection = collection(firestore, 'companies', COMPANY_ID, 'orders');
+    const ordersCollection = firestore.collection(`companies/${COMPANY_ID}/orders`);
 
     try {
-        const allDocs = await getDocs(ordersCollection);
-        
-        const pendentesQuery = query(ordersCollection, where("status", "==", "PENDENTE"));
-        const emRotaQuery = query(ordersCollection, where("status", "==", "EM_ROTA"));
-        const entreguesQuery = query(ordersCollection, where("status", "==", "ENTREGUE"));
+        const allDocsPromise = ordersCollection.get();
+        const pendentesQueryPromise = ordersCollection.where("status", "==", "PENDENTE").get();
+        const emRotaQueryPromise = ordersCollection.where("status", "==", "EM_ROTA").get();
+        const entreguesQueryPromise = ordersCollection.where("status", "==", "ENTREGUE").get();
 
-        const [pendentesDocs, emRotaDocs, entreguesDocs] = await Promise.all([
-            getDocs(pendentesQuery),
-            getDocs(emRotaQuery),
-            getDocs(entreguesQuery)
+        const [allDocs, pendentesDocs, emRotaDocs, entreguesDocs] = await Promise.all([
+            allDocsPromise,
+            pendentesQueryPromise,
+            emRotaQueryPromise,
+            entreguesQueryPromise
         ]);
 
         return {
