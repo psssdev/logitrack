@@ -1,19 +1,21 @@
+
 export const runtime = 'nodejs';
 
-import * as admin from 'firebase-admin';
+import { initializeApp, applicationDefault, getApps, getApp } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
-let app: admin.app.App | null = null;
+let db: Firestore | null = null;
 
-export function getFirestoreServer() {
-  if (app || admin.apps.length) {
-    app = app ?? admin.apps[0]!;
-    return admin.firestore();
-  }
+export function getFirestoreServer(): Firestore {
+  if (db) return db;
 
-  // Usa credenciais padrão do ambiente (GOOGLE_APPLICATION_CREDENTIALS)
-  app = admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-  });
+  // Reusa app se já existir
+  const app = getApps().length
+    ? getApp()
+    : initializeApp({
+        credential: applicationDefault(),
+      });
 
-  return admin.firestore();
+  db = getFirestore(app);
+  return db;
 }
