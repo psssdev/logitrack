@@ -1,8 +1,6 @@
-
 import { NextResponse } from 'next/server';
 import { getFirestoreServer } from '@/firebase/server-init';
 export const runtime = 'nodejs';
-
 export async function GET() {
   try {
     const db = getFirestoreServer();
