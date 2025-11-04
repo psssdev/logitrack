@@ -39,10 +39,10 @@ export async function getCityFromCoordinates(lat: number, lng: number): Promise<
 
 
 export async function getDashboardSummary() {
-    const firestore = getFirestoreServer();
-    const ordersCollection = firestore.collection(`companies/${COMPANY_ID}/orders`);
-
     try {
+        const firestore = getFirestoreServer();
+        const ordersCollection = firestore.collection(`companies/${COMPANY_ID}/orders`);
+
         const allDocsPromise = ordersCollection.get();
         const pendentesQueryPromise = ordersCollection.where("status", "==", "PENDENTE").get();
         const emRotaQueryPromise = ordersCollection.where("status", "==", "EM_ROTA").get();
