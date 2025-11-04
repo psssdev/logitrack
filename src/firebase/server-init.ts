@@ -14,7 +14,7 @@ export function getFirestoreServer() {
   // Ensure the service account has the correct format, especially the private key
   const typedServiceAccount = {
       type: serviceAccount.type,
-      projectId: service-account-key.json.project_id,
+      projectId: serviceAccount.project_id,
       privateKeyId: serviceAccount.private_key_id,
       privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
       clientEmail: serviceAccount.client_email,
