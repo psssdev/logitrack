@@ -16,7 +16,7 @@ export function getFirestoreServer() {
       type: serviceAccount.type,
       projectId: serviceAccount.project_id,
       privateKeyId: serviceAccount.private_key_id,
-      privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
+      privateKey: (serviceAccount.private_key || '').replace(/\\n/g, '\n'),
       clientEmail: serviceAccount.client_email,
       clientId: serviceAccount.client_id,
       authUri: serviceAccount.auth_uri,
