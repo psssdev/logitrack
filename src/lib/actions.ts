@@ -3,9 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { drivers } from './data';
 import { getFirestoreServer } from '@/firebase/server-init';
+import { unstable_noStore as noStore } from 'next/cache';
 
-// This is a temporary measure for the prototype.
-// In a real app, this would come from the authenticated user's session.
 const COMPANY_ID = '1';
 
 // Simulate a database delay
@@ -23,48 +22,34 @@ export async function triggerRevalidation(path: string) {
 
 
 export async function getDashboardSummary() {
-    try {
-        // Correção definitiva: Obtém a instância do Firestore do servidor.
-        const firestore = getFirestoreServer();
+  noStore(); // 👈 impede cache da resposta
 
-        // Usa a sintaxe do Admin SDK para buscar a coleção de encomendas.
-        const ordersCollectionRef = firestore.collection(`companies/${COMPANY_ID}/orders`);
-        const snapshot = await ordersCollectionRef.get();
+  try {
+    const db = getFirestoreServer();
 
-        if (snapshot.empty) {
-            return { total: 0, pendentes: 0, emRota: 0, entregues: 0 };
-        }
+    // Forma encadeada (Admin SDK)
+    const snap = await db
+      .collection('companies')
+      .doc(COMPANY_ID)
+      .collection('orders')
+      .get();
 
-        let pendentes = 0;
-        let emRota = 0;
-        let entregues = 0;
-
-        // Itera sobre os documentos e conta os status.
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            switch (data.status) {
-                case 'PENDENTE':
-                    pendentes++;
-                    break;
-                case 'EM_ROTA':
-                    emRota++;
-                    break;
-                case 'ENTREGUE':
-                    entregues++;
-                    break;
-            }
-        });
-
-        return {
-            total: snapshot.size,
-            pendentes,
-            emRota,
-            entregues
-        };
-
-    } catch (error) {
-        console.error("Error fetching dashboard summary: ", error);
-        // Retorna zero em caso de erro para evitar que a página quebre.
-        return { total: 0, pendentes: 0, emRota: 0, entregues: 0 };
+    if (snap.empty) {
+      return { total: 0, pendentes: 0, emRota: 0, entregues: 0 };
     }
+
+    let pendentes = 0, emRota = 0, entregues = 0;
+
+    snap.forEach(doc => {
+      const s = String(doc.get('status') ?? '').trim();
+      if (s === 'PENDENTE') pendentes++;
+      else if (s === 'EM_ROTA') emRota++;
+      else if (s === 'ENTREGUE') entregues++;
+    });
+
+    return { total: snap.size, pendentes, emRota, entregues };
+  } catch (err) {
+    console.error('Error fetching dashboard summary:', err);
+    return { total: 0, pendentes: 0, emRota: 0, entregues: 0 };
+  }
 }
