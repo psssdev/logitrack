@@ -24,7 +24,10 @@ export async function triggerRevalidation(path: string) {
 
 export async function getDashboardSummary() {
     try {
+        // Correção definitiva: Obtém a instância do Firestore do servidor.
         const firestore = getFirestoreServer();
+
+        // Usa a sintaxe do Admin SDK para buscar a coleção de encomendas.
         const ordersCollectionRef = firestore.collection(`companies/${COMPANY_ID}/orders`);
         const snapshot = await ordersCollectionRef.get();
 
@@ -36,6 +39,7 @@ export async function getDashboardSummary() {
         let emRota = 0;
         let entregues = 0;
 
+        // Itera sobre os documentos e conta os status.
         snapshot.forEach(doc => {
             const data = doc.data();
             switch (data.status) {
@@ -60,7 +64,7 @@ export async function getDashboardSummary() {
 
     } catch (error) {
         console.error("Error fetching dashboard summary: ", error);
-        // Return zeros if there's an error
+        // Retorna zero em caso de erro para evitar que a página quebre.
         return { total: 0, pendentes: 0, emRota: 0, entregues: 0 };
     }
 }
