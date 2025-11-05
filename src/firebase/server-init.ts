@@ -1,22 +1,28 @@
-import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { config } from 'dotenv';
+config(); // Carrega as variáveis de ambiente do .env
 
-const firebaseConfig: FirebaseOptions = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+export const runtime = 'nodejs';
 
-/**
- * Initializes and returns a Firestore instance for server-side usage.
- * It ensures that the Firebase app is initialized only once (singleton pattern).
- */
-export function getFirestoreServer() {
-  if (!getApps().length) {
-    initializeApp(firebaseConfig);
+import { initializeApp, applicationDefault, getApps, getApp, App } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+
+let db: Firestore | null = null;
+let app: App | null = null;
+
+export function getFirestoreServer(): Firestore {
+  if (db) {
+    return db;
   }
-  return getFirestore(getApp());
+
+  // Garante que o app seja inicializado apenas uma vez
+  if (!getApps().length) {
+    app = initializeApp({
+      credential: applicationDefault(),
+    });
+  } else {
+    app = getApp();
+  }
+
+  db = getFirestore(app);
+  return db;
 }
