@@ -36,20 +36,22 @@ import {
 } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 
 // Main component that fetches server-side data
 export default function DashboardPage() {
-  return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <DashboardData />
-    </Suspense>
-  );
-}
+  const [summary, setSummary] = useState({ total: 0, pendentes: 0, emRota: 0, entregues: 0 });
+  const [isLoadingSummary, setIsLoadingSummary] = useState(true);
 
-// Async component to fetch data on the server
-async function DashboardData() {
-  const summary = await getDashboardSummary();
+  useEffect(() => {
+    async function fetchSummary() {
+      setIsLoadingSummary(true);
+      const summaryData = await getDashboardSummary();
+      setSummary(summaryData);
+      setIsLoadingSummary(false);
+    }
+    fetchSummary();
+  }, []);
 
   return (
     <>
@@ -63,56 +65,66 @@ async function DashboardData() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.pendentes}</div>
-            <p className="text-xs text-muted-foreground">
-              Aguardando para sair para entrega
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Em Rota</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.emRota}</div>
-            <p className="text-xs text-muted-foreground">Encomendas em trânsito</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Entregues</CardTitle>
-            <PackageCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.entregues}</div>
-            <p className="text-xs text-muted-foreground">
-              Total de entregas concluídas
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total de Encomendas
-            </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.total}</div>
-            <p className="text-xs text-muted-foreground">
-              Total de registros no sistema
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {isLoadingSummary ? (
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card><CardHeader><Skeleton className="h-5 w-2/3" /></CardHeader><CardContent><Skeleton className="h-8 w-1/4" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-5 w-2/3" /></CardHeader><CardContent><Skeleton className="h-8 w-1/4" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-5 w-2/3" /></CardHeader><CardContent><Skeleton className="h-8 w-1/4" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-5 w-2/3" /></CardHeader><CardContent><Skeleton className="h-8 w-1/4" /></CardContent></Card>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{summary.pendentes}</div>
+                <p className="text-xs text-muted-foreground">
+                Aguardando para sair para entrega
+                </p>
+            </CardContent>
+            </Card>
+            <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Em Rota</CardTitle>
+                <Truck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{summary.emRota}</div>
+                <p className="text-xs text-muted-foreground">Encomendas em trânsito</p>
+            </CardContent>
+            </Card>
+            <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Entregues</CardTitle>
+                <PackageCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{summary.entregues}</div>
+                <p className="text-xs text-muted-foreground">
+                Total de entregas concluídas
+                </p>
+            </CardContent>
+            </Card>
+            <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                Total de Encomendas
+                </CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{summary.total}</div>
+                <p className="text-xs text-muted-foreground">
+                Total de registros no sistema
+                </p>
+            </CardContent>
+            </Card>
+        </div>
+      )}
+
 
       <RecentOrders />
     </>
