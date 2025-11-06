@@ -39,7 +39,6 @@ import { AuthGuard } from '@/components/auth-guard';
 import { CompanyBranding } from '@/components/company-branding';
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/encomendas', icon: Package, label: 'Encomendas' },
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },

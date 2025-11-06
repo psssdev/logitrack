@@ -22,7 +22,7 @@ export function CompanyBranding() {
   const { data: company, isLoading } = useDoc<Company>(companyRef);
 
   return (
-    <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+    <Link href="/encomendas" className="flex items-center gap-2 font-semibold">
       <Logo className="h-6 w-6" />
       {(isLoading || isUserLoading) ? (
         <Skeleton className="h-6 w-24" />

@@ -44,7 +44,7 @@ function LoginPageContent() {
         title: 'Login bem-sucedido!',
         description: 'Redirecionando para o painel...',
       });
-      router.push('/dashboard');
+      router.push('/encomendas');
     } catch (error: any) {
       toast({
         variant: 'destructive',
