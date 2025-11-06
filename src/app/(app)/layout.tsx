@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   BarChart3,
   ChevronLeft,
-  LayoutDashboard,
+  Home,
   Menu,
   Package,
   Settings,
@@ -39,6 +39,7 @@ import { AuthGuard } from '@/components/auth-guard';
 import { CompanyBranding } from '@/components/company-branding';
 
 const navItems = [
+  { href: '/inicio', icon: Home, label: 'Início' },
   { href: '/encomendas', icon: Package, label: 'Encomendas' },
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
@@ -142,7 +143,7 @@ const NavLinks = () => {
           href={item.href}
           className={cn(
             'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-            pathname.startsWith(item.href) && 'bg-muted text-primary'
+            (pathname === item.href || (item.href !== '/inicio' && pathname.startsWith(item.href))) && 'bg-muted text-primary'
           )}
         >
           <item.icon className="h-4 w-4" />
