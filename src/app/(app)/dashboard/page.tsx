@@ -1,27 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  Package,
-  PackageCheck,
-  PlusCircle,
-  Truck,
-  PackageX,
-} from 'lucide-react';
-import {
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
+import { Package, PackageCheck, PlusCircle, Truck, PackageX } from 'lucide-react';
+import { Pie, PieChart, Cell } from 'recharts';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   ChartConfig,
   ChartContainer,
@@ -30,18 +13,10 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { getDashboardSummary } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { getDashboardSummary } from '@/lib/actions';
 
-const COLORS = [
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-4))',
-];
-
-// Main component that fetches server-side data
 export default function DashboardPage() {
   const [summary, setSummary] = useState({
     total: 0,
@@ -53,40 +28,42 @@ export default function DashboardPage() {
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
 
   useEffect(() => {
-    async function fetchSummary() {
-      setIsLoadingSummary(true);
-      const summaryData = await getDashboardSummary();
-      setSummary(summaryData);
-      setIsLoadingSummary(false);
-    }
-    fetchSummary();
+    let alive = true;
+    (async () => {
+      try {
+        setIsLoadingSummary(true);
+        const s = await getDashboardSummary(); // server action
+        if (!alive) return;
+        setSummary((prev) => ({ canceladas: 0, ...prev, ...s })); // garante a chave
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (alive) setIsLoadingSummary(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  const chartData = useMemo(() => [
-    { name: 'Pendentes', value: summary.pendentes, fill: 'var(--color-pendentes)' },
-    { name: 'Em Rota', value: summary.emRota, fill: 'var(--color-emRota)' },
-    { name: 'Entregues', value: summary.entregues, fill: 'var(--color-entregues)' },
-    { name: 'Canceladas', value: summary.canceladas, fill: 'var(--color-canceladas)' },
-  ], [summary]);
+  const chartData = useMemo(
+    () => [
+      { name: 'Pendentes', value: summary.pendentes, fill: 'hsl(var(--chart-2))' },
+      { name: 'Em Rota', value: summary.emRota, fill: 'hsl(var(--chart-3))' },
+      { name: 'Entregues', value: summary.entregues, fill: 'hsl(var(--chart-1))' },
+      { name: 'Canceladas', value: summary.canceladas, fill: 'hsl(var(--chart-4))' },
+    ],
+    [summary]
+  );
 
   const chartConfig = {
-    pendentes: {
-      label: 'Pendentes',
-      color: 'hsl(var(--chart-2))',
-    },
-    emRota: {
-      label: 'Em Rota',
-      color: 'hsl(var(--chart-3))',
-    },
-    entregues: {
-      label: 'Entregues',
-      color: 'hsl(var(--chart-1))',
-    },
-    canceladas: {
-        label: 'Canceladas',
-        color: 'hsl(var(--chart-4))'
-    }
+    pendentes: { label: 'Pendentes', color: 'hsl(var(--chart-2))' },
+    emRota: { label: 'Em Rota', color: 'hsl(var(--chart-3))' },
+    entregues: { label: 'Entregues', color: 'hsl(var(--chart-1))' },
+    canceladas: { label: 'Canceladas', color: 'hsl(var(--chart-4))' },
   } satisfies ChartConfig;
+
+  const totalPie = summary.pendentes + summary.emRota + summary.entregues + summary.canceladas;
 
   return (
     <>
@@ -102,38 +79,16 @@ export default function DashboardPage() {
 
       {isLoadingSummary ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-2/3" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-1/4" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-2/3" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-1/4" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-2/3" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-1/4" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-5 w-2/3" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-1/4" />
-            </CardContent>
-          </Card>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-5 w-2/3" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-1/4" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -144,9 +99,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{summary.pendentes}</div>
-              <p className="text-xs text-muted-foreground">
-                Aguardando para sair para entrega
-              </p>
+              <p className="text-xs text-muted-foreground">Aguardando para sair para entrega</p>
             </CardContent>
           </Card>
           <Card>
@@ -213,7 +166,7 @@ export default function DashboardPage() {
                             labelLine={false}
                         >
                             {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
                             ))}
                         </Pie>
                          <ChartLegend

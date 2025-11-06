@@ -1,27 +1,19 @@
-import { config } from 'dotenv';
-config(); // Carrega as variáveis de ambiente do .env
-
+'use server';
 export const runtime = 'nodejs';
 
-import { initializeApp, applicationDefault, getApps, getApp, App } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { initializeApp, applicationDefault, getApps, getApp } from 'firebase-admin/app';
+import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
 let db: Firestore | null = null;
-let app: App | null = null;
 
 export function getFirestoreServer(): Firestore {
-  if (db) {
-    return db;
-  }
+  if (db) return db;
 
-  // Garante que o app seja inicializado apenas uma vez
-  if (!getApps().length) {
-    app = initializeApp({
-      credential: applicationDefault(),
-    });
-  } else {
-    app = getApp();
-  }
+  const app = getApps().length
+    ? getApp()
+    : initializeApp({
+        credential: applicationDefault(), // usa GOOGLE_APPLICATION_CREDENTIALS
+      });
 
   db = getFirestore(app);
   return db;
