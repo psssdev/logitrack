@@ -29,18 +29,24 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+    const fetchSummary = async () => {
       try {
         setIsLoadingSummary(true);
         const s = await getDashboardSummary(); // server action
-        if (!alive) return;
-        setSummary((prev) => ({ ...prev, ...s }));
+        if (alive) {
+          setSummary(s);
+        }
       } catch (e) {
-        console.error(e);
+        console.error("Failed to fetch dashboard summary:", e);
       } finally {
-        if (alive) setIsLoadingSummary(false);
+        if (alive) {
+          setIsLoadingSummary(false);
+        }
       }
-    })();
+    };
+    
+    fetchSummary();
+
     return () => {
       alive = false;
     };
@@ -52,7 +58,7 @@ export default function DashboardPage() {
       { name: 'Em Rota', value: summary.emRota, fill: 'hsl(var(--chart-3))' },
       { name: 'Entregues', value: summary.entregues, fill: 'hsl(var(--chart-1))' },
       { name: 'Canceladas', value: summary.canceladas, fill: 'hsl(var(--chart-4))' },
-    ],
+    ].filter(item => item.value > 0),
     [summary]
   );
 
