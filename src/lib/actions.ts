@@ -1,8 +1,10 @@
 'use server';
-export const runtime = 'nodejs';
 
 import { revalidatePath, unstable_noStore as noStore } from 'next/cache';
 import { getFirestoreServer } from '@/firebase/server-init';
+import { drivers } from '@/lib/data';
+import type { Driver } from './types';
+
 
 const COMPANY_ID = '1';
 
@@ -14,7 +16,7 @@ export async function getDashboardSummary() {
   noStore(); // impede cache
 
   try {
-    const db = getFirestoreServer();
+    const db = await getFirestoreServer();
 
     const snap = await db
       .collection('companies')
@@ -44,4 +46,11 @@ export async function getDashboardSummary() {
     console.error('Error fetching dashboard summary:', err);
     return { total: 0, pendentes: 0, emRota: 0, entregues: 0, canceladas: 0 };
   }
+}
+
+export async function getDrivers(): Promise<Driver[]> {
+    noStore();
+    // In a real scenario, this would fetch from Firestore.
+    // For now, we return the static data.
+    return Promise.resolve(drivers);
 }
