@@ -34,7 +34,7 @@ export default function DashboardPage() {
         setIsLoadingSummary(true);
         const s = await getDashboardSummary(); // server action
         if (!alive) return;
-        setSummary((prev) => ({ canceladas: 0, ...prev, ...s })); // garante a chave
+        setSummary((prev) => ({ ...prev, ...s }));
       } catch (e) {
         console.error(e);
       } finally {
@@ -63,8 +63,6 @@ export default function DashboardPage() {
     canceladas: { label: 'Canceladas', color: 'hsl(var(--chart-4))' },
   } satisfies ChartConfig;
 
-  const totalPie = summary.pendentes + summary.emRota + summary.entregues + summary.canceladas;
-
   return (
     <>
       <div className="flex items-center justify-between">
@@ -81,11 +79,13 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-5 w-2/3" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                 <Skeleton className="h-5 w-2/3" />
+                 <Skeleton className="h-4 w-4" />
               </CardHeader>
               <CardContent>
                 <Skeleton className="h-8 w-1/4" />
+                <Skeleton className="h-3 w-full mt-2" />
               </CardContent>
             </Card>
           ))}
@@ -162,11 +162,11 @@ export default function DashboardPage() {
                             cx="50%"
                             cy="50%"
                             outerRadius={100}
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                             labelLine={false}
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                         >
-                            {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                            {chartData.map((entry) => (
+                                <Cell key={entry.name} fill={entry.fill} />
                             ))}
                         </Pie>
                          <ChartLegend
