@@ -27,6 +27,7 @@ import {
   ChartContainer,
   ChartLegend,
   ChartLegendContent,
+  ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { getDashboardSummary } from '@/lib/actions';
