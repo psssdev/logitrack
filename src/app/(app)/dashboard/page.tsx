@@ -36,7 +36,7 @@ import {
 } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Main component that fetches server-side data
 export default function DashboardPage() {
