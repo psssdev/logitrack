@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Client, Address, Company } from '@/lib/types';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, getDocs } from 'firebase/firestore';
 import { MessageCircle, Megaphone, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -63,37 +63,38 @@ export default function AvisamePage() {
     }, [firestore]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
-    // Fetch all addresses for all clients (less efficient, but works for this structure)
-    // A better approach in a real-world scenario might be a denormalized city field on the client.
-    const allAddressesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return collection(firestore, 'companies', COMPANY_ID, 'addresses'); // This is a conceptual query
-    }, [firestore]);
-    // This hook isn't real, so we'll fetch addresses per client below. This is a placeholder.
-
-
     const [clientsWithAddresses, setClientsWithAddresses] = useState<ClientWithAddresses[]>([]);
     const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
 
-    useMemo(() => {
+    useEffect(() => {
         if (!clients || !firestore) return;
 
         const fetchAllAddresses = async () => {
             setIsLoadingAddresses(true);
-            const clientsData = await Promise.all(
-                clients.map(async (client) => {
-                    const addressesCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', client.id, 'addresses');
-                    const addressesSnap = await require('firebase/firestore').getDocs(addressesCollection);
-                    const addresses = addressesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Address));
-                    return { ...client, addresses };
-                })
-            );
-            setClientsWithAddresses(clientsData);
-            setIsLoadingAddresses(false);
+            try {
+                const clientsData = await Promise.all(
+                    clients.map(async (client) => {
+                        const addressesCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', client.id, 'addresses');
+                        const addressesSnap = await getDocs(addressesCollection);
+                        const addresses = addressesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Address));
+                        return { ...client, addresses };
+                    })
+                );
+                setClientsWithAddresses(clientsData);
+            } catch (error) {
+                console.error("Error fetching addresses: ", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro ao carregar endereços',
+                    description: 'Não foi possível buscar os endereços dos clientes.'
+                });
+            } finally {
+                setIsLoadingAddresses(false);
+            }
         };
 
         fetchAllAddresses();
-    }, [clients, firestore]);
+    }, [clients, firestore, toast]);
 
     const isLoading = isLoadingClients || isLoadingCompany || isLoadingAddresses;
 
