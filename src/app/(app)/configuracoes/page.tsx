@@ -458,7 +458,7 @@ export default function ConfiguracoesPage() {
           <CardHeader>
             <CardTitle>Modelos de Mensagem do WhatsApp</CardTitle>
             <CardDescription>
-              Edite os textos. Use {'{cliente}'}, {'{codigo}'}, {'{link}'}, {'{valor}'} e {'{volumes}'} como variáveis.
+              Edite os textos. Use {'{cliente}'}, {'{codigo}'}, {'{link}'}, {'{valor}'}, {'{volumes}'} e {'{cidade}'} como variáveis.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -484,6 +484,14 @@ export default function ConfiguracoesPage() {
                 id="msgEntregue"
                 placeholder="Olá {cliente}! Sua encomenda {codigo} foi entregue com sucesso! Obrigado por confiar em nossos serviços."
                 value={formValues.msgEntregue || ''} onChange={handleInputChange}
+              />
+            </div>
+             <div className="space-y-1">
+              <Label htmlFor="msgChegueiCidade">Chegamos na Cidade</Label>
+              <Textarea
+                id="msgChegueiCidade"
+                placeholder="Olá! Estamos na sua cidade ({cidade}) para realizar entregas hoje. Fique atento!"
+                value={formValues.msgChegueiCidade || ''} onChange={handleInputChange}
               />
             </div>
           </CardContent>

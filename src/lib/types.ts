@@ -61,6 +61,7 @@ export type Company = {
     msgRecebido?: string;
     msgEmRota?: string;
     msgEntregue?: string;
+    msgChegueiCidade?: string;
     codigoPrefixo: string;
     linkBaseRastreio: string;
     createdAt?: Date | Timestamp;

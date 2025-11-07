@@ -60,6 +60,10 @@
           "type": "string",
           "description": "Template for 'order delivered' message."
         },
+        "msgChegueiCidade": {
+          "type": "string",
+          "description": "Template for 'we have arrived in the city' message."
+        },
         "codigoPrefixo": {
           "type": "string",
           "description": "Prefix for the tracking code (e.g., 'TR-')."
