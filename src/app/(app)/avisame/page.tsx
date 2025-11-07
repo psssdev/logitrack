@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Client, Address, Company } from '@/lib/types';
 import { collection, doc } from 'firebase/firestore';
-import { WhatsApp, Megaphone, Send } from 'lucide-react';
+import { MessageCircle, Megaphone, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
     Table,
@@ -216,7 +216,7 @@ export default function AvisamePage() {
                                                         <TableCell>{client.telefone}</TableCell>
                                                         <TableCell className="text-right">
                                                             <Button variant="outline" size="sm" onClick={() => handleNotifySingle(client)}>
-                                                                <WhatsApp className="mr-2 h-4 w-4" />
+                                                                <MessageCircle className="mr-2 h-4 w-4" />
                                                                 Avisar
                                                             </Button>
                                                         </TableCell>

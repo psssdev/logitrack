@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Share, WhatsApp } from 'lucide-react';
+import { ChevronLeft, Share, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -241,7 +241,7 @@ function ReceiptContent({ orderId }: { orderId: string }) {
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-4">
           <Button onClick={handleSendNotification} size="lg">
-             <WhatsApp className="mr-2" />
+             <MessageCircle className="mr-2" />
              Enviar Comprovante via WhatsApp
           </Button>
            <Button variant="outline" asChild>
