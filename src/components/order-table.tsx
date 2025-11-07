@@ -22,10 +22,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Order } from '@/lib/types';
-import { OrderStatusBadge } from './status-badge';
 import { Input } from './ui/input';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { CompactUpdateStatusDropdown } from './compact-update-status-dropdown';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -108,7 +108,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                     <Badge variant="outline">{order.codigoRastreio}</Badge>
                   </TableCell>
                   <TableCell>
-                    <OrderStatusBadge status={order.status} />
+                    <CompactUpdateStatusDropdown order={order} />
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <div className="flex flex-col">
