@@ -311,5 +311,3 @@ function OrderDetailsSkeleton() {
     </div>
   );
 }
-
-    
