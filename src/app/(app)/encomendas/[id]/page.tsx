@@ -24,7 +24,7 @@ import { Separator } from '@/components/ui/separator';
 import { OrderStatusBadge } from '@/components/status-badge';
 import { OrderTimeline } from '@/components/order-timeline';
 import { RealTimeTrackingCard } from '@/components/real-time-tracking-card';
-import { UpdateStatusButtons } from '@/components/update-status-buttons';
+import { UpdateStatusDropdown } from '@/components/update-status-dropdown';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
@@ -122,7 +122,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <UpdateStatusButtons order={order} />
+           <UpdateStatusDropdown order={order} />
         </div>
       </div>
 
