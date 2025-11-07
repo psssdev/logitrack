@@ -25,13 +25,6 @@ import { OrderStatusBadge } from './status-badge';
 
 const COMPANY_ID = '1';
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
-
 const openWhatsApp = (phone: string, message: string) => {
   const cleanedPhone = phone.replace(/\D/g, '');
   const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
@@ -143,7 +136,7 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
           <DropdownMenuItem
             key={status}
             disabled={status === order.status || isPending}
-            onSelect={() => handleUpdateStatus(status)}
+            onClick={() => handleUpdateStatus(status)}
             className="cursor-pointer"
           >
             <OrderStatusBadge status={status} />
