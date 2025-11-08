@@ -165,6 +165,7 @@ service cloud.firestore {
   function isCompanyDataValid() {
     let data = request.resource.data;
     let allowedKeys = ['nomeFantasia', 'cnpj', 'logoUrl', 'cep', 'logradouro', 'numero', 'bairro', 'cidade', 'estado', 'msgRecebido', 'msgEmRota', 'msgEntregue', 'msgChegueiCidade', 'codigoPrefixo', 'linkBaseRastreio', 'updatedAt'];
+    // Allow 'cidade' to be empty string, but present
     return data.keys().hasAll(allowedKeys)
       && (data.nomeFantasia is string && data.nomeFantasia.size() > 0)
       && (data.codigoPrefixo is string && data.codigoPrefixo.size() > 0)
