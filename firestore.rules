@@ -50,9 +50,9 @@ service cloud.firestore {
      * @path /companies/{companyId}
      * @allow (get) Any authenticated user can read company information.
      *   Request: { "auth": { "uid": "user123" } }
-     * @deny (create) No one can create a company directly.
+     * @allow (update) Any authenticated user can update a company directly.
      *   Request: { "auth": { "uid": "user123" } }
-     * @deny (update) No one can update a company directly.
+     * @deny (create) No one can create a company directly.
      *   Request: { "auth": { "uid": "user123" } }
      * @deny (delete) No one can delete a company directly.
      *   Request: { "auth": { "uid": "user123" } }
@@ -62,7 +62,7 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if false;
       allow create: if false;
-      allow update: if false;
+      allow update: if isSignedIn();
       allow delete: if false;
     }
 
