@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import type { Company } from '@/lib/types';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -261,42 +261,41 @@ export default function ConfiguracoesPage() {
   };
 
   const handleSaveChanges = async () => {
-    if (!firestore) {
+    if (!firestore || !companyRef) {
         toast({ variant: 'destructive', title: 'Erro de conexão' });
         return;
     }
     setIsSaving(true);
-    try {
-        const companyRef = doc(firestore, 'companies', COMPANY_ID);
-        const companyData: Partial<Company> = {
-            ...formValues,
-            updatedAt: serverTimestamp()
-        };
-        
-        // Ensure required fields have a default if they are empty
-        if (!companyData.nomeFantasia) companyData.nomeFantasia = 'LogiTrack';
-        if (!companyData.codigoPrefixo) companyData.codigoPrefixo = 'TR';
-        if (!companyData.linkBaseRastreio) companyData.linkBaseRastreio = 'https://seusite.com/rastreio/';
 
+    const companyData: Partial<Company> = {
+        ...formValues,
+        updatedAt: serverTimestamp()
+    };
+    
+    // Ensure required fields have a default if they are empty
+    if (!companyData.nomeFantasia) companyData.nomeFantasia = 'LogiTrack';
+    if (!companyData.codigoPrefixo) companyData.codigoPrefixo = 'TR';
+    if (!companyData.linkBaseRastreio) companyData.linkBaseRastreio = 'https://seusite.com/rastreio/';
 
-        await setDoc(companyRef, companyData, { merge: true });
-        
+    setDoc(companyRef, companyData, { merge: true })
+      .then(async () => {
         await triggerRevalidation('/'); 
-
         toast({
             title: "Configurações Salvas",
             description: "Suas alterações foram salvas com sucesso.",
         });
-    } catch (error: any) {
-        console.error("Error saving company settings: ", error);
-        toast({
-            variant: 'destructive',
-            title: 'Erro ao Salvar',
-            description: error.message || 'Não foi possível salvar as configurações.'
+      })
+      .catch((serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: companyRef.path,
+          operation: 'update',
+          requestResourceData: companyData,
         });
-    } finally {
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
         setIsSaving(false);
-    }
+      });
   };
 
   if (isUserLoading || isLoadingCompany) {
@@ -506,3 +505,5 @@ export default function ConfiguracoesPage() {
     </div>
   );
 }
+
+    
