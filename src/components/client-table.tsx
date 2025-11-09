@@ -94,7 +94,9 @@ export default function ClientTable({ clients }: { clients: Client[] }) {
                           <DropdownMenuItem asChild>
                             <Link href={`/clientes/${client.id}`}>Ver Detalhes</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Editar</DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/clientes/${client.id}/editar`}>Editar</Link>
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive">
                             Excluir
                           </DropdownMenuItem>

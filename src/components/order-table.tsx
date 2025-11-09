@@ -143,7 +143,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
-                            <DropdownMenuItem>Editar</DropdownMenuItem>
+                            <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}/editar`}>Editar</Link></DropdownMenuItem>
                             <DropdownMenuSeparator />
                              <DropdownMenuItem onClick={() => handleResendNotification(order)}>
                               Reenviar Notificação

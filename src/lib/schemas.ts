@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 
 export const orderStatusSchema = z.enum([
@@ -16,7 +17,7 @@ export const paymentMethodSchema = z.enum([
   'haver',
 ]);
 
-const orderItemSchema = z.object({
+export const orderItemSchema = z.object({
     description: z.string().min(1, 'Descrição é obrigatória'),
     quantity: z.coerce.number().int().min(1, 'Mínimo 1'),
     value: z.coerce.number().min(0, 'Valor deve ser positivo'),
@@ -60,6 +61,7 @@ export const orderSchema = z.object({
   createdAt: z.any(), // Allow Date, string, or Firestore Timestamp
   createdBy: z.string(),
   companyId: z.string(),
+  clientId: z.string(),
 });
 
 export const newOrderSchema = orderSchema.omit({
@@ -75,8 +77,10 @@ export const newOrderSchema = orderSchema.omit({
   nomeCliente: true, // Will be derived from clientId
   telefone: true, // Will be derived from clientId
   valorEntrega: true, // Will be calculated from items
-}).extend({
-    clientId: z.string({ required_error: 'Selecione um cliente.' }),
+});
+
+export const editOrderSchema = newOrderSchema.omit({
+    clientId: true, // Client cannot be changed when editing
 });
 
 export const driverSchema = z.object({
@@ -117,6 +121,11 @@ export const newClientSchema = z.object({
     cep: z.string().optional(),
 });
 
+export const editClientSchema = z.object({
+    nome: z.string().min(1, "Nome é obrigatório"),
+    telefone: z.string().min(10, "Telefone inválido"),
+});
+
 
 export const addressSchema = z.object({
   id: z.string(),
@@ -154,5 +163,3 @@ export const newOriginSchema = originSchema.omit({
   address: true, // `address` will be generated in the server action
   createdAt: true,
 });
-
-    
