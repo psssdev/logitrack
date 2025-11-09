@@ -62,7 +62,7 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if false;
       allow create: if false;
-      allow update: if isSignedIn() && isCompanyDataValid();
+      allow update: if isSignedIn();
       allow delete: if false;
     }
 
@@ -159,17 +159,5 @@ service cloud.firestore {
   // Helper function to determine if the user is the owner of the resource.
   function isOwner(userId) {
     return request.auth.uid == userId;
-  }
-
-  // Helper function to validate company data on update.
-  function isCompanyDataValid() {
-    let data = request.resource.data;
-    let allowedKeys = ['nomeFantasia', 'cnpj', 'logoUrl', 'cep', 'logradouro', 'numero', 'bairro', 'cidade', 'estado', 'msgRecebido', 'msgEmRota', 'msgEntregue', 'msgChegueiCidade', 'codigoPrefixo', 'linkBaseRastreio', 'updatedAt'];
-    return data.keys().hasAll(allowedKeys)
-      && (data.nomeFantasia is string && data.nomeFantasia.size() > 0)
-      && (data.codigoPrefixo is string && data.codigoPrefixo.size() > 0)
-      && (data.linkBaseRastreio is string && data.linkBaseRastreio.size() > 0)
-      && (data.cidade is string) // Allows empty string for cidade
-      && (data.updatedAt == request.time);
   }
 }
