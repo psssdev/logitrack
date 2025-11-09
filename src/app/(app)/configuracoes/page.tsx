@@ -269,7 +269,6 @@ export default function ConfiguracoesPage() {
 
     const companyData: Partial<Company> = {
         ...formValues,
-        updatedAt: serverTimestamp()
     };
     
     // Ensure required fields have a default if they are empty
@@ -505,5 +504,3 @@ export default function ConfiguracoesPage() {
     </div>
   );
 }
-
-    
