@@ -69,12 +69,12 @@ const COMPANY_ID = '1';
 export default function ConfiguracoesPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
   
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 

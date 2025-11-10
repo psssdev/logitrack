@@ -26,7 +26,6 @@ import type { Order, Origin, Address } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { drivers } from '@/lib/data';
 import { Loader2, Trash2, PlusCircle } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { updateDoc, collection, doc, query } from 'firebase/firestore';
@@ -71,7 +70,7 @@ export function EditOrderForm({
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const form = useForm<EditOrderFormValues>({
     resolver: zodResolver(editOrderSchema),
@@ -98,7 +97,7 @@ export function EditOrderForm({
   );
 
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !order.clientId || isUserLoading) return null;
+    if (!firestore || !order.clientId || isUserLoading || !user) return null;
     return query(
       collection(
         firestore,
@@ -109,10 +108,17 @@ export function EditOrderForm({
         'addresses'
       )
     );
-  }, [firestore, order.clientId, isUserLoading]);
+  }, [firestore, order.clientId, isUserLoading, user]);
 
   const { data: addresses, isLoading: loadingAddresses } =
     useCollection<Address>(addressesQuery);
+    
+    const { data: drivers, isLoading: loadingDrivers } = useCollection(
+        useMemoFirebase(() => {
+            if(!firestore || !user || isUserLoading) return null;
+            return collection(firestore, 'companies', COMPANY_ID, 'drivers');
+        }, [firestore, user, isUserLoading])
+    );
 
   async function onSubmit(data: EditOrderFormValues) {
     if (!firestore) {
@@ -415,14 +421,14 @@ export function EditOrderForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Motorista</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} disabled={loadingDrivers}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Atribuir motorista..." />
+                      <SelectValue placeholder={loadingDrivers ? "Carregando..." : "Atribuir motorista..."} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {drivers.map((driver) => (
+                    {drivers?.map((driver) => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.nome}
                       </SelectItem>

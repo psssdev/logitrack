@@ -30,15 +30,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function OrigensPage() {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return query(
       collection(firestore, 'companies', '1', 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
 
   const { data: origins, isLoading } = useCollection<Origin>(originsQuery);
   const pageIsLoading = isLoading || isUserLoading;

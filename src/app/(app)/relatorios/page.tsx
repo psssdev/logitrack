@@ -30,7 +30,6 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebas
 import type { Order, Driver, Client } from '@/lib/types';
 import { collection, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getDrivers } from '@/lib/actions';
 import {
   Table,
   TableBody,
@@ -65,37 +64,30 @@ const COLORS = [
 
 export default function RelatoriosPage() {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
-
+  const { user, isUserLoading } = useUser();
+  
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return query(collection(firestore, 'companies', '1', 'orders'));
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
   
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return query(collection(firestore, 'companies', '1', 'clients'));
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
+  
+  const driversQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return query(collection(firestore, 'companies', '1', 'drivers'));
+  }, [firestore, isUserLoading, user]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
-
-  useEffect(() => {
-    if (isUserLoading) return;
-    async function loadDrivers() {
-      setIsLoadingDrivers(true);
-      const fetchedDrivers = await getDrivers();
-      setDrivers(fetchedDrivers);
-      setIsLoadingDrivers(false);
-    }
-    loadDrivers();
-  }, [isUserLoading]);
 
   const { monthlyData, paymentData, totalRevenue, totalReceivable, ticketMedio, driverPerformance, clientPerformance } = useMemo(() => {
-    if (!orders || !clients) {
+    if (!orders || !clients || !drivers) {
       return { monthlyData: [], paymentData: [], totalRevenue: 0, totalReceivable: 0, ticketMedio: 0, driverPerformance: [], clientPerformance: [] };
     }
 

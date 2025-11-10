@@ -12,12 +12,12 @@ const COMPANY_ID = '1';
 
 export function CompanyBranding() {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
 
   const { data: company, isLoading } = useDoc<Company>(companyRef);
 

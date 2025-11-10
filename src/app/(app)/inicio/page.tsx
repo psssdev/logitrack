@@ -56,17 +56,17 @@ const COMPANY_ID = '1';
 
 export default function InicioPage() {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return collection(firestore, 'companies', COMPANY_ID, 'orders');
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return collection(firestore, 'companies', COMPANY_ID, 'clients');
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);

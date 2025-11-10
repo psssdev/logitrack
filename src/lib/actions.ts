@@ -77,3 +77,20 @@ export async function getDashboardData() {
     };
   }
 }
+
+
+export async function getDrivers(): Promise<Driver[]> {
+    noStore();
+    try {
+        const db = await getFirestoreServer();
+        const driversSnap = await db.collection('companies').doc(COMPANY_ID).collection('drivers').get();
+        const drivers: Driver[] = [];
+        driversSnap.forEach(doc => {
+            drivers.push({ id: doc.id, ...doc.data() } as Driver);
+        });
+        return drivers;
+    } catch (error) {
+        console.error("Error fetching drivers:", error);
+        return [];
+    }
+}

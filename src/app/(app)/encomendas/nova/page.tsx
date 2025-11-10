@@ -17,23 +17,23 @@ import type { Client, Origin } from '@/lib/types';
 
 export default function NewOrderPage() {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return query(
       collection(firestore, 'companies', '1', 'clients'),
       orderBy('nome', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return query(
       collection(firestore, 'companies', '1', 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
 
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);

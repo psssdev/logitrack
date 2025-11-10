@@ -20,15 +20,15 @@ const COMPANY_ID = '1';
 
 export default function MotoristasPage() {
     const firestore = useFirestore();
-    const { isUserLoading } = useUser();
+    const { user, isUserLoading } = useUser();
 
     const driversQuery = useMemoFirebase(() => {
-        if (!firestore || isUserLoading) return null;
+        if (!firestore || isUserLoading || !user) return null;
         return query(
             collection(firestore, 'companies', COMPANY_ID, 'drivers'),
             orderBy('nome', 'asc')
         );
-    }, [firestore, isUserLoading]);
+    }, [firestore, isUserLoading, user]);
 
     const { data: drivers, isLoading } = useCollection<Driver>(driversQuery);
     const pageIsLoading = isLoading || isUserLoading;

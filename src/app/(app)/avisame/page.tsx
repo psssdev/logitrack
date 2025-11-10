@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Client, Address, Company } from '@/lib/types';
 import { collection, doc, getDocs } from 'firebase/firestore';
 import { MessageCircle, Megaphone, Send, Settings2 } from 'lucide-react';
@@ -116,6 +116,7 @@ const openWhatsAppSmart = (phoneRaw: string, message: string, mode: SendMode) =>
 
 export default function AvisamePage() {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
   // UI/controle
@@ -125,16 +126,16 @@ export default function AvisamePage() {
 
   // Company (template de mensagem)
   const companyRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore]);
+  }, [firestore, user, isUserLoading]);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
   // Clients
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return collection(firestore, 'companies', COMPANY_ID, 'clients');
-  }, [firestore]);
+  }, [firestore, user, isUserLoading]);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
   const [clientsWithAddresses, setClientsWithAddresses] = useState<ClientWithAddresses[]>([]);
@@ -178,7 +179,7 @@ export default function AvisamePage() {
     fetchAllAddresses();
   }, [clients, firestore, toast]);
 
-  const isLoading = isLoadingClients || isLoadingCompany || isLoadingAddresses;
+  const isLoading = isLoadingClients || isLoadingCompany || isLoadingAddresses || isUserLoading;
 
   const { cities, filteredClients } = useMemo(() => {
     if (!clientsWithAddresses?.length) return { cities: [] as string[], filteredClients: [] as ClientWithAddresses[] };

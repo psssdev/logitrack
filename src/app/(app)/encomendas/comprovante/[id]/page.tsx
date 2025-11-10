@@ -69,14 +69,14 @@ function ReceiptContent({ orderId }: { orderId: string }) {
   const { toast } = useToast();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return doc(firestore, 'companies', '1', 'orders', orderId);
-  }, [firestore, isUserLoading, orderId]);
+  }, [firestore, isUserLoading, orderId, user]);
   
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return doc(firestore, 'companies', '1');
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
 
   const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
@@ -132,7 +132,7 @@ function ReceiptContent({ orderId }: { orderId: string }) {
 
   if (!order) {
     return (
-      <div className="mx-auto grid max-w-2xl flex-1 auto-rows-max gap-4">
+      <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" className="h-7 w-7" asChild>
             <Link href="/encomendas">

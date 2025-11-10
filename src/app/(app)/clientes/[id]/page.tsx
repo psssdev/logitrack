@@ -29,17 +29,17 @@ export default function ClientDetailPage({
 
 function ClientDetailContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return doc(firestore, 'companies', '1', 'clients', clientId);
-  }, [firestore, isUserLoading, clientId]);
+  }, [firestore, isUserLoading, clientId, user]);
   
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return collection(firestore, 'companies', '1', 'clients', clientId, 'addresses');
-  }, [firestore, isUserLoading, clientId]);
+  }, [firestore, isUserLoading, clientId, user]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: addresses, isLoading: isLoadingAddresses } = useCollection<Address>(addressesQuery);

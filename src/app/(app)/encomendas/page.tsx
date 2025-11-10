@@ -25,13 +25,13 @@ import { useMemo } from 'react';
 
 export default function EncomendasPage() {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const statuses: OrderStatus[] = ['PENDENTE', 'EM_ROTA', 'ENTREGUE', 'CANCELADA'];
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return query(collection(firestore, 'companies', '1', 'orders'), orderBy('createdAt', 'desc'));
-  }, [firestore, isUserLoading]);
+  }, [firestore, isUserLoading, user]);
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
   

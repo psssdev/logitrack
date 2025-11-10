@@ -22,11 +22,10 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address, Origin, Company } from '@/lib/types';
+import type { NewOrder, Client, Address, Origin, Driver } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { drivers } from '@/lib/data';
 import {
   Command,
   CommandEmpty,
@@ -136,7 +135,7 @@ export function NewOrderForm({
   const totalValue = items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0);
 
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedClientId || isUserLoading) return null;
+    if (!firestore || !selectedClientId || isUserLoading || !user) return null;
     return query(
       collection(
         firestore,
@@ -147,10 +146,16 @@ export function NewOrderForm({
         'addresses'
       )
     );
-  }, [firestore, selectedClientId, isUserLoading]);
+  }, [firestore, selectedClientId, isUserLoading, user]);
 
   const { data: addresses, isLoading: loadingAddresses } =
     useCollection<Address>(addressesQuery);
+
+  const { data: drivers, isLoading: loadingDrivers } = useCollection<Driver>(useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return collection(firestore, 'companies', COMPANY_ID, 'drivers');
+  }, [firestore, isUserLoading, user]));
+
 
   React.useEffect(() => {
     if (addresses) {
@@ -249,7 +254,7 @@ export function NewOrderForm({
       if (submitAction === 'save-and-send') {
         const trackingLink = `https://seusite.com/rastreio/${trackingCode}`; // Static URL
         const totalValueFormatted = formatCurrency(totalValue);
-        const totalVolumes = data.items.reduce((acc, item) => acc + item.quantity, 0).toString();
+        const totalVolumes = data.items.reduce((acc, item) => acc + (item.quantity || 0), 0).toString();
         
         const messageTemplate = "Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}";
         let message = messageTemplate;
@@ -645,14 +650,14 @@ export function NewOrderForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Motorista</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loadingDrivers}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Atribuir motorista..." />
+                      <SelectValue placeholder={loadingDrivers ? "Carregando..." : "Atribuir motorista..."} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {drivers.map((driver) => (
+                    {drivers?.map((driver) => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.nome}
                       </SelectItem>

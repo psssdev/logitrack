@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { NewAddressForm } from '@/components/new-address-form';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Client } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,15 +28,18 @@ export default function NewAddressPage({
 
 function NewAddressContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return doc(firestore, 'companies', '1', 'clients', clientId);
-  }, [firestore, clientId]);
+  }, [firestore, clientId, user, isUserLoading]);
 
   const { data: client, isLoading } = useDoc<Client>(clientRef);
 
-  if (isLoading) {
+  const pageIsLoading = isLoading || isUserLoading;
+
+  if (pageIsLoading) {
       return (
         <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
             <div className="flex items-center gap-4">
