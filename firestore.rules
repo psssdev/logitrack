@@ -11,15 +11,12 @@ service cloud.firestore {
       allow read, write: if request.auth.uid == userId;
     }
     
-    // As regras abaixo permitem que qualquer usuário autenticado leia e escreva
-    // em qualquer documento dentro das subcoleções da empresa.
-    // A permissão de 'get' em /companies/{companyId} é necessária para
-    // permitir consultas em suas subcoleções.
-    
+    // Allow read on the parent company document, required for subcollection queries.
     match /companies/{companyId} {
-      allow read: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
+    // Allow list/write on all subcollections for any signed-in user.
     match /companies/{companyId}/orders/{orderId} {
       allow read, write: if isSignedIn();
     }
