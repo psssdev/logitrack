@@ -47,22 +47,22 @@ service cloud.firestore {
 
     // Rule for orders subcollection
     match /companies/{companyId}/orders/{orderId} {
-        allow read, write: if isCompanyMember(companyId);
+        allow list, read, write: if isCompanyMember(companyId);
     }
     
     // Rule for clients subcollection
     match /companies/{companyId}/clients/{clientId} {
-        allow read, write: if isCompanyMember(companyId);
+        allow list, read, write: if isCompanyMember(companyId);
     }
     
     // Rule for addresses nested under clients
     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-        allow read, write: if isCompanyMember(companyId);
+        allow list, read, write: if isCompanyMember(companyId);
     }
 
     // Rule for origins subcollection
     match /companies/{companyId}/origins/{originId} {
-        allow read, write: if isCompanyMember(companyId);
+        allow list, read, write: if isCompanyMember(companyId);
     }
   }
 }
