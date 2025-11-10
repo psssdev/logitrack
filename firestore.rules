@@ -7,34 +7,27 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // A função busca o companyId do perfil do usuário na coleção /users.
     function getUserCompanyId() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
     }
 
-    // A função verifica se o usuário autenticado pertence à empresa especificada.
     function isCompanyMember(companyId) {
       return isAuthed() && getUserCompanyId() == companyId;
     }
 
-    // Regra de bloqueio padrão para segurança.
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Permite que um usuário leia e escreva seu próprio perfil.
     match /users/{userId} {
       allow read, write: if isAuthed() && request.auth.uid == userId;
     }
 
-    // Permite a leitura do documento da empresa se o usuário for um membro dela.
-    // Isso é crucial para permitir consultas de subcoleção.
     match /companies/{companyId} {
-      allow read, update: if isCompanyMember(companyId);
+      allow read: if isAuthed();
+      allow update: if isCompanyMember(companyId);
     }
-
-    // Permite acesso de leitura e escrita a todas as subcoleções de uma empresa
-    // se o usuário for um membro daquela empresa.
+    
     match /companies/{companyId}/{subcollection}/{docId=**} {
       allow read, write: if isCompanyMember(companyId);
     }
