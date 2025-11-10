@@ -7,52 +7,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getUser(userId) {
-        return get(/databases/$(database)/documents/users/$(userId));
-    }
-    
-    function isCompanyMember(companyId) {
-      let userDoc = getUser(request.auth.uid).data;
-      return isSignedIn() && userDoc.companyId == companyId;
-    }
-    
-    function allowedCompanyKeys() {
-        return [
-            'nomeFantasia', 'codigoPrefixo', 'linkBaseRastreio', 'cnpj', 'cep', 
-            'logradouro', 'numero', 'bairro', 'cidade', 'estado', 'logoUrl',
-            'msgRecebido', 'msgEmRota', 'msgEntregue', 'msgChegueiCidade', 'updatedAt'
-        ];
-    }
-
-    function isValidCompanyUpdate() {
-        let writeKeys = request.resource.data.keys();
-        return writeKeys.hasAll(allowedCompanyKeys());
-    }
-
     match /users/{userId} {
-      allow get, create, update: if request.auth.uid == userId;
-      allow list, delete: if false;
+      allow read, write: if request.auth.uid == userId;
     }
 
     match /companies/{companyId} {
-      allow get: if isCompanyMember(companyId);
-      allow update: if isCompanyMember(companyId) && isValidCompanyUpdate();
-      allow list, create, delete: if false;
+      allow read, update: if isSignedIn();
 
-      match /orders/{orderId} {
-          allow read, write: if isSignedIn();
-      }
-      
-      match /clients/{clientId} {
-          allow read, write: if isSignedIn();
-
-          match /addresses/{addressId} {
-              allow read, write: if isSignedIn();
-          }
-      }
-
-      match /origins/{originId} {
-          allow read, write: if isSignedIn();
+      // Regra explícita para subcoleções para garantir que a permissão de leitura/escrita
+      // seja aplicada corretamente a todos os documentos aninhados.
+      match /{collection}/{docId} {
+        allow read, write: if isSignedIn();
       }
     }
   }
