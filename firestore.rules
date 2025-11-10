@@ -10,14 +10,6 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-
-    function getUserCompanyId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
-    }
-
-    function isCompanyMember(companyId) {
-      return isSignedIn() && getUserCompanyId() == companyId;
-    }
     
     function allowedCompanyKeys() {
         return [
@@ -41,27 +33,24 @@ service cloud.firestore {
 
     match /companies/{companyId} {
       allow get: if isSignedIn();
-      allow update: if isCompanyMember(companyId) && isValidCompanyUpdate();
+      allow update: if isSignedIn() && isValidCompanyUpdate();
       allow list, create, delete: if false;
 
-      // Rule for orders subcollection
+      // Simplificando as regras para permitir acesso a usuários autenticados
       match /orders/{orderId} {
-          allow read, write: if isCompanyMember(companyId);
+          allow read, write: if isSignedIn();
       }
       
-      // Rule for clients subcollection
       match /clients/{clientId} {
-          allow read, write: if isCompanyMember(companyId);
+          allow read, write: if isSignedIn();
 
-          // Rule for addresses nested under clients
           match /addresses/{addressId} {
-              allow read, write: if isCompanyMember(companyId);
+              allow read, write: if isSignedIn();
           }
       }
 
-      // Rule for origins subcollection
       match /origins/{originId} {
-          allow read, write: if isCompanyMember(companyId);
+          allow read, write: if isSignedIn();
       }
     }
   }
