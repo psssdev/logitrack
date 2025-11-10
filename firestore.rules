@@ -6,7 +6,7 @@ service cloud.firestore {
     // Allow authenticated users to read company details.
     // This is required for subcollection queries.
     match /companies/{companyId} {
-      allow read: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
 
     // Allow full access to user profiles for authenticated users.
