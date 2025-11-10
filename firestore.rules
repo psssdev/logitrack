@@ -2,45 +2,40 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Função auxiliar para verificar se o usuário está autenticado
+    
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Permissão para os usuários lerem e escreverem em seus próprios perfis
     match /users/{userId} {
       allow read, write: if request.auth.uid == userId;
     }
-
-    // Permissão de LEITURA no documento da empresa para qualquer usuário autenticado.
-    // Esta regra é crucial para permitir consultas em subcoleções.
+    
+    // As regras abaixo permitem que qualquer usuário autenticado leia e escreva
+    // em qualquer documento dentro das subcoleções da empresa.
+    // A permissão de 'get' em /companies/{companyId} é necessária para
+    // permitir consultas em suas subcoleções.
+    
     match /companies/{companyId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow read: if isSignedIn();
     }
 
-    // Permissões para a subcoleção de encomendas (orders)
     match /companies/{companyId}/orders/{orderId} {
       allow read, write: if isSignedIn();
     }
 
-    // Permissões para a subcoleção de clientes (clients)
     match /companies/{companyId}/clients/{clientId} {
       allow read, write: if isSignedIn();
     }
-
-    // Permissões para a subcoleção de endereços (addresses)
+    
     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
       allow read, write: if isSignedIn();
     }
-
-    // Permissões para a subcoleção de motoristas (drivers)
+    
     match /companies/{companyId}/drivers/{driverId} {
       allow read, write: if isSignedIn();
     }
     
-    // Permissões para a subcoleção de origens (origins)
     match /companies/{companyId}/origins/{originId} {
       allow read, write: if isSignedIn();
     }
