@@ -12,8 +12,8 @@ service cloud.firestore {
       allow read, write: if request.auth.uid == userId;
     }
     
-    // Permite que qualquer usuário autenticado leia os dados da empresa.
-    // Isso é necessário para permitir consultas a subcoleções.
+    // PERMISSÃO CRÍTICA: Permite a LEITURA do documento da empresa.
+    // Isso é necessário para que as consultas às subcoleções funcionem.
     match /companies/{companyId} {
       allow read, write: if isSignedIn();
     }
@@ -41,11 +41,6 @@ service cloud.firestore {
     // Permite que qualquer usuário autenticado leia e escreva na subcoleção de motoristas.
     match /companies/{companyId}/drivers/{driverId} {
       allow read, write: if isSignedIn();
-    }
-    
-    // Regra de exemplo para uma possível subcoleção de usuários dentro da empresa.
-    match /companies/{companyId}/users/{userId} {
-      allow read, write: if request.auth.uid == userId;
     }
   }
 }
