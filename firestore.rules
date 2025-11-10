@@ -7,38 +7,43 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Regra para a coleção de usuários
+    // Permite que um usuário leia e escreva apenas em seu próprio perfil.
     match /users/{userId} {
       allow read, write: if request.auth.uid == userId;
     }
     
-    // Regra para a coleção de empresas (permite ler o documento pai)
+    // Permite que qualquer usuário autenticado leia os dados da empresa.
+    // Isso é necessário para permitir consultas a subcoleções.
     match /companies/{companyId} {
       allow read, write: if isSignedIn();
     }
 
-    // Regras explícitas e não aninhadas para cada subcoleção
+    // Permite que qualquer usuário autenticado leia e escreva na subcoleção de encomendas.
     match /companies/{companyId}/orders/{orderId} {
       allow read, write: if isSignedIn();
     }
 
+    // Permite que qualquer usuário autenticado leia e escreva na subcoleção de clientes.
     match /companies/{companyId}/clients/{clientId} {
       allow read, write: if isSignedIn();
     }
     
+    // Permite que qualquer usuário autenticado leia e escreva na subcoleção de endereços de clientes.
     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
       allow read, write: if isSignedIn();
     }
 
+    // Permite que qualquer usuário autenticado leia e escreva na subcoleção de origens.
     match /companies/{companyId}/origins/{originId} {
       allow read, write: if isSignedIn();
     }
 
+    // Permite que qualquer usuário autenticado leia e escreva na subcoleção de motoristas.
     match /companies/{companyId}/drivers/{driverId} {
       allow read, write: if isSignedIn();
     }
     
-    // Regra para a subcoleção de usuários dentro da empresa, caso exista
+    // Regra de exemplo para uma possível subcoleção de usuários dentro da empresa.
     match /companies/{companyId}/users/{userId} {
       allow read, write: if request.auth.uid == userId;
     }
