@@ -7,22 +7,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Bloqueio padrão para segurança
-    match /{document=**} {
-      allow read, write: if false;
+    // Regra para a coleção de usuários
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
     }
-
-    // Permite que usuários logados leiam o documento da empresa.
-    // Isso é necessário para consultar as subcoleções.
+    
+    // Regra para a coleção de empresas (permite ler o documento pai)
     match /companies/{companyId} {
       allow read: if isSignedIn();
     }
-    
-    // Regras explícitas para cada subcoleção
-    match /companies/{companyId}/users/{userId} {
-      allow read, write: if request.auth.uid == userId;
-    }
 
+    // Regras explícitas e não aninhadas para cada subcoleção
     match /companies/{companyId}/orders/{orderId} {
       allow read, write: if isSignedIn();
     }
@@ -41,6 +36,11 @@ service cloud.firestore {
 
     match /companies/{companyId}/drivers/{driverId} {
       allow read, write: if isSignedIn();
+    }
+    
+    // Regra para a subcoleção de usuários dentro da empresa, caso exista
+    match /companies/{companyId}/users/{userId} {
+      allow read, write: if request.auth.uid == userId;
     }
   }
 }
