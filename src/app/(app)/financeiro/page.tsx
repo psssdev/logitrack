@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -26,6 +26,25 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { AccountsReceivableTable } from '@/components/accounts-receivable-table';
 import { CopyButton } from '@/components/copy-button';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { subDays, startOfDay, endOfDay } from 'date-fns';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import { ReceivedTable } from '@/components/received-table';
+
 
 const COMPANY_ID = '1';
 
@@ -106,21 +125,10 @@ function KpiCard({
 export default function FinanceiroPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-
-  const { startOfMonth, endOfMonth } = useMemo(() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const end = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-      23,
-      59,
-      59,
-      999
-    );
-    return { startOfMonth: start, endOfMonth: end };
-  }, []);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+  });
 
   const canQuery = !!firestore && !isUserLoading && !!user?.uid;
 
@@ -134,15 +142,20 @@ export default function FinanceiroPage() {
     );
   }, [canQuery, firestore]);
 
-  const receivedThisMonthQuery = useMemoFirebase<Query | null>(() => {
-    if (!canQuery) return null;
+  const receivedInPeriodQuery = useMemoFirebase<Query | null>(() => {
+    if (!canQuery || !dateRange?.from) return null;
+    // Garante que a data final inclua o dia inteiro
+    const from = startOfDay(dateRange.from);
+    const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
     return query(
       collection(firestore!, 'companies', COMPANY_ID, 'orders'),
       where('pago', '==', true),
-      where('createdAt', '>=', Timestamp.fromDate(startOfMonth)),
-      where('createdAt', '<=', Timestamp.fromDate(endOfMonth))
+      where('createdAt', '>=', Timestamp.fromDate(from)),
+      where('createdAt', '<=', Timestamp.fromDate(to)),
+      orderBy('createdAt', 'desc')
     );
-  }, [canQuery, firestore, startOfMonth, endOfMonth]);
+  }, [canQuery, firestore, dateRange]);
+
 
   const {
     data: receivableOrders,
@@ -151,58 +164,115 @@ export default function FinanceiroPage() {
   } = useCollection<Order>(receivableQuery);
 
   const {
-    data: receivedOrdersInMonth,
+    data: receivedOrdersInPeriod,
     isLoading: isLoadingReceived,
     error: receivedError,
-  } = useCollection<Order>(receivedThisMonthQuery);
+  } = useCollection<Order>(receivedInPeriodQuery);
 
   const pageIsLoading = isUserLoading || isLoadingReceivable || isLoadingReceived;
 
-  const { totalReceivable, receivableCount, totalReceivedInMonth, receivedCount } =
+  const { totalReceivable, receivableCount, totalReceivedInPeriod, receivedCountInPeriod, ticketMedio, dailyRevenueData } =
     useMemo(() => {
       const receivable = Array.isArray(receivableOrders) ? receivableOrders : [];
-      const received = Array.isArray(receivedOrdersInMonth)
-        ? receivedOrdersInMonth
+      const received = Array.isArray(receivedOrdersInPeriod)
+        ? receivedOrdersInPeriod
         : [];
+      
+      const dailyData = received.reduce((acc, order) => {
+        const date = order.createdAt.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit'});
+        if (!acc[date]) {
+          acc[date] = { date, faturamento: 0 };
+        }
+        acc[date].faturamento += order.valorEntrega;
+        return acc;
+      }, {} as Record<string, { date: string; faturamento: number }>);
+
+
+      const totalReceived = received.reduce((acc, o) => acc + (o?.valorEntrega || 0), 0);
 
       return {
-        totalReceivable: receivable.reduce(
-          (acc, o) => acc + (o?.valorEntrega || 0),
-          0
-        ),
+        totalReceivable: receivable.reduce((acc, o) => acc + (o?.valorEntrega || 0), 0),
         receivableCount: receivable.length,
-        totalReceivedInMonth: received.reduce(
-          (acc, o) => acc + (o?.valorEntrega || 0),
-          0
-        ),
-        receivedCount: received.length,
+        totalReceivedInPeriod: totalReceived,
+        receivedCountInPeriod: received.length,
+        ticketMedio: received.length > 0 ? totalReceived / received.length : 0,
+        dailyRevenueData: Object.values(dailyData).sort((a,b) => a.date.localeCompare(b.date, 'pt-BR')),
       };
-    }, [receivableOrders, receivedOrdersInMonth]);
+    }, [receivableOrders, receivedOrdersInPeriod]);
+
+    const chartConfig = {
+      faturamento: {
+        label: 'Faturamento',
+        color: 'hsl(var(--chart-1))',
+      },
+    } satisfies ChartConfig;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
           Financeiro
         </h1>
+        <DateRangePicker date={dateRange} onDateChange={setDateRange} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          title="Total a Receber"
-          value={totalReceivable}
-          description={`de ${receivableCount} encomenda(s)`}
-          isLoading={pageIsLoading}
-          error={receivableError}
-        />
-        <KpiCard
-          title="Recebido no Mês"
-          value={totalReceivedInMonth}
-          description={`de ${receivedCount} encomenda(s) quitadas`}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+         <KpiCard
+          title="Recebido no Período"
+          value={totalReceivedInPeriod}
+          description={`de ${receivedCountInPeriod} encomenda(s) quitadas`}
           isLoading={pageIsLoading}
           error={receivedError}
         />
+        <KpiCard
+          title="Ticket Médio"
+          value={ticketMedio}
+          description="Valor médio por encomenda no período"
+          isLoading={pageIsLoading}
+        />
+        <KpiCard
+          title="Total a Receber"
+          value={totalReceivable}
+          description={`de ${receivableCount} encomenda(s) "a haver"`}
+          isLoading={pageIsLoading}
+          error={receivableError}
+        />
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle>Faturamento Diário no Período</CardTitle>
+          <CardDescription>
+            Receita total de encomendas pagas a cada dia.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pageIsLoading ? <Skeleton className="h-64 w-full" /> : 
+            dailyRevenueData.length > 0 ? (
+                <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+                    <BarChart accessibilityLayer data={dailyRevenueData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        tickMargin={10}
+                        axisLine={false}
+                        tickFormatter={(value) => value.substring(0, 5)}
+                    />
+                    <YAxis tickFormatter={(value) => `R$ ${value / 1000}k`} />
+                    <Tooltip cursor={false} content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+                    <Bar dataKey="faturamento" fill="var(--color-faturamento)" radius={4} />
+                    </BarChart>
+                </ChartContainer>
+            ) : (
+                <div className="flex h-24 items-center justify-center rounded-md border-2 border-dashed text-center">
+                    <p className="text-muted-foreground">Nenhum faturamento encontrado para este período.</p>
+                </div>
+            )
+          }
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardHeader>
@@ -212,7 +282,7 @@ export default function FinanceiroPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {pageIsLoading ? (
+          {isLoadingReceivable ? (
             <Skeleton className="h-64 w-full" />
           ) : receivableOrders && receivableOrders.length > 0 ? (
             <AccountsReceivableTable orders={receivableOrders} />
@@ -222,6 +292,30 @@ export default function FinanceiroPage() {
                 {receivableError
                   ? 'Não foi possível carregar os dados.'
                   : 'Nenhuma conta a receber encontrada.'}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recebidos no Período</CardTitle>
+          <CardDescription>
+            Encomendas pagas dentro do período selecionado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingReceived ? (
+            <Skeleton className="h-64 w-full" />
+          ) : receivedOrdersInPeriod && receivedOrdersInPeriod.length > 0 ? (
+            <ReceivedTable orders={receivedOrdersInPeriod} />
+          ) : (
+            <div className="flex h-24 items-center justify-center rounded-md border-2 border-dashed text-center">
+              <p className="text-muted-foreground">
+                {receivedError
+                  ? 'Não foi possível carregar os dados.'
+                  : 'Nenhuma encomenda recebida no período.'}
               </p>
             </div>
           )}
