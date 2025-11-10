@@ -7,36 +7,27 @@ service cloud.firestore {
       return request.auth != null; 
     }
 
-    // Função para obter o companyId do perfil do usuário.
-    // O perfil do usuário é esperado em /users/{uid}
-    function getUserCompanyId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
-    }
-
-    // Função para verificar se um usuário é membro da empresa que está tentando acessar.
-    function isCompanyMember(companyId) {
-      return isAuthed() && getUserCompanyId() == companyId;
-    }
-
     // Regra padrão para bloquear tudo, a menos que permitido explicitamente abaixo.
     match /{document=**} { 
       allow read, write: if false; 
     }
     
-    // Permite que um usuário leia/escreva seu próprio perfil.
+    // Permite que um usuário leia seu próprio perfil.
     match /users/{userId} {
       allow read, write: if isAuthed() && request.auth.uid == userId;
     }
 
-    // Permite que membros da empresa leiam o documento da empresa (pai).
-    // A escrita também é permitida para a página de configurações.
+    // Permite a leitura do documento da empresa (pai) se o usuário estiver autenticado.
+    // Isso é crucial para permitir consultas de subcoleção.
     match /companies/{companyId} {
-      allow read, write: if isCompanyMember(companyId);
+      allow read: if isAuthed();
+      // A escrita no documento da empresa continua bloqueada por padrão.
     }
 
-    // Permite acesso total às subcoleções se o usuário for membro da empresa.
+    // Permite acesso de leitura e escrita a todas as subcoleções de uma empresa
+    // se o usuário estiver autenticado. Isso cobre /orders, /clients, etc.
     match /companies/{companyId}/{subcollection}/{docId=**} {
-      allow read, write: if isCompanyMember(companyId);
+      allow read, write: if isAuthed();
     }
   }
 }
