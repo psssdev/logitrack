@@ -47,7 +47,6 @@ export const orderSchema = z.object({
       })
     )
     .default([]),
-  messages: z.array(z.string()).default([]),
   createdAt: z.any(), // Allow Date, string, or Firestore Timestamp
   createdBy: z.string(),
   companyId: z.string(),
@@ -58,7 +57,6 @@ export const newOrderSchema = orderSchema.omit({
   id: true,
   codigoRastreio: true,
   timeline: true,
-  messages: true,
   createdAt: true,
   createdBy: true,
   companyId: true,
@@ -79,7 +77,6 @@ export const driverSchema = z.object({
   telefone: z.string(),
   placa: z.string().optional(),
   ativo: z.boolean(),
-  companyId: z.string(),
 });
 
 export const clientSchema = z.object({

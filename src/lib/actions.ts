@@ -2,8 +2,7 @@
 
 import { revalidatePath, unstable_noStore as noStore } from 'next/cache';
 import { getFirestoreServer } from '@/firebase/server-init';
-import { drivers } from '@/lib/data';
-import type { Driver, Order, Client } from './types';
+import type { Order, Client, Driver } from './types';
 
 
 const COMPANY_ID = '1';
@@ -77,11 +76,4 @@ export async function getDashboardData() {
         topClients: [] 
     };
   }
-}
-
-export async function getDrivers(): Promise<Driver[]> {
-    noStore();
-    // In a real scenario, this would fetch from Firestore.
-    // For now, we return the static data.
-    return Promise.resolve(drivers);
 }
