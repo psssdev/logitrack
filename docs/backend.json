@@ -91,7 +91,7 @@
       ]
     },
     "Order": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "http://json-schema.org/draft_07/schema#",
       "title": "Order",
       "type": "object",
       "description": "Represents an order in the transport system.",
