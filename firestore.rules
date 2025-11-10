@@ -13,22 +13,26 @@ service cloud.firestore {
 
     match /companies/{companyId} {
       allow read, update: if isSignedIn();
+    }
 
-      match /orders/{orderId} {
-        allow read, write: if isSignedIn();
-      }
-      match /clients/{clientId} {
-        allow read, write: if isSignedIn();
-      }
-      match /origins/{originId} {
-        allow read, write: if isSignedIn();
-      }
-      match /drivers/{driverId} {
-        allow read, write: if isSignedIn();
-      }
-      match /clients/{clientId}/addresses/{addressId} {
-        allow read, write: if isSignedIn();
-      }
+    match /companies/{companyId}/orders/{orderId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /companies/{companyId}/clients/{clientId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /companies/{companyId}/origins/{originId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /companies/{companyId}/drivers/{driverId} {
+      allow read, write: if isSignedIn();
     }
   }
 }
