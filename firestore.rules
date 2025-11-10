@@ -3,38 +3,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() { return request.auth != null; }
+    function isAuthed() { return request.auth != null; }
 
-    // Regra de bloqueio padrão para segurança
+    // Bloqueio padrão para segurança
     match /{document=**} {
       allow read, write: if false;
     }
 
     // Libera a leitura de Cias para usuários autenticados
     match /companies/{companyId} {
-      allow read, update: if isSignedIn();
+      allow read: if isAuthed();
     }
     
     // Libera a leitura da subcoleção de encomendas para usuários autenticados.
     // A permissão 'read' cobre 'get' (um doc) e 'list' (vários docs).
     match /companies/{companyId}/orders/{orderId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    // Libera a leitura de outras subcoleções para evitar erros futuros.
-    match /companies/{companyId}/clients/{clientId} {
-      allow read, write: if isSignedIn();
-    }
-     match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-      allow read, write: if isSignedIn();
-    }
-    match /companies/{companyId}/origins/{originId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    // Permite que usuários leiam e escrevam em seus próprios perfis.
-    match /users/{userId} {
-        allow read, write: if request.auth.uid == userId;
+      allow read: if isAuthed();
     }
   }
 }
