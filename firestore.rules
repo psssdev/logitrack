@@ -43,26 +43,26 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow update: if isCompanyMember(companyId) && isValidCompanyUpdate();
       allow list, create, delete: if false;
-    }
 
-    // Rule for orders subcollection
-    match /companies/{companyId}/orders/{orderId} {
-        allow list, read, write: if isCompanyMember(companyId);
-    }
-    
-    // Rule for clients subcollection
-    match /companies/{companyId}/clients/{clientId} {
-        allow list, read, write: if isCompanyMember(companyId);
-    }
-    
-    // Rule for addresses nested under clients
-    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-        allow list, read, write: if isCompanyMember(companyId);
-    }
+      // Rule for orders subcollection
+      match /orders/{orderId} {
+          allow read, write: if isCompanyMember(companyId);
+      }
+      
+      // Rule for clients subcollection
+      match /clients/{clientId} {
+          allow read, write: if isCompanyMember(companyId);
 
-    // Rule for origins subcollection
-    match /companies/{companyId}/origins/{originId} {
-        allow list, read, write: if isCompanyMember(companyId);
+          // Rule for addresses nested under clients
+          match /addresses/{addressId} {
+              allow read, write: if isCompanyMember(companyId);
+          }
+      }
+
+      // Rule for origins subcollection
+      match /origins/{originId} {
+          allow read, write: if isCompanyMember(companyId);
+      }
     }
   }
 }
