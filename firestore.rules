@@ -3,21 +3,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    // Helper function to check if a user is authenticated
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Rules
+    // Rule for the users collection
     match /users/{userId} {
       allow read, write: if request.auth.uid == userId;
     }
 
+    // Rules for the companies collection and its subcollections
     match /companies/{companyId} {
-      // Company config can be read by its members
+      // Allow authenticated users to read and update company settings
       allow read, update: if isSignedIn();
 
-      // Subcollections can be accessed by company members
+      // Explicitly allow read and write on subcollections for authenticated users
       match /orders/{orderId} {
         allow read, write: if isSignedIn();
       }
