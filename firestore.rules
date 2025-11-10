@@ -13,12 +13,22 @@ service cloud.firestore {
 
     match /companies/{companyId} {
       allow read, update: if isSignedIn();
+    }
 
-      // Regra explícita para subcoleções para garantir que a permissão de leitura/escrita
-      // seja aplicada corretamente a todos os documentos aninhados.
-      match /{collection}/{docId} {
-        allow read, write: if isSignedIn();
-      }
+    match /companies/{companyId}/orders/{orderId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /companies/{companyId}/clients/{clientId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /companies/{companyId}/origins/{originId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
+      allow read, write: if isSignedIn();
     }
   }
 }
