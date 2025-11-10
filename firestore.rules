@@ -11,9 +11,9 @@ service cloud.firestore {
       allow read, write: if request.auth.uid == userId;
     }
 
+    // Regra explícita para permitir a leitura do documento da empresa.
+    // Isso é necessário para que as consultas às subcoleções funcionem.
     match /companies/{companyId} {
-      // PERMISSÃO CRÍTICA: Permite a LEITURA do documento da empresa.
-      // Isso é necessário para que as consultas às subcoleções (abaixo) funcionem.
       allow read, write: if isSignedIn();
     }
 
