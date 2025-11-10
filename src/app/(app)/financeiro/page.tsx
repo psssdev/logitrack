@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/card';
@@ -11,109 +11,20 @@ import {
 } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AccountsReceivableTable } from '@/components/accounts-receivable-table';
-import { Button } from '@/components/ui/button';
-import { Clipboard, ClipboardCheck } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { CopyButton } from '@/components/copy-button';
 
 const COMPANY_ID = '1';
 
-/* =========================================================================
-   Utils - datas, números e clipboard (com fallback)
-   ========================================================================= */
+/* ========================= Utils ========================= */
 function toNumberSafe(n: any): number {
   const v = Number(n);
   return Number.isFinite(v) ? v : 0;
 }
 
-function isFramed(): boolean {
-  try {
-    return window.self !== window.top;
-  } catch {
-    // cross-origin iframes jogam erro ao acessar window.top
-    return true;
-  }
-}
-
-async function copyToClipboardSafe(text: string) {
-  // Se estiver em iframe, muitos navegadores bloqueiam a Clipboard API
-  // => use direto o fallback.
-  if (isFramed()) {
-    try {
-      const el = document.createElement('textarea');
-      el.value = text;
-      el.style.position = 'fixed';
-      el.style.opacity = '0';
-      document.body.appendChild(el);
-      el.focus();
-      el.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(el);
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-
-  // Tenta API moderna
-  try {
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-    throw new Error('navigator.clipboard indisponível');
-  } catch {
-    // Fallback
-    try {
-      const el = document.createElement('textarea');
-      el.value = text;
-      el.style.position = 'fixed';
-      el.style.opacity = '0';
-      document.body.appendChild(el);
-      el.focus();
-      el.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(el);
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
-
-/* =========================================================================
-   Botão de Copiar (embutido para ficar "completo")
-   ========================================================================= */
-function CopyButton({ value, label = 'Copiar', className }: { value: string; label?: string; className?: string }) {
-  const { toast } = useToast();
-  const [done, setDone] = useState(false);
-
-  const onCopy = async () => {
-    const ok = await copyToClipboardSafe(value);
-    setDone(ok);
-    toast({
-      title: ok ? 'Copiado!' : 'Não foi possível copiar',
-      description: ok
-        ? 'O texto foi enviado para a área de transferência.'
-        : 'O navegador bloqueou o acesso ao clipboard. Use Ctrl/Cmd+C como alternativa.',
-      variant: ok ? 'default' : 'destructive',
-    });
-    if (ok) setTimeout(() => setDone(false), 1500);
-  };
-
-  return (
-    <Button onClick={onCopy} className={className} variant="outline" size="sm">
-      {done ? <ClipboardCheck className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
-      {done ? 'Copiado' : label}
-    </Button>
-  );
-}
-
-/* =========================================================================
-   Página
-   ========================================================================= */
+/* ========================= Página ========================= */
 export default function FinanceiroPage() {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser(); // <- usamos user aqui!
 
   // Datas do mês atual
   const { startOfMonth, endOfMonth } = useMemo(() => {
@@ -123,21 +34,23 @@ export default function FinanceiroPage() {
     return { startOfMonth: start, endOfMonth: end };
   }, []);
 
-  // Formatter BRL memorizado
   const fmtBRL = useMemo(
     () => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }),
     []
   );
 
-  // ===== Query 1: Contas a receber
+  // Só construa queries se Firestore pronto E usuário autenticado
+  const canQuery = !!firestore && !isUserLoading && !!user?.uid;
+
+  // Contas a receber
   const receivableQuery = useMemoFirebase<Query | null>(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!canQuery) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'orders'),
+      collection(firestore!, 'companies', COMPANY_ID, 'orders'),
       where('formaPagamento', '==', 'haver'),
       where('pago', '==', false)
     );
-  }, [firestore, isUserLoading]);
+  }, [canQuery, firestore]);
 
   const {
     data: receivableOrders,
@@ -145,17 +58,17 @@ export default function FinanceiroPage() {
     error: receivableError,
   } = useCollection<Order>(receivableQuery ?? undefined);
 
-  // ===== Query 2: Recebido no mês
+  // Recebido no mês
   const receivedThisMonthQuery = useMemoFirebase<Query | null>(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!canQuery) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'orders'),
+      collection(firestore!, 'companies', COMPANY_ID, 'orders'),
       where('pago', '==', true),
       where('createdAt', '>=', Timestamp.fromDate(startOfMonth)),
       where('createdAt', '<=', Timestamp.fromDate(endOfMonth)),
       orderBy('createdAt', 'asc')
     );
-  }, [firestore, isUserLoading, startOfMonth, endOfMonth]);
+  }, [canQuery, firestore, startOfMonth, endOfMonth]);
 
   const {
     data: receivedOrdersInMonth,
@@ -163,34 +76,30 @@ export default function FinanceiroPage() {
     error: receivedError,
   } = useCollection<Order>(receivedThisMonthQuery ?? undefined);
 
-  // Sempre transforme null/undefined em array vazio
+  // Arrays seguros
   const receivableOrdersArr: Order[] = Array.isArray(receivableOrders) ? receivableOrders : [];
   const receivedOrdersInMonthArr: Order[] = Array.isArray(receivedOrdersInMonth) ? receivedOrdersInMonth : [];
 
-  const pageIsLoading = isUserLoading || isLoadingReceivable || isLoadingReceived;
+  const pageIsLoading = isUserLoading || !user?.uid || isLoadingReceivable || isLoadingReceived || !firestore;
 
   // Totais seguros
   const totalReceivable = useMemo(
     () => receivableOrdersArr.reduce((acc, o) => acc + toNumberSafe(o?.valorEntrega), 0),
     [receivableOrdersArr]
   );
-
   const totalReceivedInMonth = useMemo(
     () => receivedOrdersInMonthArr.reduce((acc, o) => acc + toNumberSafe(o?.valorEntrega), 0),
     [receivedOrdersInMonthArr]
   );
-
   const receivableCount = receivableOrdersArr.length;
   const receivedCount = receivedOrdersInMonthArr.length;
 
-  // Render de erro com link de índice (quando for "failed-precondition")
   const renderQueryError = (err?: unknown) => {
     if (!err) return null;
     const msg = String(err);
     const isIndexError = /failed-precondition/i.test(msg) && /index/i.test(msg);
     const linkMatch = msg.match(/https:\/\/console\.firebase\.google\.com\/[^\s)]+/i);
     const indexLink = linkMatch?.[0];
-
     return (
       <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
         <p><strong>Erro de consulta:</strong> {msg}</p>
