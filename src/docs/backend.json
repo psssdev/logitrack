@@ -60,6 +60,10 @@
           "type": "string",
           "description": "Template for 'order delivered' message."
         },
+        "msgChegueiCidade": {
+          "type": "string",
+          "description": "Template for 'we have arrived in the city' message."
+        },
         "codigoPrefixo": {
           "type": "string",
           "description": "Prefix for the tracking code (e.g., 'TR-')."
@@ -305,7 +309,7 @@
       "schema": {
         "$ref": "#/entities/UserProfile"
       },
-      "description": "Stores public information about a user."
+      "description": "Stores public information about a user, including their company affiliation."
     },
     "/companies/{companyId}": {
         "schema": {
@@ -336,6 +340,12 @@
         "$ref": "#/entities/Order"
       },
       "description": "Stores all orders for a specific company."
+    },
+     "/companies/{companyId}/drivers/{driverId}": {
+      "schema": {
+        "$ref": "#/entities/Driver"
+      },
+      "description": "Stores driver information for a specific company."
     }
   }
 }

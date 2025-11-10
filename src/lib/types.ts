@@ -66,4 +66,11 @@ export type Company = {
     linkBaseRastreio: string;
     createdAt?: Date | Timestamp;
     updatedAt?: Date | Timestamp;
+};
+
+export type UserProfile = {
+    displayName: string;
+    email: string;
+    companyId: string;
+    role: string;
 }

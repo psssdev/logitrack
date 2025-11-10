@@ -7,42 +7,36 @@ service cloud.firestore {
       return request.auth != null; 
     }
 
+    // Função para obter o companyId do perfil do usuário.
+    // O perfil do usuário é esperado em /users/{uid}
+    function getUserCompanyId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
+    }
+
+    // Função para verificar se um usuário é membro da empresa que está tentando acessar.
+    function isCompanyMember(companyId) {
+      return isAuthed() && getUserCompanyId() == companyId;
+    }
+
     // Regra padrão para bloquear tudo, a menos que permitido explicitamente abaixo.
     match /{document=**} { 
       allow read, write: if false; 
     }
-
-    // Permite que usuários autenticados leiam o documento da empresa (pai).
-    // Isso é crucial para permitir consultas em suas subcoleções.
-    match /companies/{companyId} {
-      allow read: if isAuthed();
-      allow write: if isAuthed(); // Permitindo escrita para a página de configurações
-    }
-
-    // Permite leitura e escrita na subcoleção de encomendas para usuários autenticados.
-    match /companies/{companyId}/orders/{orderId} {
-      allow read, write: if isAuthed();
-    }
-
-    // Mantém as regras para as outras subcoleções para garantir a funcionalidade do app.
-    match /companies/{companyId}/clients/{clientId} {
-      allow read, write: if isAuthed();
-    }
     
-    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-      allow read, write: if isAuthed();
-    }
-
-    match /companies/{companyId}/drivers/{driverId} {
-      allow read, write: if isAuthed();
-    }
-
-    match /companies/{companyId}/origins/{originId} {
-      allow read, write: if isAuthed();
-    }
-    
+    // Permite que um usuário leia/escreva seu próprio perfil.
     match /users/{userId} {
-      allow read, write: if isAuthed();
+      allow read, write: if isAuthed() && request.auth.uid == userId;
+    }
+
+    // Permite que membros da empresa leiam o documento da empresa (pai).
+    // A escrita também é permitida para a página de configurações.
+    match /companies/{companyId} {
+      allow read, write: if isCompanyMember(companyId);
+    }
+
+    // Permite acesso total às subcoleções se o usuário for membro da empresa.
+    match /companies/{companyId}/{subcollection}/{docId=**} {
+      allow read, write: if isCompanyMember(companyId);
     }
   }
 }
