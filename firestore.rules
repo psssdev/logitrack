@@ -3,35 +3,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() { return request.auth != null; }
-
-    // Libera leitura e escrita para usuários autenticados nas principais coleções
-    // Esta é uma abordagem simplificada para desenvolvimento.
-    // Para produção, considere regras mais restritivas.
-
-    match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
-    }
-
-    match /companies/{companyId} {
-      allow read, update: if isSignedIn();
-    }
-
-    match /companies/{companyId}/orders/{orderId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /companies/{companyId}/clients/{clientId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /companies/{companyId}/origins/{originId} {
-      allow read, write: if isSignedIn();
+    // Permite leitura e escrita em todos os documentos se o usuário estiver autenticado.
+    // Esta é uma regra ampla para diagnóstico e desenvolvimento.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
