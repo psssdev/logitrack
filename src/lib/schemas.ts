@@ -47,17 +47,7 @@ export const orderSchema = z.object({
       })
     )
     .default([]),
-  messages: z
-    .array(
-      z.object({
-        to: z.string(),
-        body: z.string(),
-        templateKey: z.string(),
-        at: z.date(),
-        providerMessageId: z.string().optional(),
-      })
-    )
-    .default([]),
+  messages: z.array(z.string()).default([]),
   createdAt: z.any(), // Allow Date, string, or Firestore Timestamp
   createdBy: z.string(),
   companyId: z.string(),

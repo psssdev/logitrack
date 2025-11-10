@@ -146,13 +146,6 @@
             }
           }
         },
-        "messages": {
-          "type": "array",
-          "description": "Array of messages sent related to the order.",
-          "items": {
-            "type": "string"
-          }
-        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp of when the order was created.",
@@ -175,7 +168,6 @@
         "pago",
         "status",
         "timeline",
-        "messages",
         "createdAt",
         "createdBy"
       ]
