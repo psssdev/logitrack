@@ -12,7 +12,7 @@ service cloud.firestore {
     }
 
     match /companies/{companyId} {
-      allow read, update: if isSignedIn();
+      allow read: if isSignedIn();
     }
 
     match /companies/{companyId}/orders/{orderId} {
