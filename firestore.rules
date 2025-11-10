@@ -20,15 +20,13 @@ service cloud.firestore {
         return [
             'nomeFantasia', 'codigoPrefixo', 'linkBaseRastreio', 'cnpj', 'cep', 
             'logradouro', 'numero', 'bairro', 'cidade', 'estado', 'logoUrl',
-            'msgRecebido', 'msgEmRota', 'msgEntregue', 'msgChegueiCidade'
+            'msgRecebido', 'msgEmRota', 'msgEntregue', 'msgChegueiCidade', 'updatedAt'
         ];
     }
 
     function isValidCompanyUpdate() {
-        // Allow listed keys and updatedAt
         let writeKeys = request.resource.data.keys();
-        let allAllowedKeys = allowedCompanyKeys().concat(['updatedAt']);
-        return writeKeys.hasAll(allAllowedKeys) && writeKeys.size() <= allAllowedKeys.size();
+        return writeKeys.hasAll(allowedCompanyKeys());
     }
 
     match /users/{userId} {
@@ -42,19 +40,19 @@ service cloud.firestore {
       allow list, create, delete: if false;
 
       match /orders/{orderId} {
-          allow read, write: if isCompanyMember(companyId);
+          allow read, write: if isSignedIn();
       }
       
       match /clients/{clientId} {
-          allow read, write: if isCompanyMember(companyId);
+          allow read, write: if isSignedIn();
 
           match /addresses/{addressId} {
-              allow read, write: if isCompanyMember(companyId);
+              allow read, write: if isSignedIn();
           }
       }
 
       match /origins/{originId} {
-          allow read, write: if isCompanyMember(companyId);
+          allow read, write: if isSignedIn();
       }
     }
   }
