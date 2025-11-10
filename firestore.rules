@@ -14,7 +14,7 @@ service cloud.firestore {
     
     // Regra para a coleção de empresas (permite ler o documento pai)
     match /companies/{companyId} {
-      allow read: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
     // Regras explícitas e não aninhadas para cada subcoleção
