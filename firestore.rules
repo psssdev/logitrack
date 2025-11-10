@@ -2,43 +2,11 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
-    }
-    
-    match /companies/{companyId} {
-      // Allow reads on company documents for any signed-in user.
-      // This is necessary for subcollection queries to work.
-      allow read: if isSignedIn();
-      
-      // Allow writes only for specific logic (e.g., admin role).
-      // For now, restricting write to prevent accidental modification.
-      allow write: if isSignedIn(); 
-    }
-
-    match /companies/{companyId}/orders/{orderId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /companies/{companyId}/clients/{clientId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /companies/{companyId}/clients/{clientId}/addresses/{addressId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /companies/{companyId}/drivers/{driverId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /companies/{companyId}/origins/{originId} {
-      allow read, write: if isSignedIn();
+    // Regra global: Permite acesso de leitura e escrita a qualquer documento
+    // para qualquer usuário autenticado.
+    // Esta é uma regra permissiva para fins de desenvolvimento.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
