@@ -1,7 +1,33 @@
 
 {
   "entities": {
-     "Company": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile information, linking them to a company and role.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "companyId": {
+          "type": "string",
+          "description": "The ID of the company this user belongs to."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role within the company (e.g., 'admin', 'member').",
+          "enum": ["admin", "member"]
+        }
+      },
+      "required": ["displayName", "email", "companyId", "role"]
+    },
+    "Company": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Company",
       "type": "object",
@@ -279,8 +305,10 @@
   },
   "firestore": {
     "/users/{userId}": {
-      "schema": {},
-      "description": "Stores public information about a user."
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Stores public information about a user, including their company affiliation."
     },
     "/companies/{companyId}": {
         "schema": {
@@ -311,6 +339,12 @@
         "$ref": "#/entities/Order"
       },
       "description": "Stores all orders for a specific company."
+    },
+     "/companies/{companyId}/drivers/{driverId}": {
+      "schema": {
+        "$ref": "#/entities/Driver"
+      },
+      "description": "Stores driver information for a specific company."
     }
   }
 }

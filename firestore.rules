@@ -3,31 +3,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAuthed() { 
-      return request.auth != null; 
+    function isAuthed() {
+      return request.auth != null;
     }
 
-    // Regra padrão para bloquear tudo, a menos que permitido explicitamente abaixo.
-    match /{document=**} { 
-      allow read, write: if false; 
+    // A função busca o companyId do perfil do usuário na coleção /users.
+    function getUserCompanyId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
     }
-    
-    // Permite que um usuário leia seu próprio perfil.
+
+    // A função verifica se o usuário autenticado pertence à empresa especificada.
+    function isCompanyMember(companyId) {
+      return isAuthed() && getUserCompanyId() == companyId;
+    }
+
+    // Regra de bloqueio padrão para segurança.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Permite que um usuário leia e escreva seu próprio perfil.
     match /users/{userId} {
       allow read, write: if isAuthed() && request.auth.uid == userId;
     }
 
-    // Permite a leitura do documento da empresa (pai) se o usuário estiver autenticado.
+    // Permite a leitura do documento da empresa se o usuário for um membro dela.
     // Isso é crucial para permitir consultas de subcoleção.
     match /companies/{companyId} {
-      allow read: if isAuthed();
-      // A escrita no documento da empresa continua bloqueada por padrão.
+      allow read, update: if isCompanyMember(companyId);
     }
 
     // Permite acesso de leitura e escrita a todas as subcoleções de uma empresa
-    // se o usuário estiver autenticado. Isso cobre /orders, /clients, etc.
+    // se o usuário for um membro daquela empresa.
     match /companies/{companyId}/{subcollection}/{docId=**} {
-      allow read, write: if isAuthed();
+      allow read, write: if isCompanyMember(companyId);
     }
   }
 }
