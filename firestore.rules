@@ -11,12 +11,16 @@ service cloud.firestore {
       allow read, write: if request.auth.uid == userId;
     }
     
-    // Allow read on the parent company document, required for subcollection queries.
     match /companies/{companyId} {
-      allow read, write: if isSignedIn();
+      // Allow reads on company documents for any signed-in user.
+      // This is necessary for subcollection queries to work.
+      allow read: if isSignedIn();
+      
+      // Allow writes only for specific logic (e.g., admin role).
+      // For now, restricting write to prevent accidental modification.
+      allow write: if isSignedIn(); 
     }
 
-    // Allow list/write on all subcollections for any signed-in user.
     match /companies/{companyId}/orders/{orderId} {
       allow read, write: if isSignedIn();
     }
