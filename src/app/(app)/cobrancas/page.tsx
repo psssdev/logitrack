@@ -18,9 +18,9 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Company } from '@/lib/types';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, doc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MessageCircle, DollarSign, AlertCircle } from 'lucide-react';
@@ -57,22 +57,21 @@ export default function CobrancasPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
   const pendingOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || isUserLoading) return null;
     return query(
       collection(firestore, 'companies', COMPANY_ID, 'orders'),
       where('formaPagamento', '==', 'haver'),
       where('pago', '==', false)
     );
-  }, [firestore, user]);
+  }, [firestore, user, isUserLoading]);
 
-  const companyQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'companies', COMPANY_ID);
-  }, [firestore, user]);
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore || !user || isUserLoading) return null;
+    return doc(firestore, 'companies', COMPANY_ID);
+  }, [firestore, user, isUserLoading]);
 
   const { data: pendingOrders, isLoading: isLoadingOrders } = useCollection<Order>(pendingOrdersQuery);
-  const { data: companyData, isLoading: isLoadingCompany } = useCollection<Company>(companyQuery);
-  const company = companyData?.[0];
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
   const isLoading = isUserLoading || isLoadingOrders || isLoadingCompany;
 
