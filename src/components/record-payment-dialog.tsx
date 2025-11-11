@@ -64,7 +64,7 @@ export function RecordPaymentDialog({
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
-  const [paymentAmount, setPaymentAmount] = useState(order?.valorEntrega || 0);
+  const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   const [paymentNotes, setPaymentNotes] = useState('');
@@ -95,7 +95,7 @@ export function RecordPaymentDialog({
 
     try {
       const remainingAmount = order.valorEntrega - paymentAmount;
-      const isPaid = remainingAmount <= 0;
+      const isPaid = remainingAmount <= 0.001; // Use a small epsilon for float comparison
 
       const paymentRecord = {
           amount: paymentAmount,
@@ -106,7 +106,7 @@ export function RecordPaymentDialog({
 
       await updateDoc(orderRef, {
         pago: isPaid,
-        valorEntrega: isPaid ? 0 : remainingAmount,
+        valorEntrega: isPaid ? order.valorEntrega : remainingAmount, // On full payment, keep original value for history
         formaPagamento: isPaid ? paymentMethod : 'haver', // Keep as 'haver' if not fully paid
         dataPagamento: isPaid ? Timestamp.fromDate(paymentDate) : null,
         payments: arrayUnion(paymentRecord),
@@ -144,9 +144,13 @@ export function RecordPaymentDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
+           <div className="p-4 bg-muted/50 rounded-md">
+                <p className="text-sm text-muted-foreground">Valor pendente</p>
+                <p className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.valorEntrega)}</p>
+           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">
-              Valor
+              Valor Pago
             </Label>
             <Input
               id="amount"

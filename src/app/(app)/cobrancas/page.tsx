@@ -69,6 +69,7 @@ export default function CobrancasPage() {
   });
   const [paymentStatus, setPaymentStatus] = useState<'all' | 'paid' | 'pending'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCity, setSelectedCity] = useState<'all' | string>('all');
 
 
   const ordersQuery = useMemoFirebase(() => {
@@ -89,6 +90,21 @@ export default function CobrancasPage() {
 
   const isLoading = isUserLoading || isLoadingOrders || isLoadingCompany;
 
+  const cities = useMemo(() => {
+    if (!allOrders) return [];
+    const citySet = new Set<string>();
+    allOrders.forEach(order => {
+        // Assuming city is the last part of the 'destino' string, after ', '
+        const parts = order.destino?.split(', ');
+        const city = parts[parts.length - 2]?.trim();
+        if (city) {
+            citySet.add(city);
+        }
+    });
+    return Array.from(citySet).sort();
+  }, [allOrders]);
+
+
   const filteredOrders = useMemo(() => {
     if (!allOrders) return [];
     
@@ -105,18 +121,27 @@ export default function CobrancasPage() {
         const isSearchMatch = searchTerm === '' ||
             order.nomeCliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
             order.codigoRastreio.toLowerCase().includes(searchTerm.toLowerCase());
+            
+        // City filter
+        const orderCity = order.destino?.split(', ')[order.destino?.split(', ').length - 2]?.trim();
+        const isCityMatch = selectedCity === 'all' || orderCity === selectedCity;
 
-        return isDateInRange && isStatusMatch && isSearchMatch;
+        return isDateInRange && isStatusMatch && isSearchMatch && isCityMatch;
     });
-  }, [allOrders, dateRange, paymentStatus, searchTerm]);
+  }, [allOrders, dateRange, paymentStatus, searchTerm, selectedCity]);
   
   const summary = useMemo(() => {
     const summaryData = filteredOrders.reduce((acc, order) => {
-        acc.geral += order.valorEntrega;
+        const value = order.valorEntrega || 0;
+        acc.geral += value;
+        
+        const paidAmount = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+
         if(order.pago) {
-            acc.recebido += order.valorEntrega;
+            acc.recebido += value + paidAmount;
         } else {
-            acc.pendente += order.valorEntrega;
+             acc.pendente += value;
+             acc.recebido += paidAmount;
         }
         return acc;
     }, { pendente: 0, recebido: 0, geral: 0 });
@@ -262,7 +287,7 @@ export default function CobrancasPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Filters */}
-           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <DatePickerWithRange date={dateRange} setDate={setDateRange} />
                 <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as any)}>
                     <SelectTrigger>
@@ -272,6 +297,17 @@ export default function CobrancasPage() {
                         <SelectItem value="all">Todos os Status</SelectItem>
                         <SelectItem value="pending">Pendentes</SelectItem>
                         <SelectItem value="paid">Pagos</SelectItem>
+                    </SelectContent>
+                </Select>
+                 <Select value={selectedCity} onValueChange={setSelectedCity}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Filtrar por cidade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todas as Cidades</SelectItem>
+                        {cities.map(city => (
+                            <SelectItem key={city} value={city}>{city}</SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
                  <Input 
