@@ -25,8 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Timestamp } from 'firebase/firestore';
 import { triggerRevalidation } from '@/lib/actions';
-import { MessageCircle, CircleDollarSign, MoreHorizontal } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MessageCircle, CircleDollarSign } from 'lucide-react';
 import { RecordPaymentDialog } from '@/components/record-payment-dialog';
 
 const COMPANY_ID = '1';
@@ -157,28 +156,16 @@ export default function CobrancasPage() {
                             <Badge variant="destructive">Pendente</Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button
-                                    aria-haspopup="true"
-                                    size="icon"
-                                    variant="ghost"
-                                >
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">Toggle menu</span>
+                             <div className="flex justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={() => handleSendReminder(order)}>
+                                    <MessageCircle className="h-4 w-4 mr-2" />
+                                    Cobrar
                                 </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleOpenPaymentDialog(order)}>
-                                        <CircleDollarSign className="mr-2 h-4 w-4" />
-                                        Registrar Pagamento
-                                    </DropdownMenuItem>
-                                     <DropdownMenuItem onClick={() => handleSendReminder(order)}>
-                                        <MessageCircle className="mr-2 h-4 w-4" />
-                                        Cobrar via WhatsApp
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                                <Button variant="default" size="sm" onClick={() => handleOpenPaymentDialog(order)}>
+                                    <CircleDollarSign className="h-4 w-4 mr-2" />
+                                    Pagar
+                                </Button>
+                             </div>
                           </TableCell>
                         </TableRow>
                       ))
