@@ -31,7 +31,7 @@ import { Textarea } from './ui/textarea';
 import type { Order, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
