@@ -17,7 +17,7 @@ import { Logo } from '@/components/logo';
 import Link from 'next/link';
 import { Package, Search, AlertCircle, Home } from 'lucide-react';
 import type { Order } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -49,8 +49,9 @@ async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | n
 export default function RastreioPage({
   params,
 }: {
-  params: { codigo: string };
+  params: Promise<{ codigo: string }>;
 }) {
+  const { codigo } = use(params);
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -59,7 +60,7 @@ export default function RastreioPage({
     async function fetchOrder() {
         setLoading(true);
         setError(false);
-        const fetchedOrder = await getOrderByTrackingCode(params.codigo);
+        const fetchedOrder = await getOrderByTrackingCode(codigo);
         if(fetchedOrder) {
             setOrder(fetchedOrder);
         } else {
@@ -68,7 +69,7 @@ export default function RastreioPage({
         setLoading(false);
     }
     fetchOrder();
-  }, [params.codigo]);
+  }, [codigo]);
 
   if(loading) {
     return <RastreioSkeleton />
@@ -86,7 +87,7 @@ export default function RastreioPage({
             <CardDescription>
               O código de rastreio{' '}
               <strong className="font-mono text-foreground">
-                {params.codigo.toUpperCase()}
+                {codigo.toUpperCase()}
               </strong>{' '}
               não foi encontrado em nosso sistema.
             </CardDescription>
