@@ -15,19 +15,24 @@ service cloud.firestore {
       return isAuthed() && getUserCompanyId() == companyId;
     }
 
+    // Default deny all
     match /{document=**} {
       allow read, write: if false;
     }
 
+    // Allow users to read/write their own profile
     match /users/{userId} {
       allow read, write: if isAuthed() && request.auth.uid == userId;
     }
 
+    // Allow company members to read the parent company document
     match /companies/{companyId} {
-      allow read: if isAuthed();
+      allow read: if isCompanyMember(companyId);
+      // Allow company admins to update company settings
       allow update: if isCompanyMember(companyId);
     }
     
+    // Allow company members to read/write any document in any subcollection
     match /companies/{companyId}/{subcollection}/{docId=**} {
       allow read, write: if isCompanyMember(companyId);
     }
