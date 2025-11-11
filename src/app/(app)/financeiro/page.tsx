@@ -62,7 +62,7 @@ const COLORS = [
   '#82ca9d',
 ];
 
-export default function RelatoriosPage() {
+export default function FinanceiroPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   
@@ -92,7 +92,8 @@ export default function RelatoriosPage() {
     }
 
     const monthly = orders.reduce((acc, order) => {
-      const month = new Date(order.createdAt.toDate()).toLocaleString('default', { month: 'short', year: 'numeric' });
+      const date = order.createdAt instanceof Date ? order.createdAt : order.createdAt.toDate();
+      const month = new Date(date).toLocaleString('default', { month: 'short', year: 'numeric' });
       if (!acc[month]) {
         acc[month] = { month, entregas: 0, faturamento: 0 };
       }
@@ -192,7 +193,7 @@ export default function RelatoriosPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center">
-        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Relatórios</h1>
+        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Financeiro</h1>
       </div>
 
        <div className="grid gap-4 md:grid-cols-3">
