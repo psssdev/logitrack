@@ -8,6 +8,7 @@ service cloud.firestore {
     }
 
     function getUserCompanyId() {
+      // Correctly points to the /users collection as per the app's structure
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
     }
 
@@ -25,14 +26,16 @@ service cloud.firestore {
       allow read, write: if isAuthed() && request.auth.uid == userId;
     }
 
-    // Allow company members to read the parent company document
+    // Allow company members to read the parent company document.
+    // This is crucial for subcollection queries to work.
     match /companies/{companyId} {
       allow read: if isCompanyMember(companyId);
-      // Allow company admins to update company settings
-      allow update: if isCompanyMember(companyId);
+      // Allow company admins to update company settings (can be refined later)
+      allow update: if isCompanyMember(companyId); 
     }
     
-    // Allow company members to read/write any document in any subcollection
+    // Allow company members to read and write any document in any subcollection 
+    // under their company. This covers /orders, /clients, /drivers, etc.
     match /companies/{companyId}/{subcollection}/{docId=**} {
       allow read, write: if isCompanyMember(companyId);
     }
