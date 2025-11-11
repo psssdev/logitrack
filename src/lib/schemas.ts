@@ -51,6 +51,8 @@ export const orderSchema = z.object({
   createdBy: z.string(),
   companyId: z.string(),
   clientId: z.string(),
+  dataPagamento: z.any().optional(),
+  notasPagamento: z.string().optional(),
 });
 
 export const newOrderSchema = orderSchema.omit({
@@ -65,6 +67,8 @@ export const newOrderSchema = orderSchema.omit({
   nomeCliente: true, // Will be derived from clientId
   telefone: true, // Will be derived from clientId
   valorEntrega: true, // Will be calculated from items
+  dataPagamento: true,
+  notasPagamento: true,
 });
 
 export const editOrderSchema = newOrderSchema.omit({

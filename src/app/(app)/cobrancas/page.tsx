@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -18,14 +18,16 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
+import type { Order, Company } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Timestamp } from 'firebase/firestore';
 import { triggerRevalidation } from '@/lib/actions';
-import { CircleDollarSign } from 'lucide-react';
+import { MessageCircle, CircleDollarSign, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { RecordPaymentDialog } from '@/components/record-payment-dialog';
 
 const COMPANY_ID = '1';
 
@@ -43,10 +45,20 @@ const formatDate = (date: Date | Timestamp) => {
   return new Date(date).toLocaleDateString('pt-BR');
 };
 
+const openWhatsApp = (phone: string, message: string) => {
+  const cleanedPhone = phone.replace(/\D/g, '');
+  const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
+  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+};
+
+
 export default function CobrancasPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
   const pendingOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !user || isUserLoading) return null;
@@ -57,104 +69,145 @@ export default function CobrancasPage() {
     );
   }, [firestore, user, isUserLoading]);
 
-  const { data: pendingOrders, isLoading } = useCollection<Order>(pendingOrdersQuery);
-  const pageIsLoading = isLoading || isUserLoading;
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore || !user || isUserLoading) return null;
+    return doc(firestore, 'companies', COMPANY_ID);
+  }, [firestore, user, isUserLoading]);
+
+  const { data: pendingOrders, isLoading: isLoadingOrders } = useCollection<Order>(pendingOrdersQuery);
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
+
+  const pageIsLoading = isLoadingOrders || isLoadingCompany || isUserLoading;
 
   const totalPending = useMemo(() => {
     return pendingOrders?.reduce((acc, order) => acc + order.valorEntrega, 0) || 0;
   }, [pendingOrders]);
 
-  const handleMarkAsPaid = async (orderId: string) => {
-    if (!firestore) return;
-    const orderRef = doc(firestore, 'companies', COMPANY_ID, 'orders', orderId);
-    try {
-      await updateDoc(orderRef, { pago: true });
-      await triggerRevalidation('/cobrancas');
-      toast({
-        title: 'Sucesso!',
-        description: 'Encomenda marcada como paga.',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao atualizar',
-        description: error.message,
-      });
-    }
+  const handleOpenPaymentDialog = (order: Order) => {
+    setSelectedOrder(order);
+    setIsPaymentDialogOpen(true);
   };
+  
+  const handleSendReminder = (order: Order) => {
+    if (!company) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Configurações da empresa não carregadas.' });
+      return;
+    }
+
+    const template = company.msgCobranca || 'Olá, {cliente}! Passando para lembrar da sua pendência no valor de {valor} referente à encomenda {codigo}. Agradecemos a sua atenção!';
+    
+    const message = template
+      .replace('{cliente}', order.nomeCliente)
+      .replace('{valor}', formatCurrency(order.valorEntrega))
+      .replace('{codigo}', order.codigoRastreio);
+
+    openWhatsApp(order.telefone, message);
+    toast({ title: 'Lembrete de Cobrança', description: 'Abrindo WhatsApp para enviar a mensagem.' });
+  }
+
+  const handlePaymentRecorded = async () => {
+    // This will just trigger a re-fetch of the collection by the hook
+    await triggerRevalidation('/cobrancas');
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center">
-        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Cobranças</h1>
-      </div>
+    <>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center">
+          <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Cobranças</h1>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Pagamentos Pendentes</CardTitle>
-          <CardDescription>
-            Lista de todas as encomendas com a forma de pagamento "A Haver" que
-            ainda não foram pagas.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 text-2xl font-bold">
-            Total a Receber: {formatCurrency(totalPending)}
-          </div>
-          {pageIsLoading && <Skeleton className="h-48 w-full" />}
-          {!pageIsLoading && pendingOrders && (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-center">Status Pagamento</TableHead>
-                    <TableHead className="text-right">Ação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingOrders.length > 0 ? (
-                    pendingOrders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">
-                          {order.nomeCliente}
-                        </TableCell>
-                        <TableCell>{formatDate(order.createdAt)}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatCurrency(order.valorEntrega)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="destructive">Pendente</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => handleMarkAsPaid(order.id)}
-                          >
-                            <CircleDollarSign className="mr-2 h-4 w-4" />
-                            Marcar como Pago
-                          </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle>Pagamentos Pendentes</CardTitle>
+            <CardDescription>
+              Lista de todas as encomendas com a forma de pagamento "A Haver" que
+              ainda não foram pagas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 text-2xl font-bold">
+              Total a Receber: {formatCurrency(totalPending)}
+            </div>
+            {pageIsLoading && <Skeleton className="h-48 w-full" />}
+            {!pageIsLoading && pendingOrders && (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-center">Status Pagamento</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingOrders.length > 0 ? (
+                      pendingOrders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">
+                            {order.nomeCliente}
+                          </TableCell>
+                          <TableCell>{formatDate(order.createdAt)}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatCurrency(order.valorEntrega)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="destructive">Pendente</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button
+                                    aria-haspopup="true"
+                                    size="icon"
+                                    variant="ghost"
+                                >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Toggle menu</span>
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleOpenPaymentDialog(order)}>
+                                        <CircleDollarSign className="mr-2 h-4 w-4" />
+                                        Registrar Pagamento
+                                    </DropdownMenuItem>
+                                     <DropdownMenuItem onClick={() => handleSendReminder(order)}>
+                                        <MessageCircle className="mr-2 h-4 w-4" />
+                                        Cobrar via WhatsApp
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={5}
+                          className="h-24 text-center text-muted-foreground"
+                        >
+                          Nenhuma cobrança pendente encontrada.
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="h-24 text-center text-muted-foreground"
-                      >
-                        Nenhuma cobrança pendente encontrada.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+       {selectedOrder && (
+         <RecordPaymentDialog
+          order={selectedOrder}
+          isOpen={isPaymentDialogOpen}
+          setIsOpen={setIsPaymentDialogOpen}
+          onPaymentRecorded={handlePaymentRecorded}
+        />
+       )}
+    </>
   );
 }

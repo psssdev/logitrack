@@ -71,6 +71,10 @@
           "type": "string",
           "description": "Template for 'we have arrived in the city' message."
         },
+        "msgCobranca": {
+          "type": "string",
+          "description": "Template for 'pending payment reminder' message."
+        },
         "codigoPrefixo": {
           "type": "string",
           "description": "Prefix for the tracking code (e.g., 'TR-')."
@@ -141,6 +145,15 @@
         "pago": {
           "type": "boolean",
           "description": "Indicates if the order is paid."
+        },
+        "dataPagamento": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of when the order was paid."
+        },
+        "notasPagamento": {
+            "type": "string",
+            "description": "Optional notes about the payment."
         },
         "status": {
           "type": "string",
