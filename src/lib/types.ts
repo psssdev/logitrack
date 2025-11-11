@@ -2,8 +2,15 @@ import { z } from 'zod';
 import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
+export type Payment = {
+    amount: number;
+    method: PaymentMethod;
+    date: Date | Timestamp;
+    notes?: string;
+}
+
 // Base Order type from schema
-export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' | 'dataPagamento'> & {
+export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' | 'dataPagamento' | 'payments'> & {
     id: string;
     createdAt: Date | Timestamp;
     dataPagamento?: Date | Timestamp;
@@ -12,6 +19,7 @@ export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' |
         at: Date | Timestamp;
         userId: string;
     }[];
+    payments?: Payment[];
 };
 
 // NewOrder type for form creation

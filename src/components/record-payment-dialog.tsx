@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ import { Textarea } from './ui/textarea';
 import type { Order, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
-import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, Timestamp, arrayUnion } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -64,36 +64,61 @@ export function RecordPaymentDialog({
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
+  const [paymentAmount, setPaymentAmount] = useState(order?.valorEntrega || 0);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   const [paymentNotes, setPaymentNotes] = useState('');
 
+  useEffect(() => {
+    if (order) {
+      setPaymentAmount(order.valorEntrega);
+      setPaymentMethod(order.formaPagamento === 'haver' ? 'pix' : order.formaPagamento);
+      setPaymentNotes('');
+      setPaymentDate(new Date());
+    }
+  }, [order]);
+
   if (!order) return null;
-  
+
   const handleSave = async () => {
-    if (!firestore || !paymentDate || !paymentMethod) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Preencha todos os campos obrigatórios.'});
-        return;
+    if (!firestore || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Preencha um valor e método de pagamento válidos.',
+      });
+      return;
     }
     setIsSaving(true);
 
     const orderRef = doc(firestore, 'companies', COMPANY_ID, 'orders', order.id);
 
     try {
+      const remainingAmount = order.valorEntrega - paymentAmount;
+      const isPaid = remainingAmount <= 0;
+
+      const paymentRecord = {
+          amount: paymentAmount,
+          method: paymentMethod,
+          date: Timestamp.fromDate(paymentDate),
+          notes: paymentNotes
+      };
+
       await updateDoc(orderRef, {
-        pago: true,
-        formaPagamento: paymentMethod, // Update the payment method from 'haver' to the actual one
-        dataPagamento: Timestamp.fromDate(paymentDate), // Save payment date
-        notasPagamento: paymentNotes, // Save any notes
+        pago: isPaid,
+        valorEntrega: isPaid ? 0 : remainingAmount,
+        formaPagamento: isPaid ? paymentMethod : 'haver', // Keep as 'haver' if not fully paid
+        dataPagamento: isPaid ? Timestamp.fromDate(paymentDate) : null,
+        payments: arrayUnion(paymentRecord),
         updatedAt: serverTimestamp(),
       });
 
       toast({
         title: 'Pagamento Registrado!',
-        description: `A encomenda ${order.codigoRastreio} foi marcada como paga.`,
+        description: `Recebido ${paymentAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}.`,
       });
-      onPaymentRecorded(); // Callback to refresh the parent component
-      setIsOpen(false); // Close the dialog
+      onPaymentRecorded();
+      setIsOpen(false);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -111,7 +136,7 @@ export function RecordPaymentDialog({
         <DialogHeader>
           <DialogTitle>Registrar Pagamento</DialogTitle>
           <DialogDescription>
-            Confirme os detalhes do pagamento para a encomenda{' '}
+            Registre um pagamento para a encomenda{' '}
             <span className="font-mono font-bold text-foreground">
               {order.codigoRastreio}
             </span>
@@ -119,15 +144,15 @@ export function RecordPaymentDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
-           <div className="grid grid-cols-4 items-center gap-4">
+          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">
               Valor
             </Label>
             <Input
               id="amount"
               type="number"
-              value={order.valorEntrega}
-              disabled
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.valueAsNumber)}
               className="col-span-3"
             />
           </div>
@@ -162,11 +187,14 @@ export function RecordPaymentDialog({
               </PopoverContent>
             </Popover>
           </div>
-           <div className="grid grid-cols-4 items-center gap-4">
+          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="payment-method" className="text-right">
               Forma
             </Label>
-             <Select onValueChange={(v) => setPaymentMethod(v as PaymentMethod)} defaultValue={paymentMethod}>
+            <Select
+              onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
+              defaultValue={paymentMethod}
+            >
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Selecione a forma de pagamento" />
               </SelectTrigger>
@@ -181,10 +209,10 @@ export function RecordPaymentDialog({
               </SelectContent>
             </Select>
           </div>
-           <div className="grid grid-cols-4 items-start gap-4">
-             <Label htmlFor="notes" className="text-right pt-2">
-                Notas
-             </Label>
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="notes" className="text-right pt-2">
+              Notas
+            </Label>
             <Textarea
               id="notes"
               value={paymentNotes}
@@ -192,7 +220,7 @@ export function RecordPaymentDialog({
               placeholder="Ex: Pagamento parcial, ref. a 2 entregas, etc."
               className="col-span-3"
             />
-           </div>
+          </div>
         </div>
         <DialogFooter>
           <DialogClose asChild>

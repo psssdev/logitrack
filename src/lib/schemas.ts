@@ -23,6 +23,13 @@ export const orderItemSchema = z.object({
     value: z.coerce.number().min(0, 'Valor deve ser positivo'),
 });
 
+const paymentSchema = z.object({
+    amount: z.number(),
+    method: paymentMethodSchema,
+    date: z.any(),
+    notes: z.string().optional(),
+});
+
 export const orderSchema = z.object({
   id: z.string(),
   codigoRastreio: z.string().min(1, 'Código de Rastreio é obrigatório'),
@@ -30,7 +37,7 @@ export const orderSchema = z.object({
   telefone: z.string().min(10, 'Telefone inválido'),
   origem: z.string().min(1, 'Origem é obrigatória'),
   destino: z.string().min(1, 'Destino é obrigatório'),
-  valorEntrega: z.coerce.number().min(0, 'Valor da entrega deve ser positivo'),
+  valorEntrega: z.coerce.number(), // Can be negative if there are payments
   items: z.array(orderItemSchema).min(1, 'A encomenda deve ter pelo menos um item.'),
   formaPagamento: paymentMethodSchema,
   pago: z.boolean().default(false),
@@ -53,6 +60,7 @@ export const orderSchema = z.object({
   clientId: z.string(),
   dataPagamento: z.any().optional(),
   notasPagamento: z.string().optional(),
+  payments: z.array(paymentSchema).optional(),
 });
 
 export const newOrderSchema = orderSchema.omit({
@@ -69,6 +77,7 @@ export const newOrderSchema = orderSchema.omit({
   valorEntrega: true, // Will be calculated from items
   dataPagamento: true,
   notasPagamento: true,
+  payments: true,
 });
 
 export const editOrderSchema = newOrderSchema.omit({

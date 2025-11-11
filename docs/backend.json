@@ -122,7 +122,7 @@
         },
         "valorEntrega": {
           "type": "number",
-          "description": "Total delivery value, calculated from items."
+          "description": "Total delivery value, can be updated with partial payments."
         },
         "items": {
             "type": "array",
@@ -144,16 +144,30 @@
         },
         "pago": {
           "type": "boolean",
-          "description": "Indicates if the order is paid."
+          "description": "Indicates if the order is fully paid."
         },
         "dataPagamento": {
             "type": "string",
             "format": "date-time",
-            "description": "Timestamp of when the order was paid."
+            "description": "Timestamp of when the order was fully paid."
         },
         "notasPagamento": {
             "type": "string",
             "description": "Optional notes about the payment."
+        },
+         "payments": {
+          "type": "array",
+          "description": "A list of all partial or full payments made for the order.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "amount": { "type": "number" },
+              "method": { "type": "string" },
+              "date": { "type": "string", "format": "date-time" },
+              "notes": { "type": "string" }
+            },
+            "required": ["amount", "method", "date"]
+          }
         },
         "status": {
           "type": "string",
