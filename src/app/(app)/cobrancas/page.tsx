@@ -43,7 +43,8 @@ const formatCurrency = (value: number) =>
 
 const toDate = (date: any): Date => {
   if (date instanceof Timestamp) return date.toDate();
-  return new Date(date);
+  if (typeof date === 'string') return new Date(date);
+  return date;
 };
 
 const openWhatsApp = (phone: string, message: string) => {
@@ -94,12 +95,16 @@ export default function CobrancasPage() {
     if (!allOrders) return [];
     const citySet = new Set<string>();
     allOrders.forEach(order => {
-        // Assuming city is the last part of the 'destino' string, after ', '
-        const parts = order.destino?.split(', ');
-        const city = parts[parts.length - 2]?.trim();
-        if (city) {
-            citySet.add(city);
+      // Ensure order.destino is a string before splitting
+      if (typeof order.destino === 'string') {
+        const parts = order.destino.split(', ');
+        if (parts.length >= 2) {
+          const city = parts[parts.length - 2]?.trim();
+          if (city) {
+              citySet.add(city);
+          }
         }
+      }
     });
     return Array.from(citySet).sort();
   }, [allOrders]);
@@ -123,7 +128,7 @@ export default function CobrancasPage() {
             order.codigoRastreio.toLowerCase().includes(searchTerm.toLowerCase());
             
         // City filter
-        const orderCity = order.destino?.split(', ')[order.destino?.split(', ').length - 2]?.trim();
+        const orderCity = typeof order.destino === 'string' ? order.destino.split(', ')[order.destino.split(', ').length - 2]?.trim() : '';
         const isCityMatch = selectedCity === 'all' || orderCity === selectedCity;
 
         return isDateInRange && isStatusMatch && isSearchMatch && isCityMatch;
@@ -411,3 +416,5 @@ export default function CobrancasPage() {
     </div>
   );
 }
+
+    
