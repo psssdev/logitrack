@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -46,7 +46,8 @@ import Link from 'next/link';
 import { BusSeatLayout } from './bus-seat-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './ui/card';
 
-type NewFinancialEntryFormValues = z.infer<typeof financialEntrySchema>;
+type NewFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date'> & { date: Date };
+
 
 const COMPANY_ID = '1';
 
@@ -92,6 +93,11 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
             const desc = `Venda de ${seatCount > 0 ? seatCount : ''} Passagem(ns) para ${client.nome}`.trim();
             form.setValue('description', desc);
         }
+    } else if (selectedCategoryId !== 'outras-receitas') {
+        const category = incomeCategories.find(c => c.id === selectedCategoryId);
+        if (category) {
+            form.setValue('description', category.name);
+        }
     } else {
         form.setValue('description', '');
     }
@@ -110,7 +116,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
     form.setValue('selectedSeats', selectedSeats, { shouldValidate: true });
   }, [selectedSeats, form]);
 
-  async function onSubmit(data: Omit<NewFinancialEntryFormValues, 'id'>) {
+  async function onSubmit(data: NewFinancialEntryFormValues) {
     if (!firestore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
@@ -146,6 +152,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
         amount: Math.abs(data.amount),
         createdAt: serverTimestamp(),
       };
+      
       if (notes) {
           entryData.notes = notes;
       }
@@ -285,7 +292,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
                             <FormItem>
                                 <FormLabel>Valor (R$) *</FormLabel>
                                 <FormControl>
-                                <Input type="number" placeholder="0.00" {...field} />
+                                <Input type="number" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -375,7 +382,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
                         <FormItem>
                         <FormLabel>Notas</FormLabel>
                         <FormControl>
-                            <Textarea placeholder="Informações adicionais..." className="resize-none" {...field} />
+                            <Textarea placeholder="Informações adicionais..." className="resize-none" {...field} value={field.value ?? ''} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>

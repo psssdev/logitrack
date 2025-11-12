@@ -175,7 +175,7 @@ export const vehicleSchema = z.object({
   occupiedSeats: z.array(z.string()).optional(),
 });
 
-export const financialEntrySchema = z.object({
+const baseFinancialEntrySchema = z.object({
   id: z.string(),
   description: z.string().optional(),
   amount: z.coerce.number().positive('O valor deve ser maior que zero.'),
@@ -185,12 +185,14 @@ export const financialEntrySchema = z.object({
   }),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
   otherCategoryDescription: z.string().optional(),
-  vehicleId: z.string().min(1, "O veículo é obrigatório.").optional(),
-  clientId: z.string().min(1, "O cliente é obrigatório.").optional(),
+  vehicleId: z.string().optional(),
+  clientId: z.string().optional(),
   clientName: z.string().optional(),
   notes: z.string().optional(),
   selectedSeats: z.array(z.string()).optional(),
-}).refine(data => {
+});
+
+export const financialEntrySchema = baseFinancialEntrySchema.refine(data => {
     if (data.categoryId === 'venda-passagem') {
         return !!data.clientId;
     }
