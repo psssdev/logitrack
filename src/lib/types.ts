@@ -86,8 +86,8 @@ export type UserProfile = {
 
 // Vehicle type with seat layout
 export type SeatLayout = {
-    lowerDeck?: (string | null)[][];
-    upperDeck?: (string | null)[][];
+    lowerDeck?: { [key: string]: (string | null)[] };
+    upperDeck?: { [key: string]: (string | null)[] };
 };
 
 export type Vehicle = Omit<z.infer<typeof vehicleSchema>, 'seatLayout'> & {
@@ -100,3 +100,5 @@ export type FinancialCategory = z.infer<typeof financialCategorySchema>;
 export type FinancialEntry = Omit<z.infer<typeof financialEntrySchema>, 'date'> & {
     date: Date | Timestamp;
 };
+
+    

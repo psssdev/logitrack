@@ -333,7 +333,38 @@
         "modelo": { "type": "string", "description": "Model of the vehicle (e.g., 'Marcopolo G8')." },
         "ano": { "type": "number", "description": "Manufacturing year of the vehicle." },
         "tipo": { "type": "string", "description": "Type of vehicle.", "enum": ["Ônibus", "Van", "Carro", "Caminhão"] },
-        "status": { "type": "string", "description": "Current operational status.", "enum": ["Ativo", "Inativo", "Em Manutenção"] }
+        "status": { "type": "string", "description": "Current operational status.", "enum": ["Ativo", "Inativo", "Em Manutenção"] },
+        "seatLayout": {
+          "type": "object",
+          "description": "Defines the seat configuration for buses, using objects for rows.",
+          "properties": {
+            "lowerDeck": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            },
+            "upperDeck": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        },
+        "occupiedSeats": {
+          "type": "array",
+          "description": "List of seat IDs that are currently occupied.",
+          "items": { "type": "string" }
+        }
       },
       "required": ["placa", "modelo", "ano", "tipo", "status"]
     },
@@ -427,3 +458,5 @@
     }
   }
 }
+
+    

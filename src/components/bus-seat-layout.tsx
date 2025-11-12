@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react';
-import type { Vehicle } from '@/lib/types';
+import type { Vehicle, SeatLayout } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
@@ -76,7 +76,7 @@ const Deck = ({
     onSeatClick 
 }: { 
     title: string; 
-    layout: (string | null)[][];
+    layout: { [key: string]: (string | null)[] };
     occupiedSeats: string[];
     selectedSeats: string[];
     onSeatClick: (id: string) => void;
@@ -84,7 +84,7 @@ const Deck = ({
     <div>
         <h3 className="font-semibold text-lg mb-2 text-center">{title}</h3>
         <div className="bg-muted/50 p-4 rounded-lg border-2 border-dashed flex flex-col items-center">
-            {layout.map((row, rowIndex) => (
+            {Object.values(layout).map((row, rowIndex) => (
                 <div key={rowIndex} className="flex justify-center gap-1 my-1">
                     {row.map((seatId, seatIndex) => {
                         const status = seatId && occupiedSeats.includes(seatId) ? 'occupied' : 'available';
@@ -155,3 +155,5 @@ export function BusSeatLayout({ vehicle, selectedSeats, onSeatSelect }: BusSeatL
     </Card>
   );
 }
+
+    

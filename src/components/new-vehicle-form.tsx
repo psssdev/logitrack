@@ -35,24 +35,24 @@ type NewVehicleFormValues = z.infer<typeof vehicleSchema>;
 const COMPANY_ID = '1';
 
 const defaultSeatLayout: SeatLayout = {
-  upperDeck: [
-    ["U01", "U02", null, "U03", "U04"],
-    ["U05", "U06", null, "U07", "U08"],
-    ["U09", "U10", null, "U11", "U12"],
-    ["U13", "U14", null, "U15", "U16"],
-    ["U17", "U18", null, "U19", "U20"],
-    ["U21", "U22", null, "U23", "U24"],
-    ["U25", "U26", null, "U27", "U28"],
-    ["U29", "U30", null, "U31", "U32"],
-    ["U33", "U34", null, "U35", "U36"],
-    ["U37", "U38", null, "U39", "U40"],
-    ["U41", "U42", "U43", "U44", "U45"],
-  ],
-  lowerDeck: [
-    ["L01", "L02", null, null, null],
-    ["L03", "L04", null, "L05", "L06"],
-    ["L07", "L08", null, "L09", "L10"],
-  ]
+  upperDeck: {
+    '0': ["U01", "U02", null, "U03", "U04"],
+    '1': ["U05", "U06", null, "U07", "U08"],
+    '2': ["U09", "U10", null, "U11", "U12"],
+    '3': ["U13", "U14", null, "U15", "U16"],
+    '4': ["U17", "U18", null, "U19", "U20"],
+    '5': ["U21", "U22", null, "U23", "U24"],
+    '6': ["U25", "U26", null, "U27", "U28"],
+    '7': ["U29", "U30", null, "U31", "U32"],
+    '8': ["U33", "U34", null, "U35", "U36"],
+    '9': ["U37", "U38", null, "U39", "U40"],
+    '10': ["U41", "U42", "U43", "U44", "U45"],
+  },
+  lowerDeck: {
+    '0': ["L01", "L02", null, null, null],
+    '1': ["L03", "L04", null, "L05", "L06"],
+    '2': ["L07", "L08", null, "L09", "L10"],
+  }
 };
 
 export function NewVehicleForm() {
@@ -250,3 +250,5 @@ export function NewVehicleForm() {
     </Form>
   );
 }
+
+    
