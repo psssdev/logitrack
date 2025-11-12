@@ -89,7 +89,7 @@ export type Vehicle = {
     placa: string;
     modelo: string;
     ano: number;
-    tipo: "Ônibus" | "Van" | "Carro";
+    tipo: "Ônibus" | "Van" | "Carro" | "Caminhão";
     status: "Ativo" | "Inativo" | "Em Manutenção";
 }
 

@@ -29,6 +29,7 @@ const iconConfig = {
     "Ônibus": Bus,
     "Van": Truck,
     "Carro": Car,
+    "Caminhão": Truck,
 }
 
 export default function VeiculosPage() {

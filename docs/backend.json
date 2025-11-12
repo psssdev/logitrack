@@ -332,7 +332,7 @@
         "placa": { "type": "string", "description": "License plate of the vehicle." },
         "modelo": { "type": "string", "description": "Model of the vehicle (e.g., 'Marcopolo G8')." },
         "ano": { "type": "number", "description": "Manufacturing year of the vehicle." },
-        "tipo": { "type": "string", "description": "Type of vehicle.", "enum": ["Ônibus", "Van", "Carro"] },
+        "tipo": { "type": "string", "description": "Type of vehicle.", "enum": ["Ônibus", "Van", "Carro", "Caminhão"] },
         "status": { "type": "string", "description": "Current operational status.", "enum": ["Ativo", "Inativo", "Em Manutenção"] }
       },
       "required": ["placa", "modelo", "ano", "tipo", "status"]

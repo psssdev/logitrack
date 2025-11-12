@@ -169,7 +169,7 @@ export const vehicleSchema = z.object({
   placa: z.string().min(7, 'Placa inválida'),
   modelo: z.string().min(1, 'Modelo é obrigatório'),
   ano: z.coerce.number().int().min(1900, 'Ano inválido').max(new Date().getFullYear() + 1),
-  tipo: z.enum(["Ônibus", "Van", "Carro"]),
+  tipo: z.enum(["Ônibus", "Van", "Carro", "Caminhão"]),
   status: z.enum(["Ativo", "Inativo", "Em Manutenção"]),
 });
 

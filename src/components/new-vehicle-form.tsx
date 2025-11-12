@@ -144,6 +144,7 @@ export function NewVehicleForm() {
                     <SelectItem value="Ônibus">Ônibus</SelectItem>
                     <SelectItem value="Van">Van</SelectItem>
                     <SelectItem value="Carro">Carro</SelectItem>
+                    <SelectItem value="Caminhão">Caminhão</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
