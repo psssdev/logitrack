@@ -190,6 +190,7 @@ export const baseFinancialEntrySchema = z.object({
   clientName: z.string().optional(),
   notes: z.string().optional(),
   selectedSeats: z.array(z.string()).optional(),
+  travelDate: z.date().optional(),
 });
 
 export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });

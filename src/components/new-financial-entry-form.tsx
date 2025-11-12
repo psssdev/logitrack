@@ -47,7 +47,7 @@ import { BusSeatLayout } from './bus-seat-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Label } from './ui/label';
 
-type NewFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date'> & { date: Date };
+type NewFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date' | 'travelDate'> & { date: Date, travelDate?: Date };
 
 
 const COMPANY_ID = '1';
@@ -74,7 +74,8 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
       amount: 0,
       date: new Date(),
       categoryId: 'venda-passagem',
-      selectedSeats: []
+      selectedSeats: [],
+      travelDate: new Date(),
     },
   });
 
@@ -150,12 +151,15 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
         description: finalDescription,
         clientName: client ? client.nome : undefined,
         date: Timestamp.fromDate(data.date),
+        travelDate: data.travelDate ? Timestamp.fromDate(data.travelDate) : undefined,
         amount: Math.abs(data.amount),
         createdAt: serverTimestamp(),
       };
       
       if (notes) {
           entryData.notes = notes;
+      } else {
+        delete entryData.notes;
       }
 
       await addDoc(entriesCollection, entryData);
@@ -306,7 +310,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
                         name="date"
                         render={({ field }) => (
                         <FormItem className="flex flex-col">
-                            <FormLabel>Data</FormLabel>
+                            <FormLabel>Data da Transação</FormLabel>
                             <Popover>
                             <PopoverTrigger asChild>
                                 <FormControl>
@@ -324,6 +328,31 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
                         </FormItem>
                         )}
                     />
+                    {selectedCategoryId === 'venda-passagem' && (
+                        <FormField
+                            control={form.control}
+                            name="travelDate"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel>Data da Viagem</FormLabel>
+                                <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                        {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
+                                </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    )}
                 </CardContent>
              </Card>
         </div>

@@ -387,6 +387,7 @@
         "amount": { "type": "number", "description": "Value of the transaction. Positive for income, negative for expenses." },
         "type": { "type": "string", "description": "Type of transaction.", "enum": ["Entrada", "Saída"] },
         "date": { "type": "string", "format": "date-time", "description": "Date of the transaction." },
+        "travelDate": { "type": "string", "format": "date-time", "description": "Date of the trip, if applicable." },
         "categoryId": { "type": "string", "description": "Reference to the FinancialCategory." },
         "vehicleId": { "type": "string", "description": "Optional reference to a Vehicle." },
         "clientId": { "type": "string", "description": "Optional reference to a Client for income entries." },
@@ -458,5 +459,3 @@
     }
   }
 }
-
-    

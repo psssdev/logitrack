@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema, vehicleSchema, financialCategorySchema, financialEntrySchema } from './schemas';
+import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema, vehicleSchema, baseFinancialEntrySchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
 export type Payment = {
@@ -95,10 +95,11 @@ export type Vehicle = Omit<z.infer<typeof vehicleSchema>, 'seatLayout'> & {
     seatLayout?: SeatLayout;
 };
 
-export type FinancialCategory = z.infer<typeof financialCategorySchema>;
+export type FinancialCategory = z.infer<typeof baseFinancialEntrySchema>;
 
-export type FinancialEntry = Omit<z.infer<typeof financialEntrySchema>, 'date'> & {
+export type FinancialEntry = Omit<z.infer<typeof baseFinancialEntrySchema>, 'date' | 'travelDate'> & {
     date: Date | Timestamp;
+    travelDate?: Date | Timestamp;
 };
 
     
