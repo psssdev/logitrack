@@ -29,12 +29,14 @@ import {
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { FinancialCategory } from '@/lib/types';
 import { collection, query, orderBy } from 'firebase/firestore';
+import { NewCategoryDialog } from '@/components/new-category-dialog';
 
 const COMPANY_ID = '1';
 
 export default function CategoriasPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const [isNewCategoryOpen, setIsNewCategoryOpen] = React.useState(false);
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
@@ -48,35 +50,41 @@ export default function CategoriasPage() {
   const pageIsLoading = isLoading || isUserLoading;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center">
-        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
-          Categorias Financeiras
-        </h1>
-        <Button size="sm" className="h-8 gap-1">
-          <PlusCircle className="h-3.5 w-3.5" />
-          <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-            Nova Categoria
-          </span>
-        </Button>
-      </div>
+    <>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center">
+          <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
+            Categorias Financeiras
+          </h1>
+          <Button size="sm" className="h-8 gap-1" onClick={() => setIsNewCategoryOpen(true)}>
+            <PlusCircle className="h-3.5 w-3.5" />
+            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+              Nova Categoria
+            </span>
+          </Button>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Gerenciar Categorias</CardTitle>
-          <CardDescription>
-            Crie e organize as categorias para suas receitas e despesas.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {pageIsLoading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : (
-            <CategoryList categories={categories || []} />
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Gerenciar Categorias</CardTitle>
+            <CardDescription>
+              Crie e organize as categorias para suas receitas e despesas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {pageIsLoading ? (
+              <Skeleton className="h-48 w-full" />
+            ) : (
+              <CategoryList categories={categories || []} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      <NewCategoryDialog
+        isOpen={isNewCategoryOpen}
+        setIsOpen={setIsNewCategoryOpen}
+      />
+    </>
   );
 }
 

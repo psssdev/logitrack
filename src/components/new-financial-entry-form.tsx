@@ -19,7 +19,7 @@ import { triggerRevalidation } from '@/lib/actions';
 import { financialEntrySchema } from '@/lib/schemas';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { CalendarIcon, Loader2, ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
+import { CalendarIcon, Loader2, ChevronsUpDown, Check } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -43,7 +43,6 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import Link from 'next/link';
-import { NewCategoryDialog } from './new-category-dialog';
 
 type NewFinancialEntryFormValues = z.infer<typeof financialEntrySchema>;
 
@@ -54,8 +53,6 @@ export function NewFinancialEntryForm({ categories, vehicles, clients }: { categ
   const router = useRouter();
   const firestore = useFirestore();
   const [clientPopoverOpen, setClientPopoverOpen] = React.useState(false);
-  const [categoryPopoverOpen, setCategoryPopoverOpen] = React.useState(false);
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = React.useState(false);
 
 
   const form = useForm<NewFinancialEntryFormValues>({
@@ -69,6 +66,8 @@ export function NewFinancialEntryForm({ categories, vehicles, clients }: { categ
   });
 
   const selectedClientId = form.watch('clientId');
+  const incomeCategories = categories.filter(c => c.type === 'Entrada');
+
 
   React.useEffect(() => {
     if (selectedClientId) {
@@ -79,13 +78,6 @@ export function NewFinancialEntryForm({ categories, vehicles, clients }: { categ
     }
   }, [selectedClientId, clients, form]);
 
-  const onCategoryCreated = (newCategory: FinancialCategory) => {
-    form.setValue('categoryId', newCategory.id);
-    toast({
-        title: "Categoria Criada!",
-        description: `A categoria "${newCategory.name}" foi selecionada.`
-    })
-  }
 
   async function onSubmit(data: Omit<NewFinancialEntryFormValues, 'id'>) {
     if (!firestore) {
@@ -128,7 +120,6 @@ export function NewFinancialEntryForm({ categories, vehicles, clients }: { categ
   }
 
   return (
-    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
         <div className="grid gap-4 md:grid-cols-2">
@@ -274,64 +265,22 @@ export function NewFinancialEntryForm({ categories, vehicles, clients }: { categ
             control={form.control}
             name="categoryId"
             render={({ field }) => (
-                <FormItem className="flex flex-col">
+                <FormItem>
                     <FormLabel>Categoria *</FormLabel>
-                    <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
-                        <PopoverTrigger asChild>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                            <Button
-                            variant="outline"
-                            role="combobox"
-                            className={cn('w-full justify-between', !field.value && 'text-muted-foreground')}
-                            >
-                            {field.value
-                                ? categories.find(c => c.id === field.value)?.name
-                                : 'Selecione uma categoria'}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecione uma categoria" />
+                        </SelectTrigger>
                         </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command>
-                            <CommandInput placeholder="Buscar categoria..." />
-                            <CommandList>
-                            <CommandEmpty>
-                                <div className="p-2 text-center">
-                                    <p className="text-sm">Nenhuma categoria encontrada.</p>
-                                </div>
-                            </CommandEmpty>
-                            <CommandGroup>
-                                {categories.filter(c => c.type === 'Entrada').map(c => (
-                                <CommandItem
-                                    value={c.name}
-                                    key={c.id}
-                                    onSelect={() => {
-                                    form.setValue('categoryId', c.id);
-                                    setCategoryPopoverOpen(false);
-                                    }}
-                                >
-                                    <Check className={cn('mr-2 h-4 w-4', c.id === field.value ? 'opacity-100' : 'opacity-0')} />
-                                    {c.name}
-                                </CommandItem>
-                                ))}
-                            </CommandGroup>
-                            </CommandList>
-                            <div className="p-1 border-t">
-                                <Button
-                                    variant="ghost"
-                                    className="w-full justify-start text-sm"
-                                    onClick={() => {
-                                        setCategoryPopoverOpen(false);
-                                        setIsCategoryDialogOpen(true);
-                                    }}
-                                >
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Adicionar categoria
-                                </Button>
-                            </div>
-                        </Command>
-                        </PopoverContent>
-                    </Popover>
+                        <SelectContent>
+                        {incomeCategories.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                            </SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
                     <FormMessage />
                 </FormItem>
             )}
@@ -390,12 +339,5 @@ export function NewFinancialEntryForm({ categories, vehicles, clients }: { categ
         </div>
       </form>
     </Form>
-    <NewCategoryDialog 
-        isOpen={isCategoryDialogOpen}
-        setIsOpen={setIsCategoryDialogOpen}
-        categoryType="Entrada"
-        onCategoryCreated={onCategoryCreated}
-    />
-    </>
   );
 }

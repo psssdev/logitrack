@@ -19,26 +19,24 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import type { FinancialCategory } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const COMPANY_ID = '1';
 
 interface NewCategoryDialogProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  categoryType: 'Entrada' | 'Saída';
-  onCategoryCreated: (newCategory: FinancialCategory) => void;
 }
 
 export function NewCategoryDialog({
   isOpen,
   setIsOpen,
-  categoryType,
-  onCategoryCreated,
 }: NewCategoryDialogProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
   const [categoryName, setCategoryName] = React.useState('');
+  const [categoryType, setCategoryType] = React.useState<'Entrada' | 'Saída'>('Entrada');
 
   const handleSave = async () => {
     if (!firestore) {
@@ -53,24 +51,22 @@ export function NewCategoryDialog({
     setIsSaving(true);
     try {
       const categoriesCollection = collection(firestore, 'companies', COMPANY_ID, 'financialCategories');
-      const newDocRef = await addDoc(categoriesCollection, {
+      await addDoc(categoriesCollection, {
         name: categoryName,
         type: categoryType,
         createdAt: serverTimestamp(),
       });
 
-      const newCategory: FinancialCategory = {
-        id: newDocRef.id,
-        name: categoryName,
-        type: categoryType,
-      };
-
-      await triggerRevalidation('/financeiro/novo');
       await triggerRevalidation('/categorias');
+      await triggerRevalidation('/financeiro/novo');
       
-      onCategoryCreated(newCategory);
       setCategoryName('');
+      setCategoryType('Entrada');
       setIsOpen(false);
+       toast({
+        title: 'Sucesso!',
+        description: 'Nova categoria criada.',
+      });
 
     } catch (error: any) {
       toast({
@@ -86,6 +82,7 @@ export function NewCategoryDialog({
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setCategoryName('');
+      setCategoryType('Entrada');
     }
     setIsOpen(open);
   }
@@ -94,7 +91,7 @@ export function NewCategoryDialog({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Nova Categoria de {categoryType}</DialogTitle>
+          <DialogTitle>Nova Categoria</DialogTitle>
           <DialogDescription>
             Crie uma nova categoria para organizar seus lançamentos.
           </DialogDescription>
@@ -112,6 +109,23 @@ export function NewCategoryDialog({
               placeholder='Ex: Venda de Passagem'
               autoFocus
             />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Tipo</Label>
+            <RadioGroup 
+                defaultValue={categoryType}
+                onValueChange={(value: 'Entrada' | 'Saída') => setCategoryType(value)}
+                className="col-span-3 flex gap-4"
+            >
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Entrada" id="r-in" />
+                    <Label htmlFor="r-in">Entrada</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Saída" id="r-out" />
+                    <Label htmlFor="r-out">Saída</Label>
+                </div>
+            </RadioGroup>
           </div>
         </div>
         <DialogFooter>
