@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
-import { financialEntrySchema } from '@/lib/schemas';
+import { newFinancialEntrySchema } from '@/lib/schemas';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp, Timestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check, Ticket, Wallet } from 'lucide-react';
@@ -66,7 +66,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
   const [passagemValue, setPassagemValue] = React.useState<number>(0);
 
   const form = useForm<NewFinancialEntryFormValues>({
-    resolver: zodResolver(financialEntrySchema.omit({ id: true })),
+    resolver: zodResolver(newFinancialEntrySchema),
     defaultValues: {
       description: '',
       type: 'Entrada', // Hardcoded to 'Entrada'
