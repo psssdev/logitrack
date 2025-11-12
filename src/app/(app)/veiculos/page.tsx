@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, orderBy, query } from 'firebase/firestore';
-import { PlusCircle, Bus, Car, Van } from 'lucide-react';
+import { PlusCircle, Bus, Car, Truck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -27,7 +27,7 @@ const statusConfig = {
 
 const iconConfig = {
     "Ônibus": Bus,
-    "Van": Van,
+    "Van": Truck,
     "Carro": Car,
 }
 
