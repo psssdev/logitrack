@@ -74,16 +74,17 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
   });
 
   const selectedClientId = form.watch('clientId');
+  const selectedCategoryId = form.watch('categoryId');
 
 
   React.useEffect(() => {
-    if (selectedClientId) {
+    if (selectedClientId && selectedCategoryId === 'venda-passagem') {
         const client = clients.find(c => c.id === selectedClientId);
         if (client) {
             form.setValue('description', `Venda de Passagem para ${client.nome}`);
         }
     }
-  }, [selectedClientId, clients, form]);
+  }, [selectedClientId, selectedCategoryId, clients, form]);
 
 
   async function onSubmit(data: Omit<NewFinancialEntryFormValues, 'id'>) {
@@ -100,12 +101,16 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
       const entriesCollection = collection(firestore, 'companies', COMPANY_ID, 'financialEntries');
       
       const client = data.clientId ? clients.find(c => c.id === data.clientId) : null;
-      const category = incomeCategories.find(c => c.id === data.categoryId);
+      
+      let finalDescription = data.description;
+      if (data.categoryId === 'outras-receitas' && data.otherCategoryDescription) {
+        finalDescription = data.otherCategoryDescription;
+      }
 
       await addDoc(entriesCollection, {
         ...data,
+        description: finalDescription,
         clientName: client ? client.nome : undefined,
-        categoryId: category ? category.name : data.categoryId, // Store the name
         date: Timestamp.fromDate(data.date),
         amount: Math.abs(data.amount), // Ensure amount is positive
         createdAt: serverTimestamp(),
@@ -222,12 +227,13 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
               <FormItem>
                 <FormLabel>Descrição *</FormLabel>
                 <FormControl>
-                  <Input placeholder="Ex: Venda de passagem..." {...field} />
+                  <Input placeholder="Ex: Venda de passagem..." {...field} disabled={selectedCategoryId !== 'outras-receitas'}/>
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
         <div className="grid gap-4 md:grid-cols-2">
             <FormField
             control={form.control}
@@ -295,6 +301,23 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
             )}
            />
         </div>
+        
+        {selectedCategoryId === 'outras-receitas' && (
+             <FormField
+                control={form.control}
+                name="otherCategoryDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição da Receita *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Especifique a natureza da receita" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+        )}
+
 
          <FormField
             control={form.control}

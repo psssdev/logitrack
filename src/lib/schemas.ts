@@ -188,6 +188,7 @@ export const financialEntrySchema = z.object({
     required_error: "A data é obrigatória.",
   }),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
+  otherCategoryDescription: z.string().optional(),
   vehicleId: z.string().optional(),
   clientId: z.string().optional(),
   clientName: z.string().optional(),
