@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, orderBy, query } from 'firebase/firestore';
-import { PlusCircle, Bus, Car, Truck } from 'lucide-react';
+import { PlusCircle, Bus, Car, Truck, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -86,20 +86,27 @@ export default function VeiculosPage() {
             vehicles.map((vehicle) => {
               const Icon = iconConfig[vehicle.tipo] || Bus;
               return (
-                <Card key={vehicle.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <Icon className="h-8 w-8 text-muted-foreground" />
-                            <div>
-                                <CardTitle>{vehicle.modelo}</CardTitle>
-                                <CardDescription>{vehicle.placa} - {vehicle.ano}</CardDescription>
+                <Link key={vehicle.id} href={`/veiculos/${vehicle.id}`} className="block hover:shadow-lg transition-shadow rounded-lg">
+                    <Card className="h-full">
+                        <CardHeader className="flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <Icon className="h-8 w-8 text-muted-foreground" />
+                                <div>
+                                    <CardTitle>{vehicle.modelo}</CardTitle>
+                                    <CardDescription>{vehicle.placa} - {vehicle.ano}</CardDescription>
+                                </div>
                             </div>
-                        </div>
-                        <Badge className={cn("text-white", statusConfig[vehicle.status])}>
-                            {vehicle.status}
-                        </Badge>
-                    </CardHeader>
-                </Card>
+                            <Badge className={cn("text-white", statusConfig[vehicle.status])}>
+                                {vehicle.status}
+                            </Badge>
+                        </CardHeader>
+                         <CardContent>
+                            <div className="flex justify-end items-center text-xs text-muted-foreground">
+                                Ver detalhes <ArrowRight className="ml-1 h-3 w-3" />
+                            </div>
+                         </CardContent>
+                    </Card>
+                </Link>
               )
             })}
             {!pageIsLoading && (!vehicles || vehicles.length === 0) && (
