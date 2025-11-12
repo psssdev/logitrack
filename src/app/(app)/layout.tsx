@@ -15,7 +15,9 @@ import {
   MapPin,
   Megaphone,
   CircleDollarSign,
-  Landmark
+  Landmark,
+  Bus,
+  Bookmark,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,8 +48,11 @@ const navItems = [
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/cobrancas', icon: CircleDollarSign, label: 'Cobranças' },
   { href: '/financeiro', icon: Landmark, label: 'Financeiro' },
+  { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
+  { href: '/veiculos', icon: Bus, label: 'Veículos' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
   { href: '/origens', icon: MapPin, label: 'Origens' },
+  { href: '/categorias', icon: Bookmark, label: 'Categorias' },
   { href: '/avisame', icon: Megaphone, label: 'Avisa-me' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];

@@ -323,6 +323,44 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Represents a company vehicle, such as a bus, van, or car.",
+      "type": "object",
+      "properties": {
+        "placa": { "type": "string", "description": "License plate of the vehicle." },
+        "modelo": { "type": "string", "description": "Model of the vehicle (e.g., 'Marcopolo G8')." },
+        "ano": { "type": "number", "description": "Manufacturing year of the vehicle." },
+        "tipo": { "type": "string", "description": "Type of vehicle.", "enum": ["Ônibus", "Van", "Carro"] },
+        "status": { "type": "string", "description": "Current operational status.", "enum": ["Ativo", "Inativo", "Em Manutenção"] }
+      },
+      "required": ["placa", "modelo", "ano", "tipo", "status"]
+    },
+    "FinancialCategory": {
+      "title": "Financial Category",
+      "description": "Represents a category for financial entries.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the category (e.g., 'Receita de Passagem', 'Combustível')." },
+        "type": { "type": "string", "description": "The type of the category.", "enum": ["Entrada", "Saída"] }
+      },
+      "required": ["name", "type"]
+    },
+    "FinancialEntry": {
+      "title": "Financial Entry",
+      "description": "Represents a single financial transaction (income or expense).",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string", "description": "A brief description of the transaction." },
+        "amount": { "type": "number", "description": "Value of the transaction. Positive for income, negative for expenses." },
+        "type": { "type": "string", "description": "Type of transaction.", "enum": ["Entrada", "Saída"] },
+        "date": { "type": "string", "format": "date-time", "description": "Date of the transaction." },
+        "categoryId": { "type": "string", "description": "Reference to the FinancialCategory." },
+        "vehicleId": { "type": "string", "description": "Optional reference to a Vehicle." },
+        "notes": { "type": "string", "description": "Additional notes." }
+      },
+      "required": ["description", "amount", "type", "date", "categoryId"]
     }
   },
   "auth": {
@@ -372,6 +410,18 @@
         "$ref": "#/entities/Driver"
       },
       "description": "Stores driver information for a specific company."
+    },
+    "/companies/{companyId}/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Stores company vehicles."
+    },
+    "/companies/{companyId}/financialCategories/{categoryId}": {
+      "schema": { "$ref": "#/entities/FinancialCategory" },
+      "description": "Stores categories for financial entries."
+    },
+    "/companies/{companyId}/financialEntries/{entryId}": {
+      "schema": { "$ref": "#/entities/FinancialEntry" },
+      "description": "Stores all financial transactions for a company."
     }
   }
 }
