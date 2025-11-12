@@ -117,7 +117,7 @@ function CategoryList({ categories }: { categories: FinancialCategory[] }) {
               <TableRow key={category.id}>
                 <TableCell className="font-medium">{category.name}</TableCell>
                 <TableCell>
-                    <Badge variant={category.type === 'Entrada' ? 'default' : 'destructive'} className={category.type === 'Entrada' ? 'bg-green-600' : ''}>
+                    <Badge variant={category.type === 'Entrada' ? 'secondary' : 'destructive'} >
                         {category.type}
                     </Badge>
                 </TableCell>
