@@ -164,11 +164,6 @@ export const newOriginSchema = originSchema.omit({
   createdAt: true,
 });
 
-const seatLayoutSchema = z.object({
-  lowerDeck: z.array(z.array(z.string().nullable())).optional(),
-  upperDeck: z.array(z.array(z.string().nullable())).optional(),
-});
-
 export const vehicleSchema = z.object({
   id: z.string(),
   placa: z.string().min(7, 'Placa inválida'),
@@ -176,7 +171,7 @@ export const vehicleSchema = z.object({
   ano: z.coerce.number().int().min(1900, 'Ano inválido').max(new Date().getFullYear() + 1),
   tipo: z.enum(["Ônibus", "Van", "Carro", "Caminhão"]),
   status: z.enum(["Ativo", "Inativo", "Em Manutenção"]),
-  seatLayout: seatLayoutSchema.optional(),
+  seatLayout: z.string().optional(), // JSON string for layout
   occupiedSeats: z.array(z.string()).optional(),
 });
 

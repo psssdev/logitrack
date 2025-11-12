@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { vehicleSchema } from '@/lib/schemas';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import {
@@ -27,10 +27,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import { Textarea } from './ui/textarea';
+import type { Vehicle, SeatLayout } from '@/lib/types';
 
 type NewVehicleFormValues = z.infer<typeof vehicleSchema>;
 
 const COMPANY_ID = '1';
+
+const defaultSeatLayout: SeatLayout = {
+  upperDeck: [
+    ["U01", "U02", null, "U03", "U04"],
+    ["U05", "U06", null, "U07", "U08"],
+    ["U09", "U10", null, "U11", "U12"],
+    ["U13", "U14", null, "U15", "U16"],
+    ["U17", "U18", null, "U19", "U20"],
+    ["U21", "U22", null, "U23", "U24"],
+    ["U25", "U26", null, "U27", "U28"],
+    ["U29", "U30", null, "U31", "U32"],
+    ["U33", "U34", null, "U35", "U36"],
+    ["U37", "U38", null, "U39", "U40"],
+    ["U41", "U42", "U43", "U44", "U45"],
+  ],
+  lowerDeck: [
+    ["L01", "L02", null, null, null],
+    ["L03", "L04", null, "L05", "L06"],
+    ["L07", "L08", null, "L09", "L10"],
+  ]
+};
 
 export function NewVehicleForm() {
   const { toast } = useToast();
@@ -45,10 +68,14 @@ export function NewVehicleForm() {
       ano: new Date().getFullYear(),
       tipo: 'Carro',
       status: 'Ativo',
+      seatLayout: JSON.stringify(defaultSeatLayout, null, 2),
+      occupiedSeats: [],
     },
   });
 
-  async function onSubmit(data: Omit<NewVehicleFormValues, 'id'>) {
+  const vehicleType = form.watch('tipo');
+
+  async function onSubmit(data: NewVehicleFormValues) {
     if (!firestore) {
       toast({
         variant: 'destructive',
@@ -58,10 +85,24 @@ export function NewVehicleForm() {
       return;
     }
 
+    let processedData: Partial<Vehicle> = { ...data };
+
+    if (data.tipo === 'Ônibus') {
+      try {
+        const layout = JSON.parse(data.seatLayout || '{}');
+        processedData.seatLayout = layout;
+      } catch (error) {
+        form.setError('seatLayout', { type: 'manual', message: 'Formato do JSON do mapa de assentos é inválido.'});
+        return;
+      }
+    } else {
+      delete processedData.seatLayout;
+    }
+
     try {
       const vehiclesCollection = collection(firestore, 'companies', COMPANY_ID, 'vehicles');
       await addDoc(vehiclesCollection, {
-        ...data,
+        ...processedData,
         placa: data.placa.toUpperCase(),
         createdAt: serverTimestamp(),
       });
@@ -174,6 +215,27 @@ export function NewVehicleForm() {
             )}
           />
         </div>
+
+        {vehicleType === 'Ônibus' && (
+          <FormField
+            control={form.control}
+            name="seatLayout"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Configuração dos Assentos (JSON)</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder='Cole aqui o JSON da configuração dos assentos...'
+                    className="min-h-[200px] font-mono text-xs"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
 
         <div className="flex justify-end pt-4">
           <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
