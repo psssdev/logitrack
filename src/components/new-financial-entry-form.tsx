@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { financialEntrySchema } from '@/lib/schemas';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp, Timestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check } from 'lucide-react';
 import {
@@ -61,7 +61,6 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
   const [clientPopoverOpen, setClientPopoverOpen] = React.useState(false);
   const [selectedSeats, setSelectedSeats] = React.useState<string[]>([]);
 
@@ -397,11 +396,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
 
         <div className="flex justify-end pt-4">
           <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              'Salvar Receita'
-            )}
+            {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Receita'}
           </Button>
         </div>
       </form>
