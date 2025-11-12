@@ -175,15 +175,9 @@ export const vehicleSchema = z.object({
   occupiedSeats: z.array(z.string()).optional(),
 });
 
-export const financialCategorySchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, 'Nome é obrigatório'),
-  type: z.enum(["Entrada", "Saída"]),
-});
-
 export const financialEntrySchema = z.object({
   id: z.string(),
-  description: z.string().min(1, 'Descrição é obrigatória'),
+  description: z.string().optional(),
   amount: z.coerce.number().positive('O valor deve ser maior que zero.'),
   type: z.enum(["Entrada", "Saída"]),
   date: z.date({
@@ -191,9 +185,25 @@ export const financialEntrySchema = z.object({
   }),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
   otherCategoryDescription: z.string().optional(),
-  vehicleId: z.string().optional(),
-  clientId: z.string().optional(),
+  vehicleId: z.string().min(1, "O veículo é obrigatório.").optional(),
+  clientId: z.string().min(1, "O cliente é obrigatório.").optional(),
   clientName: z.string().optional(),
   notes: z.string().optional(),
   selectedSeats: z.array(z.string()).optional(),
+}).refine(data => {
+    if (data.categoryId === 'venda-passagem') {
+        return !!data.clientId;
+    }
+    return true;
+}, {
+    message: "O cliente é obrigatório para vender uma passagem.",
+    path: ["clientId"],
+}).refine(data => {
+    if(data.categoryId === 'venda-passagem') {
+        return !!data.vehicleId;
+    }
+    return true;
+}, {
+    message: "O ônibus é obrigatório para vender uma passagem.",
+    path: ["vehicleId"],
 });

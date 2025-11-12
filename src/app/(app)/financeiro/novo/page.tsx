@@ -3,13 +3,6 @@
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { NewFinancialEntryForm } from '@/components/new-financial-entry-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Vehicle, Client } from '@/lib/types';
@@ -45,7 +38,7 @@ export default function NewFinancialEntryPage() {
 
 
   return (
-    <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
+    <div className="mx-auto grid w-full max-w-6xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
           <Link href="/financeiro">
@@ -54,23 +47,15 @@ export default function NewFinancialEntryPage() {
           </Link>
         </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-          Nova Receita
+          Caixa - Nova Receita
         </h1>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Dados da Receita</CardTitle>
-          <CardDescription>
-            Preencha os campos para registrar uma nova entrada.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading && <Skeleton className="h-64 w-full" />}
-          {vehicles && clients && !isLoading && (
-            <NewFinancialEntryForm vehicles={vehicles} clients={clients} />
-          )}
-        </CardContent>
-      </Card>
+      
+      {isLoading && <Skeleton className="h-[500px] w-full" />}
+      {vehicles && clients && !isLoading && (
+        <NewFinancialEntryForm vehicles={vehicles} clients={clients} />
+      )}
+      
     </div>
   );
 }
