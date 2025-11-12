@@ -83,3 +83,29 @@ export type UserProfile = {
     companyId: string;
     role: string;
 }
+
+export type Vehicle = {
+    id: string;
+    placa: string;
+    modelo: string;
+    ano: number;
+    tipo: "Ônibus" | "Van" | "Carro";
+    status: "Ativo" | "Inativo" | "Em Manutenção";
+}
+
+export type FinancialCategory = {
+    id: string;
+    name: string;
+    type: "Entrada" | "Saída";
+}
+
+export type FinancialEntry = {
+    id: string;
+    description: string;
+    amount: number;
+    type: "Entrada" | "Saída";
+    date: Date | Timestamp;
+    categoryId: string;
+    vehicleId?: string;
+    notes?: string;
+}

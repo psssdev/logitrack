@@ -163,3 +163,29 @@ export const newOriginSchema = originSchema.omit({
   address: true, // `address` will be generated in the server action
   createdAt: true,
 });
+
+export const vehicleSchema = z.object({
+  id: z.string(),
+  placa: z.string().min(7, 'Placa inválida'),
+  modelo: z.string().min(1, 'Modelo é obrigatório'),
+  ano: z.coerce.number().int().min(1900, 'Ano inválido').max(new Date().getFullYear() + 1),
+  tipo: z.enum(["Ônibus", "Van", "Carro"]),
+  status: z.enum(["Ativo", "Inativo", "Em Manutenção"]),
+});
+
+export const financialCategorySchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Nome é obrigatório'),
+  type: z.enum(["Entrada", "Saída"]),
+});
+
+export const financialEntrySchema = z.object({
+    id: z.string(),
+    description: z.string().min(1, 'Descrição é obrigatória'),
+    amount: z.coerce.number(),
+    type: z.enum(["Entrada", "Saída"]),
+    date: z.date(),
+    categoryId: z.string().min(1, 'Categoria é obrigatória'),
+    vehicleId: z.string().optional(),
+    notes: z.string().optional(),
+});
