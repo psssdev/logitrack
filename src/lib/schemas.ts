@@ -175,7 +175,7 @@ export const vehicleSchema = z.object({
   occupiedSeats: z.array(z.string()).optional(),
 });
 
-const baseFinancialEntrySchema = z.object({
+export const baseFinancialEntrySchema = z.object({
   id: z.string(),
   description: z.string().optional(),
   amount: z.coerce.number().positive('O valor deve ser maior que zero.'),
