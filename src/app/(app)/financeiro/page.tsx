@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { PlusCircle, MoreHorizontal, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ArrowUpCircle, ArrowDownCircle, Landmark } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -29,6 +29,7 @@ import {
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { FinancialEntry } from '@/lib/types';
 import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
+import Link from 'next/link';
 
 const COMPANY_ID = '1';
 
@@ -78,11 +79,13 @@ export default function FinanceiroPage() {
         <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
           Controle Financeiro
         </h1>
-        <Button size="sm" className="h-8 gap-1">
-          <PlusCircle className="h-3.5 w-3.5" />
-          <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-            Novo Lançamento
-          </span>
+        <Button size="sm" className="h-8 gap-1" asChild>
+          <Link href="/financeiro/novo">
+            <PlusCircle className="h-3.5 w-3.5" />
+            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+              Novo Lançamento
+            </span>
+          </Link>
         </Button>
       </div>
 
@@ -108,6 +111,7 @@ export default function FinanceiroPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Saldo Atual</CardTitle>
+             <Landmark className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {pageIsLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">{formatCurrency(summary.saldo)}</div>}

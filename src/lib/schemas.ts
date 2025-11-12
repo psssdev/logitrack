@@ -180,12 +180,14 @@ export const financialCategorySchema = z.object({
 });
 
 export const financialEntrySchema = z.object({
-    id: z.string(),
-    description: z.string().min(1, 'Descrição é obrigatória'),
-    amount: z.coerce.number(),
-    type: z.enum(["Entrada", "Saída"]),
-    date: z.date(),
-    categoryId: z.string().min(1, 'Categoria é obrigatória'),
-    vehicleId: z.string().optional(),
-    notes: z.string().optional(),
+  id: z.string(),
+  description: z.string().min(1, 'Descrição é obrigatória'),
+  amount: z.coerce.number().positive('O valor deve ser maior que zero.'),
+  type: z.enum(["Entrada", "Saída"]),
+  date: z.date({
+    required_error: "A data é obrigatória.",
+  }),
+  categoryId: z.string().min(1, 'Categoria é obrigatória'),
+  vehicleId: z.string().optional(),
+  notes: z.string().optional(),
 });
