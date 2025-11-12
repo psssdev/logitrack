@@ -182,7 +182,7 @@ export const baseFinancialEntrySchema = z.object({
   type: z.enum(["Entrada", "Saída"]),
   date: z.date({
     required_error: "A data é obrigatória.",
-  }),
+  }).optional(),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
   otherCategoryDescription: z.string().optional(),
   vehicleId: z.string().optional(),
