@@ -45,6 +45,7 @@ import {
 import Link from 'next/link';
 import { BusSeatLayout } from './bus-seat-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './ui/card';
+import { Label } from './ui/label';
 
 type NewFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date'> & { date: Date };
 
