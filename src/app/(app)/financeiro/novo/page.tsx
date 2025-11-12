@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { NewFinancialEntryForm } from '@/components/new-financial-entry-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { FinancialCategory, Vehicle } from '@/lib/types';
+import type { FinancialCategory, Vehicle, Client } from '@/lib/types';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -37,12 +37,21 @@ export default function NewFinancialEntryPage() {
         orderBy('modelo', 'asc')
     );
   }, [firestore, isUserLoading, user]);
+  
+  const clientsQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return query(
+        collection(firestore, 'companies', COMPANY_ID, 'clients'),
+        orderBy('nome', 'asc')
+    );
+  }, [firestore, isUserLoading, user]);
 
 
   const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   
-  const isLoading = isLoadingCategories || isLoadingVehicles || isUserLoading;
+  const isLoading = isLoadingCategories || isLoadingVehicles || isLoadingClients || isUserLoading;
 
 
   return (
@@ -55,20 +64,20 @@ export default function NewFinancialEntryPage() {
           </Link>
         </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-          Novo Lançamento Financeiro
+          Nova Receita
         </h1>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Dados da Transação</CardTitle>
+          <CardTitle>Dados da Receita</CardTitle>
           <CardDescription>
-            Preencha os campos para registrar uma nova entrada ou saída.
+            Preencha os campos para registrar uma nova entrada.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading && <Skeleton className="h-64 w-full" />}
-          {categories && vehicles && !isLoading && (
-            <NewFinancialEntryForm categories={categories} vehicles={vehicles} />
+          {categories && vehicles && clients && !isLoading && (
+            <NewFinancialEntryForm categories={categories} vehicles={vehicles} clients={clients} />
           )}
         </CardContent>
       </Card>

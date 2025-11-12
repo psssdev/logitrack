@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema } from './schemas';
+import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema, vehicleSchema, financialCategorySchema, financialEntrySchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
 export type Payment = {
@@ -84,28 +84,10 @@ export type UserProfile = {
     role: string;
 }
 
-export type Vehicle = {
-    id: string;
-    placa: string;
-    modelo: string;
-    ano: number;
-    tipo: "Ônibus" | "Van" | "Carro" | "Caminhão";
-    status: "Ativo" | "Inativo" | "Em Manutenção";
-}
+export type Vehicle = z.infer<typeof vehicleSchema>;
 
-export type FinancialCategory = {
-    id: string;
-    name: string;
-    type: "Entrada" | "Saída";
-}
+export type FinancialCategory = z.infer<typeof financialCategorySchema>;
 
-export type FinancialEntry = {
-    id: string;
-    description: string;
-    amount: number;
-    type: "Entrada" | "Saída";
+export type FinancialEntry = Omit<z.infer<typeof financialEntrySchema>, 'date'> & {
     date: Date | Timestamp;
-    categoryId: string;
-    vehicleId?: string;
-    notes?: string;
-}
+};

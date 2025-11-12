@@ -189,5 +189,7 @@ export const financialEntrySchema = z.object({
   }),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
   vehicleId: z.string().optional(),
+  clientId: z.string().optional(),
+  clientName: z.string().optional(),
   notes: z.string().optional(),
 });

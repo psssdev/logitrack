@@ -83,7 +83,7 @@ export default function FinanceiroPage() {
           <Link href="/financeiro/novo">
             <PlusCircle className="h-3.5 w-3.5" />
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Novo Lançamento
+              Nova Receita
             </span>
           </Link>
         </Button>
@@ -166,7 +166,10 @@ function EntryList({ entries }: { entries: FinancialEntry[] }) {
           <TableBody>
             {entries.map((entry) => (
               <TableRow key={entry.id}>
-                <TableCell className="font-medium">{entry.description}</TableCell>
+                <TableCell>
+                  <div className="font-medium">{entry.description}</div>
+                  {entry.clientName && <div className="text-sm text-muted-foreground">{entry.clientName}</div>}
+                </TableCell>
                 <TableCell>{formatDate(entry.date)}</TableCell>
                 <TableCell className={entry.type === 'Entrada' ? 'text-green-600' : 'text-destructive'}>
                     {entry.type === 'Saída' && '- '}{formatCurrency(entry.amount)}

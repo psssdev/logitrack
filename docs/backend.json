@@ -358,6 +358,8 @@
         "date": { "type": "string", "format": "date-time", "description": "Date of the transaction." },
         "categoryId": { "type": "string", "description": "Reference to the FinancialCategory." },
         "vehicleId": { "type": "string", "description": "Optional reference to a Vehicle." },
+        "clientId": { "type": "string", "description": "Optional reference to a Client for income entries." },
+        "clientName": { "type": "string", "description": "Denormalized client name for display." },
         "notes": { "type": "string", "description": "Additional notes." }
       },
       "required": ["description", "amount", "type", "date", "categoryId"]
