@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { NewFinancialEntryForm } from '@/components/new-financial-entry-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { FinancialCategory, Vehicle, Client } from '@/lib/types';
+import type { Vehicle, Client } from '@/lib/types';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -21,14 +21,6 @@ const COMPANY_ID = '1';
 export default function NewFinancialEntryPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-
-  const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return query(
-      collection(firestore, 'companies', COMPANY_ID, 'financialCategories'),
-      orderBy('name', 'asc')
-    );
-  }, [firestore, isUserLoading, user]);
 
   const vehiclesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
@@ -46,12 +38,10 @@ export default function NewFinancialEntryPage() {
     );
   }, [firestore, isUserLoading, user]);
 
-
-  const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   
-  const isLoading = isLoadingCategories || isLoadingVehicles || isLoadingClients || isUserLoading;
+  const isLoading = isLoadingVehicles || isLoadingClients || isUserLoading;
 
 
   return (
@@ -76,8 +66,8 @@ export default function NewFinancialEntryPage() {
         </CardHeader>
         <CardContent>
           {isLoading && <Skeleton className="h-64 w-full" />}
-          {categories && vehicles && clients && !isLoading && (
-            <NewFinancialEntryForm categories={categories} vehicles={vehicles} clients={clients} />
+          {vehicles && clients && !isLoading && (
+            <NewFinancialEntryForm vehicles={vehicles} clients={clients} />
           )}
         </CardContent>
       </Card>

@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { FinancialCategory, Vehicle, Client } from '@/lib/types';
+import type { Vehicle, Client } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -48,7 +48,14 @@ type NewFinancialEntryFormValues = z.infer<typeof financialEntrySchema>;
 
 const COMPANY_ID = '1';
 
-export function NewFinancialEntryForm({ categories, vehicles, clients }: { categories: FinancialCategory[], vehicles: Vehicle[], clients: Client[] }) {
+const incomeCategories = [
+    { id: 'venda-passagem', name: 'Venda de Passagem' },
+    { id: 'encomendas', name: 'Encomendas' },
+    { id: 'outras-receitas', name: 'Outras Receitas' },
+];
+
+
+export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle[], clients: Client[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -62,11 +69,11 @@ export function NewFinancialEntryForm({ categories, vehicles, clients }: { categ
       type: 'Entrada', // Hardcoded to 'Entrada'
       amount: 0,
       date: new Date(),
+      categoryId: 'venda-passagem'
     },
   });
 
   const selectedClientId = form.watch('clientId');
-  const incomeCategories = categories.filter(c => c.type === 'Entrada');
 
 
   React.useEffect(() => {
@@ -93,10 +100,12 @@ export function NewFinancialEntryForm({ categories, vehicles, clients }: { categ
       const entriesCollection = collection(firestore, 'companies', COMPANY_ID, 'financialEntries');
       
       const client = data.clientId ? clients.find(c => c.id === data.clientId) : null;
+      const category = incomeCategories.find(c => c.id === data.categoryId);
 
       await addDoc(entriesCollection, {
         ...data,
         clientName: client ? client.nome : undefined,
+        categoryId: category ? category.name : data.categoryId, // Store the name
         date: Timestamp.fromDate(data.date),
         amount: Math.abs(data.amount), // Ensure amount is positive
         createdAt: serverTimestamp(),

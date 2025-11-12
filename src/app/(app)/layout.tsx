@@ -17,7 +17,6 @@ import {
   CircleDollarSign,
   Landmark,
   Bus,
-  Bookmark,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,7 +51,6 @@ const navItems = [
   { href: '/veiculos', icon: Bus, label: 'Veículos' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
   { href: '/origens', icon: MapPin, label: 'Origens' },
-  { href: '/categorias', icon: Bookmark, label: 'Categorias' },
   { href: '/avisame', icon: Megaphone, label: 'Avisa-me' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
