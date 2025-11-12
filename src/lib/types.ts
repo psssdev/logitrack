@@ -84,7 +84,16 @@ export type UserProfile = {
     role: string;
 }
 
-export type Vehicle = z.infer<typeof vehicleSchema>;
+// Vehicle type with seat layout
+export type SeatLayout = {
+    lowerDeck?: (string | null)[][];
+    upperDeck?: (string | null)[][];
+};
+
+export type Vehicle = Omit<z.infer<typeof vehicleSchema>, 'seatLayout'> & {
+    id: string;
+    seatLayout?: SeatLayout;
+};
 
 export type FinancialCategory = z.infer<typeof financialCategorySchema>;
 

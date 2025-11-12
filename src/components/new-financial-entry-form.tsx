@@ -17,8 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { financialEntrySchema } from '@/lib/schemas';
-import { useFirestore } from '@/firebase';
-import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { addDoc, collection, serverTimestamp, Timestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check } from 'lucide-react';
 import {
   Select,
@@ -43,6 +43,8 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import Link from 'next/link';
+import { BusSeatLayout } from './bus-seat-layout';
+import { Separator } from './ui/separator';
 
 type NewFinancialEntryFormValues = z.infer<typeof financialEntrySchema>;
 
@@ -59,8 +61,9 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const [clientPopoverOpen, setClientPopoverOpen] = React.useState(false);
-
+  const [selectedSeats, setSelectedSeats] = React.useState<string[]>([]);
 
   const form = useForm<NewFinancialEntryFormValues>({
     resolver: zodResolver(financialEntrySchema.omit({ id: true })),
@@ -69,12 +72,17 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
       type: 'Entrada', // Hardcoded to 'Entrada'
       amount: 0,
       date: new Date(),
-      categoryId: 'venda-passagem'
+      categoryId: 'venda-passagem',
+      selectedSeats: []
     },
   });
 
   const selectedClientId = form.watch('clientId');
   const selectedCategoryId = form.watch('categoryId');
+  const selectedVehicleId = form.watch('vehicleId');
+
+  const buses = React.useMemo(() => vehicles.filter(v => v.tipo === 'Ônibus'), [vehicles]);
+  const selectedVehicle = React.useMemo(() => vehicles.find(v => v.id === selectedVehicleId), [vehicles, selectedVehicleId]);
 
 
   React.useEffect(() => {
@@ -85,6 +93,10 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
         }
     }
   }, [selectedClientId, selectedCategoryId, clients, form]);
+
+  React.useEffect(() => {
+    form.setValue('selectedSeats', selectedSeats);
+  }, [selectedSeats, form]);
 
 
   async function onSubmit(data: Omit<NewFinancialEntryFormValues, 'id'>) {
@@ -115,8 +127,18 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
         amount: Math.abs(data.amount), // Ensure amount is positive
         createdAt: serverTimestamp(),
       });
+      
+      // Update occupied seats on vehicle
+      if (data.vehicleId && data.selectedSeats && data.selectedSeats.length > 0) {
+        const vehicleRef = doc(firestore, 'companies', COMPANY_ID, 'vehicles', data.vehicleId);
+        await updateDoc(vehicleRef, {
+            occupiedSeats: arrayUnion(...data.selectedSeats)
+        });
+      }
+
 
       await triggerRevalidation('/financeiro');
+      await triggerRevalidation('/veiculos');
 
       toast({
         title: 'Sucesso!',
@@ -227,7 +249,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
               <FormItem>
                 <FormLabel>Descrição *</FormLabel>
                 <FormControl>
-                  <Input placeholder="Ex: Venda de passagem..." {...field} disabled={selectedCategoryId !== 'outras-receitas'}/>
+                  <Input placeholder="Ex: Venda de passagem..." {...field} disabled={selectedCategoryId === 'venda-passagem'}/>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -319,32 +341,45 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
         )}
 
 
-         <FormField
-            control={form.control}
-            name="vehicleId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Veículo (Opcional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Associar a um veículo..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                     <SelectItem value="none">Nenhum</SelectItem>
-                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.modelo} ({v.placa})</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <Separator />
+        
+        {selectedCategoryId === 'venda-passagem' && (
+            <div className='space-y-4'>
+                <FormField
+                    control={form.control}
+                    name="vehicleId"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Ônibus *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Selecione um ônibus para ver os assentos" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {buses.map(v => <SelectItem key={v.id} value={v.id}>{v.modelo} ({v.placa})</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                
+                {selectedVehicle && (
+                    <BusSeatLayout 
+                        vehicle={selectedVehicle}
+                        selectedSeats={selectedSeats}
+                        onSeatSelect={setSelectedSeats}
+                    />
+                )}
+            </div>
+        )}
 
          <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
             <FormItem>
               <FormLabel>Notas</FormLabel>
               <FormControl>

@@ -3,7 +3,7 @@
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Represents a user's profile information.",
+      "description": "Represents a user's profile information, linking them to a company and role.",
       "type": "object",
       "properties": {
         "displayName": {
@@ -15,12 +15,19 @@
           "format": "email",
           "description": "The user's email address."
         },
-        "companyId": { "type": "string" },
-        "role": { "type": "string" }
+        "companyId": {
+          "type": "string",
+          "description": "The ID of the company this user belongs to."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role within the company (e.g., 'admin', 'member').",
+          "enum": ["admin", "member"]
+        }
       },
       "required": ["displayName", "email", "companyId", "role"]
     },
-     "Company": {
+    "Company": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Company",
       "type": "object",
@@ -64,6 +71,10 @@
           "type": "string",
           "description": "Template for 'we have arrived in the city' message."
         },
+        "msgCobranca": {
+          "type": "string",
+          "description": "Template for 'pending payment reminder' message."
+        },
         "codigoPrefixo": {
           "type": "string",
           "description": "Prefix for the tracking code (e.g., 'TR-')."
@@ -84,7 +95,7 @@
       ]
     },
     "Order": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "http://json-schema.org/draft_07/schema#",
       "title": "Order",
       "type": "object",
       "description": "Represents an order in the transport system.",
@@ -111,7 +122,7 @@
         },
         "valorEntrega": {
           "type": "number",
-          "description": "Total delivery value, calculated from items."
+          "description": "Total delivery value, can be updated with partial payments."
         },
         "items": {
             "type": "array",
@@ -133,7 +144,30 @@
         },
         "pago": {
           "type": "boolean",
-          "description": "Indicates if the order is paid."
+          "description": "Indicates if the order is fully paid."
+        },
+        "dataPagamento": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of when the order was fully paid."
+        },
+        "notasPagamento": {
+            "type": "string",
+            "description": "Optional notes about the payment."
+        },
+         "payments": {
+          "type": "array",
+          "description": "A list of all partial or full payments made for the order.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "amount": { "type": "number" },
+              "method": { "type": "string" },
+              "date": { "type": "string", "format": "date-time" },
+              "notes": { "type": "string" }
+            },
+            "required": ["amount", "method", "date"]
+          }
         },
         "status": {
           "type": "string",
@@ -165,13 +199,6 @@
             }
           }
         },
-        "messages": {
-          "type": "array",
-          "description": "Array of messages sent related to the order.",
-          "items": {
-            "type": "string"
-          }
-        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp of when the order was created.",
@@ -194,7 +221,6 @@
         "pago",
         "status",
         "timeline",
-        "messages",
         "createdAt",
         "createdBy"
       ]
@@ -297,6 +323,77 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Represents a company vehicle, such as a bus, van, or car.",
+      "type": "object",
+      "properties": {
+        "placa": { "type": "string", "description": "License plate of the vehicle." },
+        "modelo": { "type": "string", "description": "Model of the vehicle (e.g., 'Marcopolo G8')." },
+        "ano": { "type": "number", "description": "Manufacturing year of the vehicle." },
+        "tipo": { "type": "string", "description": "Type of vehicle.", "enum": ["Ônibus", "Van", "Carro", "Caminhão"] },
+        "status": { "type": "string", "description": "Current operational status.", "enum": ["Ativo", "Inativo", "Em Manutenção"] },
+        "seatLayout": {
+          "type": "object",
+          "description": "Defines the seat configuration for buses.",
+          "properties": {
+            "lowerDeck": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            },
+            "upperDeck": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        },
+        "occupiedSeats": {
+          "type": "array",
+          "description": "List of seat IDs that are currently occupied.",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["placa", "modelo", "ano", "tipo", "status"]
+    },
+    "FinancialCategory": {
+      "title": "Financial Category",
+      "description": "Represents a category for financial entries.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the category (e.g., 'Receita de Passagem', 'Combustível')." },
+        "type": { "type": "string", "description": "The type of the category.", "enum": ["Entrada", "Saída"] }
+      },
+      "required": ["name", "type"]
+    },
+    "FinancialEntry": {
+      "title": "Financial Entry",
+      "description": "Represents a single financial transaction (income or expense).",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string", "description": "A brief description of the transaction." },
+        "amount": { "type": "number", "description": "Value of the transaction. Positive for income, negative for expenses." },
+        "type": { "type": "string", "description": "Type of transaction.", "enum": ["Entrada", "Saída"] },
+        "date": { "type": "string", "format": "date-time", "description": "Date of the transaction." },
+        "categoryId": { "type": "string", "description": "Reference to the FinancialCategory." },
+        "vehicleId": { "type": "string", "description": "Optional reference to a Vehicle." },
+        "clientId": { "type": "string", "description": "Optional reference to a Client for income entries." },
+        "clientName": { "type": "string", "description": "Denormalized client name for display." },
+        "notes": { "type": "string", "description": "Additional notes." }
+      },
+      "required": ["description", "amount", "type", "date", "categoryId"]
     }
   },
   "auth": {
@@ -346,6 +443,18 @@
         "$ref": "#/entities/Driver"
       },
       "description": "Stores driver information for a specific company."
+    },
+    "/companies/{companyId}/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Stores company vehicles."
+    },
+    "/companies/{companyId}/financialCategories/{categoryId}": {
+      "schema": { "$ref": "#/entities/FinancialCategory" },
+      "description": "Stores categories for financial entries."
+    },
+    "/companies/{companyId}/financialEntries/{entryId}": {
+      "schema": { "$ref": "#/entities/FinancialEntry" },
+      "description": "Stores all financial transactions for a company."
     }
   }
 }
