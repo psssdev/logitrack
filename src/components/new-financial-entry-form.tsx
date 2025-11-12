@@ -117,15 +117,22 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
       if (data.categoryId === 'outras-receitas' && data.otherCategoryDescription) {
         finalDescription = data.otherCategoryDescription;
       }
-
-      await addDoc(entriesCollection, {
-        ...data,
+      
+      const { notes, ...restOfData } = data;
+      const entryData: any = {
+        ...restOfData,
         description: finalDescription,
         clientName: client ? client.nome : undefined,
         date: Timestamp.fromDate(data.date),
         amount: Math.abs(data.amount), // Ensure amount is positive
         createdAt: serverTimestamp(),
-      });
+      };
+      if (notes) {
+          entryData.notes = notes;
+      }
+
+
+      await addDoc(entriesCollection, entryData);
       
       // Update occupied seats on vehicle
       if (data.vehicleId && data.selectedSeats && data.selectedSeats.length > 0) {
