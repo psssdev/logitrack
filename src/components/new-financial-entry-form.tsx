@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin, Location as Destination } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -68,7 +68,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 };
 
 
-export function NewFinancialEntryForm({ vehicles, clients, origins }: { vehicles: Vehicle[], clients: Client[], origins: Origin[] }) {
+export function NewFinancialEntryForm({ vehicles, clients, origins, destinations }: { vehicles: Vehicle[], clients: Client[], origins: Origin[], destinations: Destination[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -87,7 +87,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins }: { vehicles
       travelDate: new Date(),
       formaPagamento: 'pix',
       origin: origins?.[0]?.address || '',
-      destination: origins?.[0]?.address || '',
+      destination: destinations?.[0]?.address || '',
     },
   });
 
@@ -297,7 +297,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins }: { vehicles
                                     <SelectTrigger><SelectValue placeholder="Selecione o destino" /></SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                    {origins.map(o => <SelectItem key={o.id} value={o.address}>{o.name}</SelectItem>)}
+                                    {destinations.map(d => <SelectItem key={d.id} value={d.address}>{d.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />

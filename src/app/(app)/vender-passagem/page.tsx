@@ -5,7 +5,7 @@ import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NewFinancialEntryForm } from '@/components/new-financial-entry-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Vehicle, Client, Origin } from '@/lib/types';
+import type { Vehicle, Client, Origin, Location as Destination } from '@/lib/types';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -38,12 +38,21 @@ export default function VenderPassagemPage() {
         orderBy('name', 'asc')
     );
   }, [firestore, isUserLoading, user]);
+  
+  const destinationsQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return query(
+        collection(firestore, 'companies', COMPANY_ID, 'destinos'),
+        orderBy('name', 'asc')
+    );
+  }, [firestore, isUserLoading, user]);
 
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
+  const { data: destinations, isLoading: isLoadingDestinations } = useCollection<Destination>(destinationsQuery);
   
-  const isLoading = isLoadingVehicles || isLoadingClients || isLoadingOrigins || isUserLoading;
+  const isLoading = isLoadingVehicles || isLoadingClients || isLoadingOrigins || isLoadingDestinations || isUserLoading;
 
 
   return (
@@ -55,8 +64,8 @@ export default function VenderPassagemPage() {
       </div>
       
       {isLoading && <Skeleton className="h-[500px] w-full" />}
-      {vehicles && clients && origins && !isLoading && (
-        <NewFinancialEntryForm vehicles={vehicles} clients={clients} origins={origins} />
+      {vehicles && clients && origins && destinations && !isLoading && (
+        <NewFinancialEntryForm vehicles={vehicles} clients={clients} origins={origins} destinations={destinations} />
       )}
       
     </div>
