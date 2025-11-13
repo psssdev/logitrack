@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newFinancialEntrySchema } from '@/lib/schemas';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { addDoc, collection, serverTimestamp, Timestamp, doc, updateDoc, arrayUnion, query, where } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check, Ticket, Wallet } from 'lucide-react';
 import {
@@ -99,7 +99,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   const buses = React.useMemo(() => vehicles.filter(v => v.tipo === 'Ônibus'), [vehicles]);
   const selectedVehicle = React.useMemo(() => vehicles.find(v => v.id === selectedVehicleId), [vehicles, selectedVehicleId]);
   
-  const relevantSalesQuery = React.useMemo(() => {
+  const relevantSalesQuery = useMemoFirebase(() => {
     if (!firestore || !selectedVehicleId || !travelDate) return null;
     const startOfTravelDay = startOfDay(travelDate);
     return query(
