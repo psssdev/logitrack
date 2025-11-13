@@ -175,6 +175,11 @@ export const vehicleSchema = z.object({
   occupiedSeats: z.array(z.string()).optional(),
 });
 
+export const financialCategorySchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'O nome da categoria é obrigatório.'),
+  type: z.enum(['Entrada', 'Saída']),
+});
 
 export const baseFinancialEntrySchema = z.object({
   description: z.string().optional(),
@@ -191,8 +196,6 @@ export const baseFinancialEntrySchema = z.object({
   travelDate: z.date().optional(),
   formaPagamento: paymentMethodSchema.optional(),
 });
-
-export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });
 
 export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
     if (data.categoryId === 'venda-passagem') {
@@ -211,3 +214,7 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
     message: "O ônibus é obrigatório para vender uma passagem.",
     path: ["vehicleId"],
 });
+
+export const editFinancialEntrySchema = baseFinancialEntrySchema;
+
+export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });

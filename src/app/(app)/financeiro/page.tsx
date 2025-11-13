@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { PlusCircle, MoreHorizontal, ArrowUpCircle, ArrowDownCircle, Landmark } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ArrowUpCircle, ArrowDownCircle, Landmark, Edit, Trash } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -28,8 +28,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { FinancialEntry } from '@/lib/types';
-import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, Timestamp, doc, deleteDoc } from 'firebase/firestore';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { triggerRevalidation } from '@/lib/actions';
 
 const COMPANY_ID = '1';
 
@@ -48,6 +51,11 @@ const formatDate = (date: Date | Timestamp) => {
 export default function FinanceiroPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
+
+  const [deletingEntry, setDeletingEntry] = React.useState<FinancialEntry | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = React.useState(false);
+
 
   const entriesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
@@ -72,8 +80,29 @@ export default function FinanceiroPage() {
         return acc;
     }, { entradas: 0, saidas: 0, saldo: 0 });
   }, [entries]);
+  
+  const handleDelete = (entry: FinancialEntry) => {
+    setDeletingEntry(entry);
+    setIsDeleteAlertOpen(true);
+  }
+
+  const confirmDelete = async () => {
+    if (!firestore || !deletingEntry) return;
+    try {
+        await deleteDoc(doc(firestore, 'companies', COMPANY_ID, 'financialEntries', deletingEntry.id));
+        await triggerRevalidation('/financeiro');
+        toast({ title: 'Lançamento excluído com sucesso.' });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Erro ao excluir', description: error.message });
+    } finally {
+        setIsDeleteAlertOpen(false);
+        setDeletingEntry(null);
+    }
+  };
+
 
   return (
+    <>
     <div className="flex flex-col gap-6">
       <div className="flex items-center">
         <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
@@ -122,15 +151,30 @@ export default function FinanceiroPage() {
           {pageIsLoading ? (
             <Skeleton className="h-48 w-full" />
           ) : (
-            <EntryList entries={entries || []} />
+            <EntryList entries={entries || []} onDelete={handleDelete} />
           )}
         </CardContent>
       </Card>
     </div>
+     <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                <AlertDialogDescription>
+                   Esta ação não pode ser desfeita. Isso excluirá permanentemente o lançamento: <span className="font-bold">"{deletingEntry?.description}"</span> no valor de <span className="font-bold">{formatCurrency(deletingEntry?.amount || 0)}</span>.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
-function EntryList({ entries }: { entries: FinancialEntry[] }) {
+function EntryList({ entries, onDelete }: { entries: FinancialEntry[], onDelete: (entry: FinancialEntry) => void }) {
     if (entries.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/30 p-12 text-center">
@@ -168,7 +212,25 @@ function EntryList({ entries }: { entries: FinancialEntry[] }) {
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end">
-                    {/* Actions removed for now */}
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/financeiro/${entry.id}/editar`}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Editar
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onSelect={() => onDelete(entry)}>
+                                <Trash className="mr-2 h-4 w-4" />
+                                Excluir
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
@@ -178,3 +240,4 @@ function EntryList({ entries }: { entries: FinancialEntry[] }) {
       </div>
     );
   }
+
