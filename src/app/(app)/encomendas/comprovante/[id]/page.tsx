@@ -57,7 +57,7 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export default function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ReceiptPage({ params }: { params: { id: string } }) {
   const { id } = React.use(params);
   return <ReceiptContent orderId={id} />;
 }

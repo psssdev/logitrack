@@ -21,7 +21,7 @@ import { Timestamp } from 'firebase/firestore';
 export default function ClientDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
     const { id } = React.use(params);
     return <ClientDetailContent clientId={id} />

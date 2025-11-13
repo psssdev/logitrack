@@ -32,7 +32,7 @@ const iconConfig = {
     "Caminhão": Truck,
 }
 
-export default function VehicleDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function VehicleDetailPage({ params }: { params: { id: string } }) {
   const { id } = React.use(params);
   return <VehicleDetailContent vehicleId={id} />;
 }

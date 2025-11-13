@@ -22,7 +22,7 @@ import { collection, query, where, doc } from 'firebase/firestore';
 export default function MotoristaDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
     const { id } = React.use(params);
     return <MotoristaDetailContent driverId={id} />

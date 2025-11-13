@@ -21,7 +21,7 @@ import { useCollection } from '@/firebase';
 export default function EditOrderPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const { id } = React.use(params);
   return <EditOrderContent orderId={id} />;

@@ -49,7 +49,7 @@ async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | n
 export default function RastreioPage({
   params,
 }: {
-  params: Promise<{ codigo: string }>;
+  params: { codigo: string };
 }) {
   const { codigo } = use(params);
   const [order, setOrder] = useState<Order | null>(null);

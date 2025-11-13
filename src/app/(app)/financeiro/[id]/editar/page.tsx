@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function EditFinancialEntryPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const { id } = React.use(params);
   return <EditFinancialEntryContent entryId={id} />;
