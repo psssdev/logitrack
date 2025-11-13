@@ -164,8 +164,9 @@ export const newOriginSchema = originSchema.omit({
   createdAt: true,
 });
 
-export const locationSchema = originSchema; // Location is an alias for Origin
-export const newLocationSchema = newOriginSchema; // newLocation is an alias for newOrigin
+export const locationSchema = originSchema.extend({}); // Location uses the same base as Origin
+export const newLocationSchema = newOriginSchema.extend({});
+
 
 export const vehicleSchema = z.object({
   id: z.string(),
