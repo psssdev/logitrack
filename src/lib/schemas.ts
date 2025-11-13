@@ -164,8 +164,8 @@ export const newOriginSchema = originSchema.omit({
   createdAt: true,
 });
 
-export const locationSchema = originSchema.extend({}); // Location uses the same base as Origin
-export const newLocationSchema = newOriginSchema.extend({});
+export const destinoSchema = originSchema.extend({}); 
+export const newDestinoSchema = newOriginSchema.extend({});
 
 
 export const vehicleSchema = z.object({
@@ -224,3 +224,5 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
 export const editFinancialEntrySchema = baseFinancialEntrySchema;
 
 export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });
+
+    

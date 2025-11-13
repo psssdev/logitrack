@@ -16,8 +16,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
-import { newLocationSchema } from '@/lib/schemas';
-import type { NewLocation } from '@/lib/types';
+import { newDestinoSchema } from '@/lib/schemas';
+import type { NewDestino } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
 import {
   Select,
@@ -66,7 +66,7 @@ const brazilianStates = [
 
 const COMPANY_ID = '1';
 
-export function NewLocationForm() {
+export function NewDestinoForm() {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -74,8 +74,8 @@ export function NewLocationForm() {
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
 
-  const form = useForm<NewLocation>({
-    resolver: zodResolver(newLocationSchema),
+  const form = useForm<NewDestino>({
+    resolver: zodResolver(newDestinoSchema),
     defaultValues: {
       name: '',
       logradouro: '',
@@ -168,7 +168,7 @@ export function NewLocationForm() {
     }
   };
 
-  async function onSubmit(data: NewLocation) {
+  async function onSubmit(data: NewDestino) {
     if (!firestore) {
         toast({
             variant: 'destructive',
@@ -179,31 +179,30 @@ export function NewLocationForm() {
     }
 
     try {
-        const locationsCollection = collection(firestore, 'companies', COMPANY_ID, 'locations');
+        const destinosCollection = collection(firestore, 'companies', COMPANY_ID, 'destinos');
         const { logradouro, numero, bairro, cidade, estado, cep, name } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 
-        await addDoc(locationsCollection, {
+        await addDoc(destinosCollection, {
             name,
             address: fullAddress,
             createdAt: serverTimestamp(),
         });
         
-        await triggerRevalidation('/localidades');
-        await triggerRevalidation('/encomendas/nova');
+        await triggerRevalidation('/destinos');
         await triggerRevalidation('/vender-passagem');
 
         toast({
             title: 'Sucesso!',
-            description: 'Nova localidade cadastrada.',
+            description: 'Novo destino cadastrado.',
         });
-        router.push('/localidades');
+        router.push('/destinos');
 
     } catch (error: any) {
-        console.error("Error creating location:", error);
+        console.error("Error creating destination:", error);
         toast({
             variant: 'destructive',
-            title: 'Erro ao cadastrar localidade.',
+            title: 'Erro ao cadastrar destino.',
             description: error.message || 'Ocorreu um erro desconhecido.',
         });
     }
@@ -217,10 +216,10 @@ export function NewLocationForm() {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nome da Localidade *</FormLabel>
+              <FormLabel>Nome do Destino *</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Ex: Matriz, Rodoviária de São Paulo"
+                  placeholder="Ex: Rodoviária de Campinas"
                   {...field}
                 />
               </FormControl>
@@ -348,7 +347,7 @@ export function NewLocationForm() {
             size="lg"
             disabled={form.formState.isSubmitting}
           >
-            {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Localidade'}
+            {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Destino'}
           </Button>
         </div>
       </form>

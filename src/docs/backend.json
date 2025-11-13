@@ -286,23 +286,44 @@
       },
       "required": ["nome", "telefone", "createdAt"]
     },
-    "Location": {
-      "title": "Location",
-      "description": "Represents a shipment origin or destination point.",
+    "Origin": {
+      "title": "Origin",
+      "description": "Represents a shipment origin point.",
       "type": "object",
       "properties": {
         "name": {
           "type": "string",
-          "description": "A friendly name for the location, e.g., 'Warehouse A'."
+          "description": "A friendly name for the origin, e.g., 'Warehouse A'."
         },
         "address": {
           "type": "string",
-          "description": "The full, concatenated address of the location."
+          "description": "The full, concatenated address of the origin."
         },
         "createdAt": {
           "type": "string",
           "format": "date-time",
-          "description": "Timestamp of when the location was created."
+          "description": "Timestamp of when the origin was created."
+        }
+      },
+      "required": ["name", "address", "createdAt"]
+    },
+    "Destino": {
+      "title": "Destino",
+      "description": "Represents a shipment destination point.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A friendly name for the destination, e.g., 'Shopping Center'."
+        },
+        "address": {
+          "type": "string",
+          "description": "The full, concatenated address of the destination."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the destination was created."
         }
       },
       "required": ["name", "address", "createdAt"]
@@ -429,11 +450,17 @@
       },
       "description": "Stores customer information for a specific company."
     },
-    "/companies/{companyId}/locations/{locationId}": {
+    "/companies/{companyId}/origins/{originId}": {
         "schema": {
-            "$ref": "#/entities/Location"
+            "$ref": "#/entities/Origin"
         },
-        "description": "Stores shipment origin or destination points for a specific company."
+        "description": "Stores shipment origin points for a specific company."
+    },
+    "/companies/{companyId}/destinos/{destinoId}": {
+        "schema": {
+            "$ref": "#/entities/Destino"
+        },
+        "description": "Stores shipment destination points for a specific company."
     },
     "/companies/{companyId}/clients/{clientId}/addresses/{addressId}": {
       "schema": {
@@ -467,3 +494,5 @@
     }
   }
 }
+
+    

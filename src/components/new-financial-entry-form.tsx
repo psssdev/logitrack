@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin, Location as Destination } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin, Destino as Destination } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -513,3 +513,5 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
     </Form>
   );
 }
+
+    

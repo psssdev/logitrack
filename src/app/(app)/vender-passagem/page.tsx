@@ -5,7 +5,7 @@ import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NewFinancialEntryForm } from '@/components/new-financial-entry-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Vehicle, Client, Origin, Location as Destination } from '@/lib/types';
+import type { Vehicle, Client, Origin, Destino as Destination } from '@/lib/types';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -71,3 +71,5 @@ export default function VenderPassagemPage() {
     </div>
   );
 }
+
+    

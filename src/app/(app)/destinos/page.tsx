@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { PlusCircle, MoreHorizontal } from 'lucide-react';
-import type { Location } from '@/lib/types';
+import type { Destino } from '@/lib/types';
 import Link from 'next/link';
 import {
   Table,
@@ -28,30 +28,30 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebas
 import { collection, orderBy, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function LocalidadesPage() {
+export default function DestinosPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  const locationsQuery = useMemoFirebase(() => {
+  const destinosQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
     return query(
-      collection(firestore, 'companies', '1', 'locations'),
+      collection(firestore, 'companies', '1', 'destinos'),
       orderBy('name', 'asc')
     );
   }, [firestore, isUserLoading, user]);
 
-  const { data: locations, isLoading } = useCollection<Location>(locationsQuery);
+  const { data: destinos, isLoading } = useCollection<Destino>(destinosQuery);
   const pageIsLoading = isLoading || isUserLoading;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center">
-        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Localidades</h1>
+        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Destinos</h1>
         <Button size="sm" className="h-8 gap-1" asChild>
-          <Link href="/localidades/novo">
+          <Link href="/destinos/novo">
             <PlusCircle className="h-3.5 w-3.5" />
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Nova Localidade
+              Novo Destino
             </span>
           </Link>
         </Button>
@@ -59,27 +59,27 @@ export default function LocalidadesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Pontos de Partida e Destino</CardTitle>
+          <CardTitle>Pontos de Destino</CardTitle>
           <CardDescription>
-            Gerencie as localidades que podem ser usadas como origem e destino.
+            Gerencie as localidades que podem ser usadas como destino.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {pageIsLoading && <Skeleton className="h-48 w-full" />}
-          {locations && !pageIsLoading && <LocationList locations={locations} />}
+          {destinos && !pageIsLoading && <DestinoList destinos={destinos} />}
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function LocationList({ locations }: { locations: Location[] }) {
-  if (locations.length === 0) {
+function DestinoList({ destinos }: { destinos: Destino[] }) {
+  if (destinos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/30 p-12 text-center">
-        <p className="text-muted-foreground">Nenhuma localidade cadastrada.</p>
+        <p className="text-muted-foreground">Nenhum destino cadastrado.</p>
         <p className="text-sm text-muted-foreground/80">
-          Adicione uma localidade para começar.
+          Adicione um destino para começar.
         </p>
       </div>
     );
@@ -98,10 +98,10 @@ function LocationList({ locations }: { locations: Location[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {locations.map((location) => (
-            <TableRow key={location.id}>
-              <TableCell className="font-medium">{location.name}</TableCell>
-              <TableCell>{location.address}</TableCell>
+          {destinos.map((destino) => (
+            <TableRow key={destino.id}>
+              <TableCell className="font-medium">{destino.name}</TableCell>
+              <TableCell>{destino.address}</TableCell>
               <TableCell>
                 <div className="flex justify-end">
                   {/* Actions removed for now */}
@@ -114,3 +114,5 @@ function LocationList({ locations }: { locations: Location[] }) {
     </div>
   );
 }
+
+    
