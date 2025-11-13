@@ -393,6 +393,9 @@
         "clientId": { "type": "string", "description": "Optional reference to a Client for income entries." },
         "clientName": { "type": "string", "description": "Denormalized client name for display." },
         "notes": { "type": "string", "description": "Additional notes." },
+        "origin": { "type": "string", "description": "Origin of the trip, if applicable." },
+        "destination": { "type": "string", "description": "Destination of the trip, if applicable." },
+        "selectedSeats": { "type": "array", "items": { "type": "string" }, "description": "Seats selected for a ticket sale." },
         "formaPagamento": {
             "type": "string",
             "description": "Payment method used for the transaction.",

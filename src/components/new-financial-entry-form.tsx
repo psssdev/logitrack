@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry, PaymentMethod } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -68,7 +68,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 };
 
 
-export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle[], clients: Client[] }) {
+export function NewFinancialEntryForm({ vehicles, clients, origins }: { vehicles: Vehicle[], clients: Client[], origins: Origin[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -86,6 +86,8 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
       selectedSeats: [],
       travelDate: new Date(),
       formaPagamento: 'pix',
+      origin: origins?.[0]?.address || '',
+      destination: origins?.[0]?.address || '',
     },
   });
 
@@ -170,7 +172,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
           entryData.notes = notes;
       }
 
-      await addDoc(entriesCollection, entryData);
+      const newDocRef = await addDoc(entriesCollection, entryData);
       
       if (data.vehicleId && data.selectedSeats && data.selectedSeats.length > 0) {
         const vehicleRef = doc(firestore, 'companies', COMPANY_ID, 'vehicles', data.vehicleId);
@@ -184,9 +186,9 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
 
       toast({
         title: 'Sucesso!',
-        description: 'Nova receita registrada.',
+        description: 'Venda de passagem registrada.',
       });
-      router.push('/financeiro');
+      router.push(`/financeiro/comprovante/${newDocRef.id}`);
     } catch (error: any) {
       console.error('Error creating financial entry:', error);
       toast({
@@ -265,6 +267,43 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
                         )}
                     />
                     {selectedCategoryId === 'venda-passagem' && (
+                        <>
+                        <FormField
+                            control={form.control}
+                            name="origin"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Origem *</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {origins.map(o => <SelectItem key={o.id} value={o.address}>{o.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="destination"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Destino *</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger><SelectValue placeholder="Selecione o destino" /></SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {origins.map(o => <SelectItem key={o.id} value={o.address}>{o.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
                          <FormField
                             control={form.control}
                             name="vehicleId"
@@ -283,6 +322,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
                             </FormItem>
                             )}
                         />
+                        </>
                     )}
                 </CardContent>
             </Card>
