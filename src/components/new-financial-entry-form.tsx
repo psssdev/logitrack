@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -58,6 +58,16 @@ const incomeCategories = [
     { id: 'outras-receitas', name: 'Outras Receitas' },
 ];
 
+const paymentMethodLabels: Record<PaymentMethod, string> = {
+  pix: 'PIX',
+  dinheiro: 'Dinheiro',
+  cartao: 'Cartão',
+  boleto: 'Boleto',
+  link: 'Link',
+  haver: 'A Haver',
+};
+
+
 export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle[], clients: Client[] }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -75,6 +85,7 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
       categoryId: 'venda-passagem',
       selectedSeats: [],
       travelDate: new Date(),
+      formaPagamento: 'pix',
     },
   });
 
@@ -301,6 +312,37 @@ export function NewFinancialEntryForm({ vehicles, clients }: { vehicles: Vehicle
                             )}
                         />
                      )}
+                     
+                    <FormField
+                        control={form.control}
+                        name="formaPagamento"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Forma de Pagamento *</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {Object.entries(paymentMethodLabels).map(
+                                  ([key, label]) => (
+                                    <SelectItem key={key} value={key}>
+                                      {label}
+                                    </SelectItem>
+                                  )
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
 
                     {selectedCategoryId === 'venda-passagem' && (
                         <FormField

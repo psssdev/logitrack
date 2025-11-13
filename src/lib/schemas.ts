@@ -180,9 +180,7 @@ export const baseFinancialEntrySchema = z.object({
   description: z.string().optional(),
   amount: z.coerce.number().positive('O valor deve ser maior que zero.'),
   type: z.enum(["Entrada", "Saída"]),
-  date: z.date({
-    required_error: "A data é obrigatória.",
-  }).optional(),
+  date: z.date().optional(),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
   otherCategoryDescription: z.string().optional(),
   vehicleId: z.string().optional(),
@@ -191,6 +189,7 @@ export const baseFinancialEntrySchema = z.object({
   notes: z.string().optional(),
   selectedSeats: z.array(z.string()).optional(),
   travelDate: z.date().optional(),
+  formaPagamento: paymentMethodSchema.optional(),
 });
 
 export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });

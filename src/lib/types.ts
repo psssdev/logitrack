@@ -95,11 +95,14 @@ export type Vehicle = Omit<z.infer<typeof vehicleSchema>, 'seatLayout'> & {
     seatLayout?: SeatLayout;
 };
 
-export type FinancialCategory = z.infer<typeof baseFinancialEntrySchema>;
+export type FinancialCategory = {
+    id: string;
+    name: string;
+    type: 'Entrada' | 'Saída';
+}
 
 export type FinancialEntry = Omit<z.infer<typeof baseFinancialEntrySchema>, 'date' | 'travelDate'> & {
+    id: string;
     date: Date | Timestamp;
     travelDate?: Date | Timestamp;
 };
-
-    

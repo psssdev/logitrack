@@ -336,11 +336,11 @@
         "status": { "type": "string", "description": "Current operational status.", "enum": ["Ativo", "Inativo", "Em Manutenção"] },
         "seatLayout": {
           "type": "object",
-          "description": "Defines the seat configuration for buses.",
+          "description": "Defines the seat configuration for buses, using objects for rows.",
           "properties": {
             "lowerDeck": {
-              "type": "array",
-              "items": {
+              "type": "object",
+              "additionalProperties": {
                 "type": "array",
                 "items": {
                   "type": "string",
@@ -349,8 +349,8 @@
               }
             },
             "upperDeck": {
-              "type": "array",
-              "items": {
+              "type": "object",
+              "additionalProperties": {
                 "type": "array",
                 "items": {
                   "type": "string",
@@ -387,11 +387,17 @@
         "amount": { "type": "number", "description": "Value of the transaction. Positive for income, negative for expenses." },
         "type": { "type": "string", "description": "Type of transaction.", "enum": ["Entrada", "Saída"] },
         "date": { "type": "string", "format": "date-time", "description": "Date of the transaction." },
+        "travelDate": { "type": "string", "format": "date-time", "description": "Date of the trip, if applicable." },
         "categoryId": { "type": "string", "description": "Reference to the FinancialCategory." },
         "vehicleId": { "type": "string", "description": "Optional reference to a Vehicle." },
         "clientId": { "type": "string", "description": "Optional reference to a Client for income entries." },
         "clientName": { "type": "string", "description": "Denormalized client name for display." },
-        "notes": { "type": "string", "description": "Additional notes." }
+        "notes": { "type": "string", "description": "Additional notes." },
+        "formaPagamento": {
+            "type": "string",
+            "description": "Payment method used for the transaction.",
+            "enum": ["pix", "dinheiro", "cartao", "boleto", "link", "haver"]
+        }
       },
       "required": ["description", "amount", "type", "date", "categoryId"]
     }
