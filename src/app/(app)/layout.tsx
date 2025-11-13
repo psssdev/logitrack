@@ -52,6 +52,7 @@ const navItems = [
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/veiculos', icon: Bus, label: 'Veículos' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
+  { href: '/origens', icon: MapPin, label: 'Origens' },
   { href: '/localidades', icon: MapPin, label: 'Localidades' },
   { href: '/avisame', icon: Megaphone, label: 'Avisa-me' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
