@@ -17,6 +17,7 @@ import {
   CircleDollarSign,
   Landmark,
   Bus,
+  Ticket,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +45,7 @@ import { CompanyBranding } from '@/components/company-branding';
 const navItems = [
   { href: '/inicio', icon: Home, label: 'Início' },
   { href: '/encomendas', icon: Package, label: 'Encomendas' },
+  { href: '/vender-passagem', icon: Ticket, label: 'Vender Passagem' },
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/cobrancas', icon: CircleDollarSign, label: 'Cobranças' },
   { href: '/financeiro', icon: Landmark, label: 'Financeiro' },

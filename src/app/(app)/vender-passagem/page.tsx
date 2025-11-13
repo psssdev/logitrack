@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const COMPANY_ID = '1';
 
-export default function NewFinancialEntryPage() {
+export default function VenderPassagemPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
@@ -40,14 +40,8 @@ export default function NewFinancialEntryPage() {
   return (
     <div className="mx-auto grid w-full max-w-6xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href="/financeiro">
-            <ChevronLeft className="h-4 w-4" />
-            <span className="sr-only">Voltar</span>
-          </Link>
-        </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-          Caixa - Nova Receita
+          PDV - Venda de Passagem
         </h1>
       </div>
       

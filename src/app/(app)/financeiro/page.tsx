@@ -79,14 +79,6 @@ export default function FinanceiroPage() {
         <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
           Controle Financeiro
         </h1>
-        <Button size="sm" className="h-8 gap-1" asChild>
-          <Link href="/financeiro/novo">
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Nova Receita
-            </span>
-          </Link>
-        </Button>
       </div>
 
        <div className="grid gap-4 md:grid-cols-3">
