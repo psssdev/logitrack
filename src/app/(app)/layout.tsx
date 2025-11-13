@@ -53,7 +53,7 @@ const navItems = [
   { href: '/veiculos', icon: Bus, label: 'Veículos' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
   { href: '/origens', icon: MapPin, label: 'Origens' },
-  { href: '/localidades', icon: MapPin, label: 'Localidades' },
+  { href: '/localidades', icon: MapPin, label: 'Destinos' },
   { href: '/avisame', icon: Megaphone, label: 'Avisa-me' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
