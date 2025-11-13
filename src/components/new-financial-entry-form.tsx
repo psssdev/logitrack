@@ -17,8 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newFinancialEntrySchema } from '@/lib/schemas';
-import { useFirestore } from '@/firebase';
-import { addDoc, collection, serverTimestamp, Timestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { useCollection, useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp, Timestamp, doc, updateDoc, arrayUnion, query, where } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check, Ticket, Wallet } from 'lucide-react';
 import {
   Select,
@@ -31,7 +31,7 @@ import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin, Destino } 
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Textarea } from './ui/textarea';
 import {
@@ -94,9 +94,28 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   const selectedClientId = form.watch('clientId');
   const selectedCategoryId = form.watch('categoryId');
   const selectedVehicleId = form.watch('vehicleId');
+  const travelDate = form.watch('travelDate');
 
   const buses = React.useMemo(() => vehicles.filter(v => v.tipo === 'Ônibus'), [vehicles]);
   const selectedVehicle = React.useMemo(() => vehicles.find(v => v.id === selectedVehicleId), [vehicles, selectedVehicleId]);
+  
+  const relevantSalesQuery = React.useMemo(() => {
+    if (!firestore || !selectedVehicleId || !travelDate) return null;
+    const startOfTravelDay = startOfDay(travelDate);
+    return query(
+        collection(firestore, 'companies', COMPANY_ID, 'financialEntries'),
+        where('vehicleId', '==', selectedVehicleId),
+        where('travelDate', '>=', Timestamp.fromDate(startOfTravelDay))
+    );
+  }, [firestore, selectedVehicleId, travelDate]);
+
+  const { data: relevantSales, isLoading: isLoadingSales } = useCollection<FinancialEntry>(relevantSalesQuery);
+  
+  const dynamicallyOccupiedSeats = React.useMemo(() => {
+    if (!relevantSales) return [];
+    return relevantSales.flatMap(sale => sale.selectedSeats || []);
+  }, [relevantSales]);
+
 
   // Auto-update description
   React.useEffect(() => {
@@ -174,12 +193,8 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
 
       const newDocRef = await addDoc(entriesCollection, entryData);
       
-      if (data.vehicleId && data.selectedSeats && data.selectedSeats.length > 0) {
-        const vehicleRef = doc(firestore, 'companies', COMPANY_ID, 'vehicles', data.vehicleId);
-        await updateDoc(vehicleRef, {
-            occupiedSeats: arrayUnion(...data.selectedSeats)
-        });
-      }
+      // We no longer need to write to vehicle.occupiedSeats
+      // The query on financialEntries will handle seat occupation dynamically
 
       await triggerRevalidation('/financeiro');
       await triggerRevalidation('/veiculos');
@@ -420,6 +435,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
               {selectedVehicle ? (
                 <BusSeatLayout 
                     vehicle={selectedVehicle}
+                    occupiedSeats={dynamicallyOccupiedSeats}
                     selectedSeats={selectedSeats}
                     onSeatSelect={setSelectedSeats}
                 />

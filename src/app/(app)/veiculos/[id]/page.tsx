@@ -12,12 +12,14 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Vehicle } from '@/lib/types';
-import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import type { Vehicle, FinancialEntry } from '@/lib/types';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { doc, query, collection, where, Timestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { BusSeatLayout } from '@/components/bus-seat-layout';
 import { Bus, Car, Truck } from 'lucide-react';
+import { DatePicker } from '@/components/ui/date-picker';
+import { startOfDay } from 'date-fns';
 
 const statusConfig = {
     "Ativo": "bg-green-500/80",
@@ -37,9 +39,13 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
   return <VehicleDetailContent vehicleId={id} />;
 }
 
+const COMPANY_ID = '1';
+
 function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date());
+
 
   const vehicleRef = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
@@ -48,9 +54,28 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useDoc<Vehicle>(vehicleRef);
 
-  const isLoading = isLoadingVehicle || isUserLoading;
+  const salesQuery = React.useMemo(() => {
+    if (!firestore || !vehicleId || !selectedDate) return null;
+    const startOfSelectedDay = startOfDay(selectedDate);
 
-  if (isLoading) {
+    return query(
+        collection(firestore, 'companies', COMPANY_ID, 'financialEntries'),
+        where('vehicleId', '==', vehicleId),
+        where('travelDate', '>=', Timestamp.fromDate(startOfSelectedDay))
+    );
+  }, [firestore, vehicleId, selectedDate]);
+
+  const { data: sales, isLoading: isLoadingSales } = useCollection<FinancialEntry>(salesQuery);
+
+  const occupiedSeatsForDate = React.useMemo(() => {
+    if (!sales) return [];
+    return sales.flatMap(sale => sale.selectedSeats || []);
+  }, [sales]);
+
+
+  const isLoading = isLoadingVehicle || isLoadingSales || isUserLoading;
+
+  if (isLoading && !vehicle) { // Show skeleton only on initial load
     return <VehicleDetailSkeleton />;
   }
 
@@ -122,11 +147,23 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
         </Card>
         
         {vehicle.tipo === 'Ônibus' && vehicle.seatLayout && (
+            <>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Visualização de Assentos</CardTitle>
+                    <CardDescription>Selecione uma data para ver os assentos ocupados.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <DatePicker date={selectedDate} setDate={setSelectedDate} />
+                </CardContent>
+             </Card>
             <BusSeatLayout 
                 vehicle={vehicle}
+                occupiedSeats={occupiedSeatsForDate}
                 selectedSeats={[]}
-                onSeatSelect={() => {}} // Read-only for now
+                onSeatSelect={() => {}} // Read-only mode
             />
+            </>
         )}
       </div>
     </div>

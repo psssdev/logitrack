@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 
 interface BusSeatLayoutProps {
   vehicle: Vehicle;
+  occupiedSeats: string[];
   selectedSeats: string[];
   onSeatSelect: (seats: string[]) => void;
 }
@@ -87,7 +88,8 @@ const Deck = ({
             {Object.values(layout).map((row, rowIndex) => (
                 <div key={rowIndex} className="flex justify-center gap-1 my-1">
                     {row.map((seatId, seatIndex) => {
-                        const status = seatId && occupiedSeats.includes(seatId) ? 'occupied' : 'available';
+                        const isOccupied = seatId ? occupiedSeats.includes(seatId) : false;
+                        const status = isOccupied ? 'occupied' : 'available';
                         return (
                             <Seat 
                                 key={`${rowIndex}-${seatIndex}`}
@@ -105,7 +107,7 @@ const Deck = ({
 );
 
 
-export function BusSeatLayout({ vehicle, selectedSeats, onSeatSelect }: BusSeatLayoutProps) {
+export function BusSeatLayout({ vehicle, occupiedSeats, selectedSeats, onSeatSelect }: BusSeatLayoutProps) {
   if (!vehicle.seatLayout) {
     return <p className="text-muted-foreground">Este veículo não possui um mapa de assentos configurado.</p>;
   }
@@ -119,8 +121,6 @@ export function BusSeatLayout({ vehicle, selectedSeats, onSeatSelect }: BusSeatL
     }
   };
   
-  const occupied = vehicle.occupiedSeats || [];
-
   return (
     <Card>
       <CardHeader>
@@ -131,7 +131,7 @@ export function BusSeatLayout({ vehicle, selectedSeats, onSeatSelect }: BusSeatL
             <Deck 
                 title="Piso Superior"
                 layout={vehicle.seatLayout.upperDeck}
-                occupiedSeats={occupied}
+                occupiedSeats={occupiedSeats}
                 selectedSeats={selectedSeats}
                 onSeatClick={handleSeatClick}
             />
@@ -140,7 +140,7 @@ export function BusSeatLayout({ vehicle, selectedSeats, onSeatSelect }: BusSeatL
             <Deck 
                 title="Piso Inferior"
                 layout={vehicle.seatLayout.lowerDeck}
-                occupiedSeats={occupied}
+                occupiedSeats={occupiedSeats}
                 selectedSeats={selectedSeats}
                 onSeatClick={handleSeatClick}
             />
