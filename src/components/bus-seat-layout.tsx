@@ -30,7 +30,6 @@ const Seat = ({
     }
 
     const isAvailable = status === 'available';
-    const canSelect = isAvailable && !isSelected;
     const isOccupied = status === 'occupied';
 
     const seatIcon = (
@@ -47,6 +46,7 @@ const Seat = ({
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button 
+                        type="button"
                         variant="ghost" 
                         size="icon" 
                         className="w-8 h-8"
@@ -155,5 +155,3 @@ export function BusSeatLayout({ vehicle, selectedSeats, onSeatSelect }: BusSeatL
     </Card>
   );
 }
-
-    
