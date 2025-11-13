@@ -200,6 +200,7 @@ export const baseFinancialEntrySchema = z.object({
   travelDate: z.date().optional(),
   formaPagamento: paymentMethodSchema.optional(),
   origin: z.string().optional(),
+  destination: z.string().optional(),
 });
 
 export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
@@ -223,5 +224,3 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
 export const editFinancialEntrySchema = baseFinancialEntrySchema;
 
 export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });
-
-    

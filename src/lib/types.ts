@@ -116,5 +116,3 @@ export type FinancialEntry = Omit<z.infer<typeof baseFinancialEntrySchema>, 'dat
     date: Date | Timestamp;
     travelDate?: Date | Timestamp;
 };
-
-    
