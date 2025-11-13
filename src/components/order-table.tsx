@@ -153,8 +153,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
                                 Enviar Comprovante de Dívida
                                 </DropdownMenuItem>
                             )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive">Cancelar Encomenda</DropdownMenuItem>
+                            
                         </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
