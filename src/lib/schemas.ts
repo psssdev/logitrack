@@ -145,7 +145,7 @@ export const newAddressFormSchema = addressSchema.omit({
   fullAddress: true,
 });
 
-export const locationSchema = z.object({
+export const originSchema = z.object({
   id: z.string(),
   name: z.string().min(1, 'O nome é obrigatório'),
   logradouro: z.string().min(1, 'O logradouro é obrigatório').optional(),
@@ -158,11 +158,14 @@ export const locationSchema = z.object({
   createdAt: z.any(), // Allow Date or Firestore Timestamp
 });
 
-export const newLocationSchema = locationSchema.omit({
+export const newOriginSchema = originSchema.omit({
   id: true,
   address: true, // `address` will be generated in the server action
   createdAt: true,
 });
+
+export const locationSchema = originSchema; // Location is an alias for Origin
+export const newLocationSchema = newOriginSchema; // newLocation is an alias for newOrigin
 
 export const vehicleSchema = z.object({
   id: z.string(),
