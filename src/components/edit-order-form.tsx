@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { editOrderSchema } from '@/lib/schemas';
-import type { Order, Origin, Address } from '@/lib/types';
+import type { Order, Location, Address, Driver } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -65,7 +65,7 @@ export function EditOrderForm({
   origins,
 }: {
   order: Order;
-  origins: Origin[];
+  origins: Location[];
 }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -113,7 +113,7 @@ export function EditOrderForm({
   const { data: addresses, isLoading: loadingAddresses } =
     useCollection<Address>(addressesQuery);
     
-    const { data: drivers, isLoading: loadingDrivers } = useCollection(
+    const { data: drivers, isLoading: loadingDrivers } = useCollection<Driver>(
         useMemoFirebase(() => {
             if(!firestore || !user || isUserLoading) return null;
             return collection(firestore, 'companies', COMPANY_ID, 'drivers');

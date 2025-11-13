@@ -286,23 +286,23 @@
       },
       "required": ["nome", "telefone", "createdAt"]
     },
-    "Origin": {
-      "title": "Origin",
-      "description": "Represents a shipment origin point.",
+    "Location": {
+      "title": "Location",
+      "description": "Represents a shipment origin or destination point.",
       "type": "object",
       "properties": {
         "name": {
           "type": "string",
-          "description": "A friendly name for the origin, e.g., 'Warehouse A'."
+          "description": "A friendly name for the location, e.g., 'Warehouse A'."
         },
         "address": {
           "type": "string",
-          "description": "The full, concatenated address of the origin."
+          "description": "The full, concatenated address of the location."
         },
         "createdAt": {
           "type": "string",
           "format": "date-time",
-          "description": "Timestamp of when the origin was created."
+          "description": "Timestamp of when the location was created."
         }
       },
       "required": ["name", "address", "createdAt"]
@@ -429,11 +429,11 @@
       },
       "description": "Stores customer information for a specific company."
     },
-    "/companies/{companyId}/origins/{originId}": {
+    "/companies/{companyId}/locations/{locationId}": {
         "schema": {
-            "$ref": "#/entities/Origin"
+            "$ref": "#/entities/Location"
         },
-        "description": "Stores shipment origin points for a specific company."
+        "description": "Stores shipment origin or destination points for a specific company."
     },
     "/companies/{companyId}/clients/{clientId}/addresses/{addressId}": {
       "schema": {

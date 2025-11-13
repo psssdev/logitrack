@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema, vehicleSchema, baseFinancialEntrySchema } from './schemas';
+import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, locationSchema, newLocationSchema, vehicleSchema, baseFinancialEntrySchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
 export type Payment = {
@@ -47,13 +47,13 @@ export type NewClientWithAddress = z.infer<typeof newClientSchema>;
 export type Address = z.infer<typeof addressSchema>;
 export type NewAddress = z.infer<typeof newAddressFormSchema>;
 
-// Base Origin type with potential Firestore Timestamp
-export type Origin = Omit<z.infer<typeof originSchema>, 'createdAt' | 'logradouro' | 'numero' | 'bairro' | 'cidade' | 'estado' | 'cep'> & {
+// Base Location type with potential Firestore Timestamp
+export type Location = Omit<z.infer<typeof locationSchema>, 'createdAt' | 'logradouro' | 'numero' | 'bairro' | 'cidade' | 'estado' | 'cep'> & {
     id: string;
     address: string;
     createdAt: Date | Timestamp;
 };
-export type NewOrigin = z.infer<typeof newOriginSchema>;
+export type NewLocation = z.infer<typeof newLocationSchema>;
 
 // Company type, derived from the JSON schema
 export type Company = {

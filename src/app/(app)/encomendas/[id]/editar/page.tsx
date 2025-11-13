@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { EditOrderForm } from '@/components/edit-order-form';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Order, Origin } from '@/lib/types';
+import type { Order, Location } from '@/lib/types';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection } from '@/firebase';
@@ -36,16 +36,16 @@ function EditOrderContent({ orderId }: { orderId: string }) {
     return doc(firestore, 'companies', '1', 'orders', orderId);
   }, [firestore, isUserLoading, orderId, user]);
   
-  const originsQuery = useMemoFirebase(() => {
+  const locationsQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
     return query(
-      collection(firestore, 'companies', '1', 'origins'),
+      collection(firestore, 'companies', '1', 'locations'),
       orderBy('name', 'asc')
     );
   }, [firestore, isUserLoading, user]);
 
   const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
-  const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
+  const { data: locations, isLoading: isLoadingOrigins } = useCollection<Location>(locationsQuery);
 
   const isLoading = isLoadingOrder || isLoadingOrigins || isUserLoading;
 
@@ -117,7 +117,7 @@ function EditOrderContent({ orderId }: { orderId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {origins && <EditOrderForm order={order} origins={origins} />}
+          {locations && <EditOrderForm order={order} origins={locations} />}
         </CardContent>
       </Card>
     </div>

@@ -145,7 +145,7 @@ export const newAddressFormSchema = addressSchema.omit({
   fullAddress: true,
 });
 
-export const originSchema = z.object({
+export const locationSchema = z.object({
   id: z.string(),
   name: z.string().min(1, 'O nome é obrigatório'),
   logradouro: z.string().min(1, 'O logradouro é obrigatório').optional(),
@@ -158,7 +158,7 @@ export const originSchema = z.object({
   createdAt: z.any(), // Allow Date or Firestore Timestamp
 });
 
-export const newOriginSchema = originSchema.omit({
+export const newLocationSchema = locationSchema.omit({
   id: true,
   address: true, // `address` will be generated in the server action
   createdAt: true,
