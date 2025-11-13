@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import type { FinancialEntry, Location, Vehicle } from '@/lib/types';
+import type { FinancialEntry, Vehicle } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -100,7 +100,6 @@ Obrigado por viajar conosco.
 Ônibus: *${vehicle.modelo} (${vehicle.placa})*
 Data da Viagem: *${formatDate(entry.travelDate)}*
 Origem: *${entry.origin}*
-Destino: *${entry.destination}*
 Assento(s): *${seats}*
 --------------------------------
 Valor Total: *${formatCurrency(entry.amount)}*
@@ -187,12 +186,6 @@ Agradecemos a sua preferência!
                 <MapPin className="h-4 w-4" /> Origem
               </dt>
               <dd>{entry.origin}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground flex items-center gap-2">
-                <MapPin className="h-4 w-4" /> Destino
-              </dt>
-              <dd>{entry.destination}</dd>
             </div>
             <div className="flex items-center justify-between">
               <dt className="text-muted-foreground">Data da Viagem</dt>

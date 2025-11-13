@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin, Destino as Destination } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -68,7 +68,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 };
 
 
-export function NewFinancialEntryForm({ vehicles, clients, origins, destinations }: { vehicles: Vehicle[], clients: Client[], origins: Origin[], destinations: Destination[] }) {
+export function NewFinancialEntryForm({ vehicles, clients, origins }: { vehicles: Vehicle[], clients: Client[], origins: Origin[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -87,7 +87,6 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
       travelDate: new Date(),
       formaPagamento: 'pix',
       origin: origins?.[0]?.address || '',
-      destination: destinations?.[0]?.address || '',
     },
   });
 
@@ -280,24 +279,6 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                                     </FormControl>
                                     <SelectContent>
                                     {origins.map(o => <SelectItem key={o.id} value={o.address}>{o.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="destination"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Destino *</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="Selecione o destino" /></SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                    {destinations.map(d => <SelectItem key={d.id} value={d.address}>{d.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
