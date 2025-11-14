@@ -80,8 +80,8 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
       cidade: '',
       estado: '',
       cep: '',
-      lat: 0,
-      lng: 0,
+      lat: undefined,
+      lng: undefined,
     },
   });
 
@@ -188,6 +188,7 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
 
         await triggerRevalidation(`/clientes/${data.clientId}`);
         await triggerRevalidation('/encomendas/nova');
+        await triggerRevalidation('/vender-passagem');
 
         toast({
             title: 'Sucesso!',
@@ -346,7 +347,7 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
                     <FormItem>
                         <FormLabel>Latitude</FormLabel>
                         <FormControl>
-                            <Input type="number" placeholder="-19.0187" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                            <Input type="number" placeholder="-19.0187" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} value={field.value ?? ''} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -359,7 +360,7 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
                     <FormItem>
                         <FormLabel>Longitude</FormLabel>
                         <FormControl>
-                            <Input type="number" placeholder="-40.5363" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                            <Input type="number" placeholder="-40.5363" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} value={field.value ?? ''} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>

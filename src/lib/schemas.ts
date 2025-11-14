@@ -100,17 +100,6 @@ export const clientSchema = z.object({
     defaultOriginId: z.string().optional(),
 });
 
-export const newAddressSchema = z.object({
-  label: z.string().min(1, 'O rótulo é obrigatório'),
-  logradouro: z.string().min(1, 'O logradouro é obrigatório'),
-  numero: z.string().min(1, 'O número é obrigatório'),
-  bairro: z.string().min(1, 'O bairro é obrigatório'),
-  cidade: z.string().min(1, 'A cidade é obrigatória'),
-  estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
-  cep: z.string().min(8, 'O CEP é obrigatório'),
-});
-
-
 export const newClientSchema = z.object({
     nome: z.string().min(1, "Nome é obrigatório"),
     telefone: z.string().min(10, "Telefone inválido"),
@@ -161,19 +150,18 @@ export const originSchema = z.object({
   cep: z.string().optional(),
   address: z.string(), // This will be the concatenated full address
   createdAt: z.any(), // Allow Date or Firestore Timestamp
+  lat: z.coerce.number(),
+  lng: z.coerce.number(),
 });
 
 export const newOriginSchema = originSchema.omit({
   id: true,
   address: true, // `address` will be generated in the server action
   createdAt: true,
-}).extend({
-    lat: z.coerce.number(),
-    lng: z.coerce.number(),
 });
 
 export const destinoSchema = originSchema.extend({}); 
-export const newDestinoSchema = newOriginSchema.extend({});
+export const newDestinoSchema = newOriginSchema.extend({}).omit({lat: true, lng: true});
 
 
 export const vehicleSchema = z.object({
