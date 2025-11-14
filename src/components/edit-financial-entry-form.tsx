@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -27,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry, PaymentMethod, FinancialCategory } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod, FinancialCategory, Driver } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -58,7 +59,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 };
 
 
-export function EditFinancialEntryForm({ entry, vehicles, clients, categories }: { entry: FinancialEntry, vehicles: Vehicle[], clients: Client[], categories: FinancialCategory[] }) {
+export function EditFinancialEntryForm({ entry, vehicles, clients, categories, drivers }: { entry: FinancialEntry, vehicles: Vehicle[], clients: Client[], categories: FinancialCategory[], drivers: Driver[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -85,6 +86,7 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories }:
       const entryRef = doc(firestore, 'companies', COMPANY_ID, 'financialEntries', entry.id);
       
       const client = data.clientId ? clients.find(c => c.id === data.clientId) : null;
+      const driver = data.driverId ? drivers.find(d => d.id === data.driverId) : null;
       
       let finalDescription = data.description;
       if (data.categoryId === 'outras-receitas' && data.otherCategoryDescription) {
@@ -96,6 +98,7 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories }:
         ...restOfData,
         description: finalDescription,
         clientName: client ? client.nome : undefined,
+        driverName: driver ? driver.nome : undefined,
         date: data.date ? Timestamp.fromDate(data.date) : serverTimestamp(),
         travelDate: data.travelDate ? Timestamp.fromDate(data.travelDate) : undefined,
         amount: Math.abs(data.amount),
@@ -240,6 +243,28 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories }:
             </FormItem>
         )}
         />
+        
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+                control={form.control}
+                name="driverId"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Motorista (Opcional)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                            <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Selecione um motorista" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="">Nenhum</SelectItem>
+                                {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
 
         <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="ghost" asChild>

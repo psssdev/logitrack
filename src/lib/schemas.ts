@@ -191,6 +191,8 @@ export const baseFinancialEntrySchema = z.object({
   vehicleId: z.string().optional(),
   clientId: z.string().optional(),
   clientName: z.string().optional(),
+  driverId: z.string().optional(),
+  driverName: z.string().optional(),
   notes: z.string().optional(),
   selectedSeats: z.array(z.string()).optional(),
   travelDate: z.date().optional(),

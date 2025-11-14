@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/card';
 import { NewExpenseForm } from '@/components/new-expense-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { FinancialCategory, Vehicle } from '@/lib/types';
+import type { FinancialCategory, Vehicle, Driver } from '@/lib/types';
 import { collection, query, orderBy, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -41,8 +42,17 @@ export default function NewExpensePage() {
     );
   }, [firestore, isUserLoading, user]);
 
+  const driversQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return query(
+      collection(firestore, 'companies', COMPANY_ID, 'drivers'),
+      orderBy('nome', 'asc')
+    );
+  }, [firestore, isUserLoading, user]);
+
   const { data: allCategories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
+  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
   
   // Filtra as categorias para "Saída" no lado do cliente
   const expenseCategories = React.useMemo(() => {
@@ -50,7 +60,7 @@ export default function NewExpensePage() {
     return allCategories.filter(category => category.type === 'Saída');
   }, [allCategories]);
 
-  const isLoading = isLoadingCategories || isLoadingVehicles || isUserLoading;
+  const isLoading = isLoadingCategories || isLoadingVehicles || isLoadingDrivers || isUserLoading;
 
   return (
     <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
@@ -76,7 +86,7 @@ export default function NewExpensePage() {
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : (
-            <NewExpenseForm categories={expenseCategories || []} vehicles={vehicles || []} />
+            <NewExpenseForm categories={expenseCategories || []} vehicles={vehicles || []} drivers={drivers || []} />
           )}
         </CardContent>
       </Card>

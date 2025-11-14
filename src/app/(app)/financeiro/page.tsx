@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -224,7 +225,10 @@ function EntryList({ entries, onDelete }: { entries: FinancialEntry[], onDelete:
               <TableRow key={entry.id}>
                 <TableCell>
                   <div className="font-medium">{entry.description}</div>
-                  {entry.clientName && <div className="text-sm text-muted-foreground">{entry.clientName}</div>}
+                  <div className="text-sm text-muted-foreground">
+                    {entry.clientName && <span>{entry.clientName}</span>}
+                    {entry.driverName && <span className="ml-1">({entry.driverName})</span>}
+                  </div>
                 </TableCell>
                 <TableCell>{formatDate(entry.date)}</TableCell>
                 <TableCell className={entry.type === 'Entrada' ? 'text-green-600' : 'text-destructive'}>

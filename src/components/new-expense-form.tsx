@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -27,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, FinancialCategory, FinancialEntry } from '@/lib/types';
+import type { Vehicle, FinancialCategory, FinancialEntry, Driver } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -40,7 +41,7 @@ type NewExpenseFormValues = Omit<FinancialEntry, 'id' | 'date'> & { date: Date }
 
 const COMPANY_ID = '1';
 
-export function NewExpenseForm({ categories, vehicles }: { categories: FinancialCategory[], vehicles: Vehicle[] }) {
+export function NewExpenseForm({ categories, vehicles, drivers }: { categories: FinancialCategory[], vehicles: Vehicle[], drivers: Driver[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -54,6 +55,7 @@ export function NewExpenseForm({ categories, vehicles }: { categories: Financial
       date: new Date(),
       categoryId: '',
       vehicleId: '',
+      driverId: '',
       notes: '',
     },
   });
@@ -70,6 +72,7 @@ export function NewExpenseForm({ categories, vehicles }: { categories: Financial
       const entriesCollection = collection(firestore, 'companies', COMPANY_ID, 'financialEntries');
       
       const category = categories.find(c => c.id === data.categoryId);
+      const driver = drivers.find(d => d.id === data.driverId);
       
       const entryData = {
         ...data,
@@ -77,6 +80,8 @@ export function NewExpenseForm({ categories, vehicles }: { categories: Financial
         date: Timestamp.fromDate(data.date),
         amount: Math.abs(data.amount),
         vehicleId: data.vehicleId === 'nenhum' ? undefined : data.vehicleId,
+        driverId: data.driverId === 'nenhum' ? undefined : data.driverId,
+        driverName: driver ? driver.nome : undefined,
         createdAt: serverTimestamp(),
       };
 
@@ -175,25 +180,47 @@ export function NewExpenseForm({ categories, vehicles }: { categories: Financial
             />
         )}
         
-        <FormField
-            control={form.control}
-            name="vehicleId"
-            render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Veículo (Opcional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                        <SelectTrigger><SelectValue placeholder="Selecione um veículo para associar" /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="nenhum">Nenhum</SelectItem>
-                            {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.modelo} ({v.placa})</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-            )}
-        />
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+                control={form.control}
+                name="vehicleId"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Veículo (Opcional)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Selecione um veículo para associar" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="nenhum">Nenhum</SelectItem>
+                                {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.modelo} ({v.placa})</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="driverId"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Motorista (Opcional)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Selecione um motorista para associar" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="nenhum">Nenhum</SelectItem>
+                                {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
+
          <FormField
             control={form.control}
             name="notes"

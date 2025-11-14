@@ -282,6 +282,10 @@
           "type": "string",
           "format": "date-time",
           "description": "Timestamp of when the client was created."
+        },
+        "defaultOriginId": {
+            "type": "string",
+            "description": "The ID of the default origin for this client."
         }
       },
       "required": ["nome", "telefone", "createdAt"]
@@ -299,10 +303,35 @@
           "type": "string",
           "description": "The full, concatenated address of the origin."
         },
+        "city": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "active": { "type": "boolean" },
         "createdAt": {
           "type": "string",
           "format": "date-time",
           "description": "Timestamp of when the origin was created."
+        }
+      },
+      "required": ["name", "address", "createdAt"]
+    },
+    "Destino": {
+      "title": "Destino",
+      "description": "Represents a shipment destination point.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A friendly name for the destination, e.g., 'Shopping Center'."
+        },
+        "address": {
+          "type": "string",
+          "description": "The full, concatenated address of the destination."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the destination was created."
         }
       },
       "required": ["name", "address", "createdAt"]
@@ -320,6 +349,9 @@
         "estado": { "type": "string" },
         "cep": { "type": "string" },
         "fullAddress": { "type": "string", "description": "The complete, concatenated address string." },
+        "lat": { "type": "number", "description": "Latitude of the address." },
+        "lng": { "type": "number", "description": "Longitude of the address." },
+        "principal": { "type": "boolean", "description": "Whether this is the client's primary address." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]
@@ -390,9 +422,19 @@
         "travelDate": { "type": "string", "format": "date-time", "description": "Date of the trip, if applicable." },
         "categoryId": { "type": "string", "description": "Reference to the FinancialCategory." },
         "vehicleId": { "type": "string", "description": "Optional reference to a Vehicle." },
+        "driverId": { "type": "string", "description": "Optional reference to a Driver." },
+        "driverName": { "type": "string", "description": "Denormalized driver name for display." },
         "clientId": { "type": "string", "description": "Optional reference to a Client for income entries." },
         "clientName": { "type": "string", "description": "Denormalized client name for display." },
-        "notes": { "type": "string", "description": "Additional notes." }
+        "notes": { "type": "string", "description": "Additional notes." },
+        "origin": { "type": "string", "description": "Origin of the trip, if applicable." },
+        "destination": { "type": "string", "description": "Destination of the trip, if applicable." },
+        "selectedSeats": { "type": "array", "items": { "type": "string" }, "description": "Seats selected for a ticket sale." },
+        "formaPagamento": {
+            "type": "string",
+            "description": "Payment method used for the transaction.",
+            "enum": ["pix", "dinheiro", "cartao", "boleto", "link", "haver"]
+        }
       },
       "required": ["description", "amount", "type", "date", "categoryId"]
     }
@@ -426,6 +468,12 @@
             "$ref": "#/entities/Origin"
         },
         "description": "Stores shipment origin points for a specific company."
+    },
+    "/companies/{companyId}/destinos/{destinoId}": {
+        "schema": {
+            "$ref": "#/entities/Destino"
+        },
+        "description": "Stores shipment destination points for a specific company."
     },
     "/companies/{companyId}/clients/{clientId}/addresses/{addressId}": {
       "schema": {

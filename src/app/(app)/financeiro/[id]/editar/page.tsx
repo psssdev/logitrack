@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/card';
 import { EditFinancialEntryForm } from '@/components/edit-financial-entry-form';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { FinancialEntry, Vehicle, Client } from '@/lib/types';
+import type { FinancialEntry, Vehicle, Client, Driver } from '@/lib/types';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -61,12 +62,21 @@ function EditFinancialEntryContent({ entryId }: { entryId: string }) {
     );
   }, [firestore, isUserLoading, user]);
 
+  const driversQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return query(
+        collection(firestore, 'companies', COMPANY_ID, 'drivers'),
+        orderBy('nome', 'asc')
+    );
+  }, [firestore, isUserLoading, user]);
+
   const { data: entry, isLoading: isLoadingEntry } = useDoc<FinancialEntry>(entryRef);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: categories, isLoading: isLoadingCategories } = useCollection(categoriesQuery);
+  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
-  const isLoading = isLoadingEntry || isLoadingVehicles || isLoadingClients || isLoadingCategories || isUserLoading;
+  const isLoading = isLoadingEntry || isLoadingVehicles || isLoadingClients || isLoadingCategories || isLoadingDrivers || isUserLoading;
 
   if (isLoading) {
     return (
@@ -135,12 +145,13 @@ function EditFinancialEntryContent({ entryId }: { entryId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {entry && vehicles && clients && categories && (
+          {entry && vehicles && clients && categories && drivers && (
             <EditFinancialEntryForm 
                 entry={entry} 
                 vehicles={vehicles} 
                 clients={clients}
                 categories={categories}
+                drivers={drivers}
             />
           )}
         </CardContent>
