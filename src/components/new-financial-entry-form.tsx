@@ -17,8 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newFinancialEntrySchema } from '@/lib/schemas';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { addDoc, collection, serverTimestamp, Timestamp, doc, updateDoc, arrayUnion, query, where } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase } from '@/firebase';
+import { addDoc, collection, serverTimestamp, Timestamp, query, where } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check, Ticket, Wallet } from 'lucide-react';
 import {
   Select,
@@ -31,7 +31,7 @@ import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin, Destino } 
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, startOfDay, isSameDay } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Textarea } from './ui/textarea';
 import {
@@ -46,6 +46,7 @@ import Link from 'next/link';
 import { BusSeatLayout } from './bus-seat-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Label } from './ui/label';
+import { useCollection } from '@/firebase/firestore/use-collection';
 
 type NewFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date' | 'travelDate'> & { date?: Date, travelDate?: Date };
 
@@ -197,16 +198,13 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
       }
 
       const newDocRef = await addDoc(entriesCollection, entryData);
-      
-      // We no longer need to write to vehicle.occupiedSeats
-      // The query on financialEntries will handle seat occupation dynamically
 
       await triggerRevalidation('/financeiro');
       await triggerRevalidation('/veiculos');
 
       toast({
         title: 'Sucesso!',
-        description: 'Venda de passagem registrada.',
+        description: 'Venda de passagem registrada. Redirecionando para o comprovante...',
       });
       router.push(`/financeiro/comprovante/${newDocRef.id}`);
     } catch (error: any) {

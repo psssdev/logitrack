@@ -100,6 +100,7 @@ Obrigado por viajar conosco.
 Ônibus: *${vehicle.modelo} (${vehicle.placa})*
 Data da Viagem: *${formatDate(entry.travelDate)}*
 Origem: *${entry.origin}*
+Destino: *${entry.destination}*
 Assento(s): *${seats}*
 --------------------------------
 Valor Total: *${formatCurrency(entry.amount)}*
@@ -110,8 +111,8 @@ Forma de Pagamento: *${
 Agradecemos a sua preferência!
 `.trim();
 
-    const phone = entry.clientName?.replace(/\D/g, '') || ''; // This is wrong, needs client phone
-    // a real implementation would fetch the client's phone number
+    // In a real app, you would fetch the client's phone number.
+    // This is a placeholder.
     const mockedPhone = '5511999999999';
 
     const url = `https://wa.me/${mockedPhone}?text=${encodeURIComponent(message)}`;
@@ -129,7 +130,15 @@ Agradecemos a sua preferência!
   if (!entry) {
     return (
       <div className="mx-auto grid w-full max-w-lg flex-1 auto-rows-max gap-4">
-        <h1 className="font-semibold text-xl">Comprovante não encontrado</h1>
+         <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+            <Link href="/vender-passagem">
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only">Voltar</span>
+            </Link>
+            </Button>
+            <h1 className="font-semibold text-xl">Comprovante não encontrado</h1>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle>Erro 404</CardTitle>
@@ -186,6 +195,12 @@ Agradecemos a sua preferência!
                 <MapPin className="h-4 w-4" /> Origem
               </dt>
               <dd>{entry.origin}</dd>
+            </div>
+             <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground flex items-center gap-2">
+                <MapPin className="h-4 w-4" /> Destino
+              </dt>
+              <dd>{entry.destination}</dd>
             </div>
             <div className="flex items-center justify-between">
               <dt className="text-muted-foreground">Data da Viagem</dt>
