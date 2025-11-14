@@ -116,8 +116,14 @@ export default function FinanceiroPage() {
                 </Link>
             </Button>
             <Button asChild>
-                <Link href="/financeiro/despesa/nova">
+                <Link href="/financeiro/receita/nova">
                     <PlusCircle className="h-4 w-4 mr-2" />
+                    Nova Receita
+                </Link>
+            </Button>
+             <Button asChild>
+                <Link href="/financeiro/despesa/nova">
+                    <ArrowDownCircle className="h-4 w-4 mr-2" />
                     Nova Despesa
                 </Link>
             </Button>

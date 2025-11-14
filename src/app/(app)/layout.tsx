@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3, ChevronLeft, Home, Menu, Package, Settings, Users, Truck,
-  MapPin, Megaphone, CircleDollarSign, Landmark, Bus, Ticket,
+  MapPin, Megaphone, CircleDollarSign, Landmark, Bus, Ticket, ArrowDownCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -25,6 +25,7 @@ const navItems = [
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/cobrancas', icon: CircleDollarSign, label: 'Cobranças' },
   { href: '/financeiro', icon: Landmark, label: 'Financeiro' },
+  { href: '/financeiro/despesa/nova', icon: ArrowDownCircle, label: 'Nova Despesa' },
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/veiculos', icon: Bus, label: 'Veículos' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
