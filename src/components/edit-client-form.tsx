@@ -17,16 +17,17 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editClientSchema } from '@/lib/schemas';
-import type { Client } from '@/lib/types';
+import type { Client, Origin } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 type EditClientFormValues = z.infer<typeof editClientSchema>;
 
 const COMPANY_ID = '1';
 
-export function EditClientForm({ client }: { client: Client }) {
+export function EditClientForm({ client, origins }: { client: Client, origins: Origin[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -36,6 +37,7 @@ export function EditClientForm({ client }: { client: Client }) {
     defaultValues: {
       nome: client.nome,
       telefone: client.telefone,
+      defaultOriginId: client.defaultOriginId || '',
     },
   });
 
@@ -57,7 +59,10 @@ export function EditClientForm({ client }: { client: Client }) {
         'clients',
         client.id
       );
-      await updateDoc(clientRef, data);
+      await updateDoc(clientRef, {
+          ...data,
+          defaultOriginId: data.defaultOriginId || null,
+      });
 
       await triggerRevalidation('/clientes');
       await triggerRevalidation(`/clientes/${client.id}`);
@@ -109,6 +114,29 @@ export function EditClientForm({ client }: { client: Client }) {
             )}
           />
         </div>
+         <FormField
+            control={form.control}
+            name="defaultOriginId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Origem Padrão</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecione a origem mais conveniente" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="">Nenhuma</SelectItem>
+                        {origins.map(origin => (
+                            <SelectItem key={origin.id} value={origin.id}>{origin.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                 <FormMessage />
+              </FormItem>
+            )}
+          />
 
         <div className="flex justify-end pt-4">
           <Button

@@ -1,3 +1,6 @@
+
+'use client';
+
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,8 +12,29 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { NewClientForm } from '@/components/new-client-form';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import type { Origin } from '@/lib/types';
+import { collection, query, orderBy } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const COMPANY_ID = '1';
 
 export default function NewClientPage() {
+  const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
+
+  const originsQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return query(
+      collection(firestore, 'companies', COMPANY_ID, 'origins'),
+      orderBy('name', 'asc')
+    );
+  }, [firestore, isUserLoading, user]);
+
+  const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
+
+  const isLoading = isLoadingOrigins || isUserLoading;
+
   return (
     <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
@@ -32,7 +56,8 @@ export default function NewClientPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NewClientForm />
+          {isLoading && <Skeleton className="h-64 w-full" />}
+          {origins && !isLoading && <NewClientForm origins={origins} />}
         </CardContent>
       </Card>
     </div>

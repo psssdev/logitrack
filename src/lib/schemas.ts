@@ -97,6 +97,7 @@ export const clientSchema = z.object({
     nome: z.string().min(1, "Nome é obrigatório"),
     telefone: z.string().min(10, "Telefone inválido"),
     createdAt: z.any(), // Allow Date or Firestore Timestamp
+    defaultOriginId: z.string().optional(),
 });
 
 export const newAddressSchema = z.object({
@@ -119,11 +120,13 @@ export const newClientSchema = z.object({
     cidade: z.string().optional(),
     estado: z.string().optional(),
     cep: z.string().optional(),
+    defaultOriginId: z.string().optional(),
 });
 
 export const editClientSchema = z.object({
     nome: z.string().min(1, "Nome é obrigatório"),
     telefone: z.string().min(10, "Telefone inválido"),
+    defaultOriginId: z.string().optional(),
 });
 
 

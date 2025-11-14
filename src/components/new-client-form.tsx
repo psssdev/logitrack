@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newClientSchema } from '@/lib/schemas';
-import type { NewClientWithAddress } from '@/lib/types';
+import type { NewClientWithAddress, Origin } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { collection, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Loader2, Search } from 'lucide-react';
@@ -67,7 +67,7 @@ const brazilianStates = [
 
 const COMPANY_ID = '1';
 
-export function NewClientForm() {
+export function NewClientForm({ origins }: { origins: Origin[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -86,6 +86,7 @@ export function NewClientForm() {
       cidade: '',
       estado: '',
       cep: '',
+      defaultOriginId: '',
     },
   });
 
@@ -189,6 +190,7 @@ export function NewClientForm() {
         const newClientRef = await addDoc(clientsCollection, {
             nome: data.nome,
             telefone: data.telefone,
+            defaultOriginId: data.defaultOriginId || null,
             createdAt: serverTimestamp()
         });
 
@@ -260,6 +262,30 @@ export function NewClientForm() {
             )}
           />
         </div>
+
+        <FormField
+            control={form.control}
+            name="defaultOriginId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Origem Padrão</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecione a origem mais conveniente" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="">Nenhuma</SelectItem>
+                        {origins.map(origin => (
+                            <SelectItem key={origin.id} value={origin.id}>{origin.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                 <FormMessage />
+              </FormItem>
+            )}
+          />
         
         <h3 className="text-lg font-medium border-t pt-6">Endereço Principal (Opcional)</h3>
 

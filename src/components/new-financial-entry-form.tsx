@@ -87,7 +87,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
       selectedSeats: [],
       travelDate: new Date(),
       formaPagamento: 'pix',
-      origin: origins?.[0]?.address || '',
+      origin: origins?.[0]?.id || '',
       destination: destinations?.[0]?.address || '',
     },
   });
@@ -122,6 +122,18 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
     return salesForDate.flatMap(sale => sale.selectedSeats || []);
   }, [relevantSales, travelDate]);
 
+
+  React.useEffect(() => {
+    if (selectedClientId) {
+        const client = clients.find(c => c.id === selectedClientId);
+        if (client?.defaultOriginId) {
+            const origin = origins.find(o => o.id === client.defaultOriginId);
+            if (origin) {
+                form.setValue('origin', origin.address);
+            }
+        }
+    }
+  }, [selectedClientId, clients, origins, form]);
 
   // Auto-update description
   React.useEffect(() => {

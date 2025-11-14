@@ -282,6 +282,10 @@
           "type": "string",
           "format": "date-time",
           "description": "Timestamp of when the client was created."
+        },
+        "defaultOriginId": {
+            "type": "string",
+            "description": "The ID of the default origin for this client."
         }
       },
       "required": ["nome", "telefone", "createdAt"]
@@ -494,5 +498,3 @@
     }
   }
 }
-
-    

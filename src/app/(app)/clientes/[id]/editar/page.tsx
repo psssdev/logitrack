@@ -12,10 +12,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { EditClientForm } from '@/components/edit-client-form';
-import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Client } from '@/lib/types';
-import { doc } from 'firebase/firestore';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import type { Client, Origin } from '@/lib/types';
+import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+
+const COMPANY_ID = '1';
 
 export default function EditClientPage({
   params,
@@ -32,12 +34,21 @@ function EditClientContent({ clientId }: { clientId: string }) {
 
   const clientRef = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', '1', 'clients', clientId);
+    return doc(firestore, 'companies', COMPANY_ID, 'clients', clientId);
   }, [firestore, isUserLoading, clientId, user]);
 
-  const { data: client, isLoading } = useDoc<Client>(clientRef);
+  const originsQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return query(
+      collection(firestore, 'companies', COMPANY_ID, 'origins'),
+      orderBy('name', 'asc')
+    );
+  }, [firestore, isUserLoading, user]);
 
-  const pageIsLoading = isLoading || isUserLoading;
+  const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
+  const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
+
+  const pageIsLoading = isLoadingClient || isLoadingOrigins || isUserLoading;
 
   if (pageIsLoading) {
     return (
@@ -106,7 +117,7 @@ function EditClientContent({ clientId }: { clientId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <EditClientForm client={client} />
+          {origins && <EditClientForm client={client} origins={origins} />}
         </CardContent>
       </Card>
     </div>
