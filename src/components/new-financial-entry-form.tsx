@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newFinancialEntrySchema } from '@/lib/schemas';
 import { useFirestore, useMemoFirebase } from '@/firebase';
-import { addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs, doc } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check, Ticket, Wallet } from 'lucide-react';
 import {
   Select,
@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry, PaymentMethod, Destino } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod, Destino, Address } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
