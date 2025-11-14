@@ -25,9 +25,10 @@ export default function NewExpensePage() {
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
+    // Removido o `where` para evitar a necessidade de um índice composto.
+    // A filtragem será feita no lado do cliente.
     return query(
       collection(firestore, 'companies', COMPANY_ID, 'financialCategories'),
-      where('type', '==', 'Saída'),
       orderBy('name', 'asc')
     );
   }, [firestore, isUserLoading, user]);
@@ -40,8 +41,14 @@ export default function NewExpensePage() {
     );
   }, [firestore, isUserLoading, user]);
 
-  const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
+  const { data: allCategories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
+  
+  // Filtra as categorias para "Saída" no lado do cliente
+  const expenseCategories = React.useMemo(() => {
+    if (!allCategories) return [];
+    return allCategories.filter(category => category.type === 'Saída');
+  }, [allCategories]);
 
   const isLoading = isLoadingCategories || isLoadingVehicles || isUserLoading;
 
@@ -69,7 +76,7 @@ export default function NewExpensePage() {
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : (
-            <NewExpenseForm categories={categories || []} vehicles={vehicles || []} />
+            <NewExpenseForm categories={expenseCategories || []} vehicles={vehicles || []} />
           )}
         </CardContent>
       </Card>
