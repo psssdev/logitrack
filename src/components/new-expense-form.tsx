@@ -76,6 +76,7 @@ export function NewExpenseForm({ categories, vehicles }: { categories: Financial
         description: data.otherCategoryDescription || category?.name || data.description,
         date: Timestamp.fromDate(data.date),
         amount: Math.abs(data.amount),
+        vehicleId: data.vehicleId === 'nenhum' ? undefined : data.vehicleId,
         createdAt: serverTimestamp(),
       };
 
@@ -185,7 +186,7 @@ export function NewExpenseForm({ categories, vehicles }: { categories: Financial
                         <SelectTrigger><SelectValue placeholder="Selecione um veículo para associar" /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            <SelectItem value="">Nenhum</SelectItem>
+                            <SelectItem value="nenhum">Nenhum</SelectItem>
                             {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.modelo} ({v.placa})</SelectItem>)}
                         </SelectContent>
                     </Select>
