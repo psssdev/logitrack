@@ -31,7 +31,7 @@ import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin, Destino } 
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, startOfDay } from 'date-fns';
+import { format, startOfDay, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Textarea } from './ui/textarea';
 import {
@@ -99,22 +99,27 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   const buses = React.useMemo(() => vehicles.filter(v => v.tipo === 'Ônibus'), [vehicles]);
   const selectedVehicle = React.useMemo(() => vehicles.find(v => v.id === selectedVehicleId), [vehicles, selectedVehicleId]);
   
+  // Fetch all sales for the selected vehicle, then filter by date on the client
   const relevantSalesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedVehicleId || !travelDate) return null;
-    const startOfTravelDay = startOfDay(travelDate);
+    if (!firestore || !selectedVehicleId) return null;
     return query(
         collection(firestore, 'companies', COMPANY_ID, 'financialEntries'),
-        where('vehicleId', '==', selectedVehicleId),
-        where('travelDate', '>=', Timestamp.fromDate(startOfTravelDay))
+        where('vehicleId', '==', selectedVehicleId)
     );
-  }, [firestore, selectedVehicleId, travelDate]);
+  }, [firestore, selectedVehicleId]);
 
   const { data: relevantSales, isLoading: isLoadingSales } = useCollection<FinancialEntry>(relevantSalesQuery);
   
   const dynamicallyOccupiedSeats = React.useMemo(() => {
-    if (!relevantSales) return [];
-    return relevantSales.flatMap(sale => sale.selectedSeats || []);
-  }, [relevantSales]);
+    if (!relevantSales || !travelDate) return [];
+    
+    // Client-side filtering
+    const salesForDate = relevantSales.filter(sale => 
+        sale.travelDate && isSameDay(sale.travelDate instanceof Timestamp ? sale.travelDate.toDate() : sale.travelDate, travelDate)
+    );
+
+    return salesForDate.flatMap(sale => sale.selectedSeats || []);
+  }, [relevantSales, travelDate]);
 
 
   // Auto-update description

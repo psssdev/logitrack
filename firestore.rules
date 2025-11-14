@@ -9,7 +9,13 @@ service cloud.firestore {
 
     // Returns the companyId associated with the authenticated user.
     function getUserCompanyId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId;
+      // Important: This assumes a 'users' collection where each user document
+      // has a 'companyId' field.
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      if (userDoc.data.size() == 0) {
+        return ""; // Return empty string if user profile doesn't exist
+      }
+      return userDoc.data.companyId;
     }
 
     // Checks if the requesting user is a member of the specified company.
@@ -17,29 +23,15 @@ service cloud.firestore {
       return isAuthed() && getUserCompanyId() == companyId;
     }
 
-    // Default deny all access to prevent unintentional data exposure.
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     // Allow users to read and write their own profile document.
     match /users/{userId} {
       allow read, write: if isAuthed() && request.auth.uid == userId;
-    }
-
-    // Allow authenticated members of a company to read the main company document.
-    // This is essential for client-side code to access company-wide settings.
-    match /companies/{companyId} {
-      allow read: if isCompanyMember(companyId);
-      // Only company admins should be able to update company settings.
-      // This can be refined later with role-based logic.
-      allow update: if isCompanyMember(companyId); 
     }
     
     // Grant read and write access to all documents within any subcollection
     // of a company, but only for authenticated members of that company.
     // This single rule covers orders, clients, drivers, vehicles, financialEntries, etc.
-    match /companies/{companyId}/{subcollection}/{docId=**} {
+    match /companies/{companyId}/{document=**} {
       allow read, write: if isCompanyMember(companyId);
     }
   }
