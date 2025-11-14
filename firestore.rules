@@ -30,8 +30,8 @@ service cloud.firestore {
     
     // Grant read and write access to all documents within any subcollection
     // of a company, but only for authenticated members of that company.
-    // This single rule covers orders, clients, drivers, vehicles, financialEntries, etc.
-    match /companies/{companyId}/{document=**} {
+    // This single rule covers orders, clients, drivers, vehicles, financialEntries, financialCategories, etc.
+    match /companies/{companyId}/{subcollection}/{docId=**} {
       allow read, write: if isCompanyMember(companyId);
     }
   }
