@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { PlusCircle, MoreHorizontal, ArrowUpCircle, ArrowDownCircle, Landmark, Edit, Trash } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ArrowUpCircle, ArrowDownCircle, Landmark, Edit, Trash, Settings } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -108,6 +108,20 @@ export default function FinanceiroPage() {
         <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
           Controle Financeiro
         </h1>
+        <div className="flex items-center gap-2">
+            <Button variant="outline" asChild>
+                <Link href="/categorias">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Categorias
+                </Link>
+            </Button>
+            <Button asChild>
+                <Link href="/financeiro/despesa/nova">
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Nova Despesa
+                </Link>
+            </Button>
+        </div>
       </div>
 
        <div className="grid gap-4 md:grid-cols-3">
@@ -240,4 +254,3 @@ function EntryList({ entries, onDelete }: { entries: FinancialEntry[], onDelete:
       </div>
     );
   }
-
