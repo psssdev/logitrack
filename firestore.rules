@@ -12,6 +12,11 @@ service cloud.firestore {
       allow read, write: if isAuthed() && request.auth.uid == userId;
     }
     
+    // Allow read/write access to a company document for any authenticated user.
+    match /companies/{companyId} {
+      allow read, write: if isAuthed();
+    }
+    
     // Grant read and write access to all documents within any subcollection
     // of a company for any authenticated user. This is a broad rule for development.
     match /companies/{companyId}/{subcollection}/{docId=**} {
