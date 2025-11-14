@@ -34,9 +34,13 @@ service cloud.firestore {
       allow update: if isCompanyMember(companyId); 
     }
     
-    // Allow company members to read and write any document in any subcollection 
-    // under their company. This covers /orders, /clients, /drivers, etc.
-    match /companies/{companyId}/{subcollection}/{docId=**} {
+    // Allow company members to read and write most documents in subcollections.
+    match /companies/{companyId}/{subcollection}/{docId} {
+      allow read, write: if isCompanyMember(companyId);
+    }
+
+    // Explicitly allow reading financialEntries for the seat check logic.
+    match /companies/{companyId}/financialEntries/{entryId} {
       allow read, write: if isCompanyMember(companyId);
     }
   }
