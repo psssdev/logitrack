@@ -141,6 +141,8 @@ export const addressSchema = z.object({
   estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
   cep: z.string().min(8, 'O CEP é obrigatório'),
   fullAddress: z.string(),
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
 });
 
 export const newAddressFormSchema = addressSchema.omit({
@@ -165,6 +167,9 @@ export const newOriginSchema = originSchema.omit({
   id: true,
   address: true, // `address` will be generated in the server action
   createdAt: true,
+}).extend({
+    lat: z.coerce.number(),
+    lng: z.coerce.number(),
 });
 
 export const destinoSchema = originSchema.extend({}); 

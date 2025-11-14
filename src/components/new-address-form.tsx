@@ -80,6 +80,8 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
       cidade: '',
       estado: '',
       cep: '',
+      lat: 0,
+      lng: 0,
     },
   });
 
@@ -335,6 +337,36 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
                 )}
             />
         </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField
+                control={form.control}
+                name="lat"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Latitude</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="-19.0187" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="lng"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Longitude</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="-40.5363" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
+
         <div className="flex justify-end">
             <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Endereço'}
