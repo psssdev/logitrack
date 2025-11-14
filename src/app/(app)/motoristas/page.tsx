@@ -74,8 +74,8 @@ export default function MotoristasPage() {
                   <div className="flex items-center gap-4">
                     <Avatar className="h-12 w-12">
                       <AvatarImage
-                        src={`https://picsum.photos/seed/${driver.id}/80/80`}
-                        data-ai-hint="person face"
+                        src={driver.photoUrl}
+                        alt={`Foto de ${driver.nome}`}
                       />
                       <AvatarFallback>{driver.nome.charAt(0)}</AvatarFallback>
                     </Avatar>

@@ -25,7 +25,6 @@ const navItems = [
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/cobrancas', icon: CircleDollarSign, label: 'Cobranças' },
   { href: '/financeiro', icon: Landmark, label: 'Financeiro' },
-  { href: '/financeiro/despesa/nova', icon: ArrowDownCircle, label: 'Nova Despesa' },
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/veiculos', icon: Bus, label: 'Veículos' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
@@ -164,7 +163,7 @@ const UserMenu = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="secondary" size="icon" className="rounded-full" aria-label="Abrir menu do usuário">
           <Avatar>
-            <AvatarImage src="https://picsum.photos/seed/user-avatar/40/40" alt="Avatar" />
+            <AvatarImage src={user?.photoURL || undefined} alt="Avatar" />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </Button>

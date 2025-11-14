@@ -247,9 +247,9 @@
           "type": "string",
           "description": "Driver's phone number."
         },
-        "placa": {
-          "type": "string",
-          "description": "Vehicle license plate."
+        "photoUrl": {
+            "type": "string",
+            "description": "URL of the driver's photo."
         },
         "ativo": {
           "type": "boolean",
@@ -261,7 +261,6 @@
         "companyId",
         "nome",
         "telefone",
-        "placa",
         "ativo"
       ]
     },

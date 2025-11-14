@@ -98,8 +98,8 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
                 <AvatarImage
-                  src={`https://picsum.photos/seed/${driver.id}/120/120`}
-                  data-ai-hint="person face"
+                  src={driver.photoUrl}
+                  alt={`Foto de ${driver.nome}`}
                 />
                 <AvatarFallback>{driver.nome.charAt(0)}</AvatarFallback>
               </Avatar>
