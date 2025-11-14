@@ -37,6 +37,7 @@ export type Client = Omit<z.infer<typeof clientSchema>, 'createdAt'> & {
     id: string;
     createdAt: Date | Timestamp;
     defaultOriginId?: string;
+    addresses?: Address[];
 };
 
 // NewClient type for form creation
@@ -53,6 +54,10 @@ export type Origin = Omit<z.infer<typeof originSchema>, 'createdAt' | 'logradour
     id: string;
     address: string;
     createdAt: Date | Timestamp;
+    lat: number;
+    lng: number;
+    city?: string;
+    active?: boolean;
 };
 export type NewOrigin = z.infer<typeof newOriginSchema>;
 

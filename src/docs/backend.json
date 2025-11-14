@@ -303,6 +303,10 @@
           "type": "string",
           "description": "The full, concatenated address of the origin."
         },
+        "city": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "active": { "type": "boolean" },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -345,6 +349,9 @@
         "estado": { "type": "string" },
         "cep": { "type": "string" },
         "fullAddress": { "type": "string", "description": "The complete, concatenated address string." },
+        "lat": { "type": "number", "description": "Latitude of the address." },
+        "lng": { "type": "number", "description": "Longitude of the address." },
+        "principal": { "type": "boolean", "description": "Whether this is the client's primary address." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]

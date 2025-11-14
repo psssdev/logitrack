@@ -84,6 +84,8 @@ export function NewOriginForm() {
       cidade: '',
       estado: '',
       cep: '',
+      lat: 0,
+      lng: 0
     },
   });
 
@@ -180,12 +182,16 @@ export function NewOriginForm() {
 
     try {
         const originsCollection = collection(firestore, 'companies', COMPANY_ID, 'origins');
-        const { logradouro, numero, bairro, cidade, estado, cep, name } = data;
+        const { logradouro, numero, bairro, cidade, estado, cep, name, lat, lng } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 
         await addDoc(originsCollection, {
             name,
             address: fullAddress,
+            city: cidade,
+            lat: lat,
+            lng: lng,
+            active: true,
             createdAt: serverTimestamp(),
         });
         
@@ -336,6 +342,35 @@ export function NewOriginForm() {
                         </SelectContent>
                     </Select>
                     <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField
+                control={form.control}
+                name="lat"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Latitude *</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="-19.0187" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="lng"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Longitude *</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="-40.5363" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                        </FormControl>
+                        <FormMessage />
                     </FormItem>
                 )}
             />

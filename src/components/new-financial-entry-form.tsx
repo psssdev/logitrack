@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newFinancialEntrySchema } from '@/lib/schemas';
 import { useFirestore, useMemoFirebase } from '@/firebase';
-import { addDoc, collection, serverTimestamp, Timestamp, query, where } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check, Ticket, Wallet } from 'lucide-react';
 import {
   Select,
@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry, PaymentMethod, Origin, Destino } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod, Destino } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -47,6 +47,8 @@ import { BusSeatLayout } from './bus-seat-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Label } from './ui/label';
 import { useCollection } from '@/firebase/firestore/use-collection';
+import { pickNearestOrigin, type Origin as OriginPick, type ClientLite } from '@/lib/nearest-origin';
+import { Badge } from './ui/badge';
 
 type NewFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date' | 'travelDate'> & { date?: Date, travelDate?: Date };
 
@@ -69,13 +71,14 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 };
 
 
-export function NewFinancialEntryForm({ vehicles, clients, origins, destinations }: { vehicles: Vehicle[], clients: Client[], origins: Origin[], destinations: Destino[] }) {
+export function NewFinancialEntryForm({ vehicles, clients, origins, destinations }: { vehicles: Vehicle[], clients: Client[], origins: OriginPick[], destinations: Destino[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
   const [clientPopoverOpen, setClientPopoverOpen] = React.useState(false);
   const [selectedSeats, setSelectedSeats] = React.useState<string[]>([]);
   const [passagemValue, setPassagemValue] = React.useState<number>(0);
+  const [suggestMeta, setSuggestMeta] = React.useState<{ km: number; label: string } | null>(null);
 
   const form = useForm<NewFinancialEntryFormValues>({
     resolver: zodResolver(newFinancialEntrySchema),
@@ -87,7 +90,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
       selectedSeats: [],
       travelDate: new Date(),
       formaPagamento: 'pix',
-      origin: origins?.[0]?.id || '',
+      origin: '',
       destination: destinations?.[0]?.address || '',
     },
   });
@@ -100,7 +103,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   const buses = React.useMemo(() => vehicles.filter(v => v.tipo === 'Ônibus'), [vehicles]);
   const selectedVehicle = React.useMemo(() => vehicles.find(v => v.id === selectedVehicleId), [vehicles, selectedVehicleId]);
   
-  // Fetch all sales for the selected vehicle, then filter by date on the client
+  // Fetch all sales for the selected vehicle
   const relevantSalesQuery = useMemoFirebase(() => {
     if (!firestore || !selectedVehicleId) return null;
     return query(
@@ -109,14 +112,13 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
     );
   }, [firestore, selectedVehicleId]);
 
-  const { data: relevantSales, isLoading: isLoadingSales } = useCollection<FinancialEntry>(relevantSalesQuery);
+  const { data: relevantSales } = useCollection<FinancialEntry>(relevantSalesQuery);
   
   const dynamicallyOccupiedSeats = React.useMemo(() => {
     if (!relevantSales || !travelDate) return [];
     
-    // Client-side filtering
     const salesForDate = relevantSales.filter(sale => 
-        sale.travelDate && isSameDay(sale.travelDate instanceof Timestamp ? sale.travelDate.toDate() : sale.travelDate, travelDate)
+        sale.travelDate && (isSameDay(sale.travelDate instanceof Timestamp ? sale.travelDate.toDate() : sale.travelDate, travelDate) || (sale.travelDate instanceof Timestamp ? sale.travelDate.toDate() : sale.travelDate) > travelDate)
     );
 
     return salesForDate.flatMap(sale => sale.selectedSeats || []);
@@ -124,16 +126,65 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
 
 
   React.useEffect(() => {
-    if (selectedClientId) {
-        const client = clients.find(c => c.id === selectedClientId);
-        if (client?.defaultOriginId) {
-            const origin = origins.find(o => o.id === client.defaultOriginId);
-            if (origin) {
-                form.setValue('origin', origin.address);
+    async function fetchClientAddressesAndSuggestOrigin() {
+        if (!selectedClientId || origins.length === 0 || !firestore) {
+            setSuggestMeta(null);
+            return;
+        };
+        const clientRef = doc(firestore, 'companies', COMPANY_ID, 'clients', selectedClientId);
+        const addressesRef = collection(clientRef, 'addresses');
+        
+        try {
+            const [clientSnap, addressesSnap] = await Promise.all([
+                // We already have the client data, but let's imagine we need to fetch it all
+                clients.find(c => c.id === selectedClientId),
+                getDocs(addressesRef)
+            ]);
+
+            if (!clientSnap) return;
+
+            const clientAddresses = addressesSnap.docs.map(d => ({...d.data(), id: d.id})) as Address[];
+            
+            const clientForPicking: ClientLite = {
+                id: clientSnap.id,
+                defaultOriginId: clientSnap.defaultOriginId,
+                addresses: clientAddresses
+            };
+            
+            const res = pickNearestOrigin(clientForPicking, origins);
+
+            if (!res) {
+                setSuggestMeta(null);
+                if (clientSnap.defaultOriginId) {
+                  const defaultOrigin = origins.find(o => o.id === clientSnap.defaultOriginId);
+                  if (defaultOrigin) {
+                    form.setValue('origin', defaultOrigin.id);
+                  }
+                }
+                return;
             }
+
+            const chosen = origins.find(o => o.id === res.originId);
+            if (chosen) {
+                form.setValue('origin', chosen.id); // auto-preenche
+                const label = clientSnap.defaultOriginId
+                ? `${chosen.name} (padrão do cliente)`
+                : `${chosen.name} (~${res.km.toFixed(1)} km)`;
+                setSuggestMeta({ km: res.km, label });
+            } else {
+                setSuggestMeta(null);
+            }
+
+        } catch (error) {
+            console.error("Error suggesting origin:", error);
+            setSuggestMeta(null);
         }
     }
-  }, [selectedClientId, clients, origins, form]);
+    
+    fetchClientAddressesAndSuggestOrigin();
+
+  }, [selectedClientId, origins, firestore, form, clients]);
+
 
   // Auto-update description
   React.useEffect(() => {
@@ -303,13 +354,18 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                             name="origin"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Origem *</FormLabel>
+                                <div className="flex items-center justify-between">
+                                    <FormLabel>Origem *</FormLabel>
+                                    {suggestMeta && (
+                                        <Badge variant="secondary" className="text-xs">{suggestMeta.label}</Badge>
+                                    )}
+                                </div>
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
                                     <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                    {origins.map(o => <SelectItem key={o.id} value={o.address}>{o.name}</SelectItem>)}
+                                    {origins.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
