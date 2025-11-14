@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { orderSchema, driverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, newDestinoSchema, vehicleSchema, baseFinancialEntrySchema, originSchema, newOriginSchema, destinoSchema } from './schemas';
+import { orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, newDestinoSchema, vehicleSchema, baseFinancialEntrySchema, originSchema, newOriginSchema, destinoSchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
 export type Payment = {
@@ -28,6 +28,7 @@ export type NewOrder = z.infer<typeof newOrderSchema>;
 
 // Driver type
 export type Driver = z.infer<typeof driverSchema>;
+export type NewDriver = z.infer<typeof newDriverSchema>;
 
 // Enum types
 export type OrderStatus = z.infer<typeof orderStatusSchema>;

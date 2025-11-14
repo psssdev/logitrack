@@ -86,11 +86,13 @@ export const editOrderSchema = newOrderSchema.omit({
 
 export const driverSchema = z.object({
   id: z.string(),
-  nome: z.string(),
-  telefone: z.string(),
+  nome: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres'),
+  telefone: z.string().min(10, 'Telefone inválido'),
   placa: z.string().optional(),
   ativo: z.boolean(),
 });
+
+export const newDriverSchema = driverSchema.omit({ id: true, ativo: true });
 
 export const clientSchema = z.object({
     id: z.string(),
