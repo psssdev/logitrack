@@ -28,9 +28,14 @@ service cloud.firestore {
       allow read, write: if isAuthed() && request.auth.uid == userId;
     }
     
-    // Grant read and write access to all documents within any subcollection
+    // Explicitly allow list operations on financialCategories for company members.
+    // This is crucial for queries with `where` clauses.
+    match /companies/{companyId}/financialCategories/{categoryId} {
+      allow read, write: if isCompanyMember(companyId);
+    }
+    
+    // Grant read and write access to all other documents within any subcollection
     // of a company, but only for authenticated members of that company.
-    // This single rule covers orders, clients, drivers, vehicles, financialEntries, financialCategories, etc.
     match /companies/{companyId}/{subcollection}/{docId=**} {
       allow read, write: if isCompanyMember(companyId);
     }
