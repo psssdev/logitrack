@@ -34,13 +34,9 @@ service cloud.firestore {
       allow update: if isCompanyMember(companyId); 
     }
     
-    // Allow company members to read and write most documents in subcollections.
+    // Allow company members to read and write documents in subcollections.
+    // This is the main rule for most data access.
     match /companies/{companyId}/{subcollection}/{docId} {
-      allow read, write: if isCompanyMember(companyId);
-    }
-
-    // Explicitly allow reading financialEntries for the seat check logic.
-    match /companies/{companyId}/financialEntries/{entryId} {
       allow read, write: if isCompanyMember(companyId);
     }
   }
