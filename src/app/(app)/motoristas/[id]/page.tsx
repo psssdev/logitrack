@@ -107,11 +107,6 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
                 <CardTitle className="text-3xl">{driver.nome}</CardTitle>
                 <CardDescription>
                   {driver.telefone}
-                  {driver.placa && (
-                    <Badge variant="secondary" className="ml-2">
-                      {driver.placa}
-                    </Badge>
-                  )}
                 </CardDescription>
               </div>
             </div>

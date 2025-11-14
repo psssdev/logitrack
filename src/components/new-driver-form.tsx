@@ -35,7 +35,6 @@ export function NewDriverForm() {
     defaultValues: {
       nome: '',
       telefone: '',
-      placa: '',
     },
   });
 
@@ -113,20 +112,6 @@ export function NewDriverForm() {
             )}
           />
         </div>
-
-        <FormField
-          control={form.control}
-          name="placa"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Placa do Veículo</FormLabel>
-              <FormControl>
-                <Input placeholder="ABC-1234 ou ABC1D23" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         <div className="flex justify-end gap-2 pt-4">
            <Button type="button" variant="ghost" asChild>

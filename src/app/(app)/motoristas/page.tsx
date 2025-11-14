@@ -86,11 +86,6 @@ export default function MotoristasPage() {
                       <p className="text-sm text-muted-foreground">
                         {driver.telefone}
                       </p>
-                      {driver.placa && (
-                        <Badge variant="secondary" className="w-fit">
-                          {driver.placa}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                    <Button asChild variant="outline" size="icon">
