@@ -88,11 +88,13 @@ export const driverSchema = z.object({
   id: z.string(),
   nome: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres'),
   telefone: z.string().min(10, 'Telefone inválido'),
-  photoUrl: z.string().url('URL da foto inválida').optional(),
+  photoUrl: z.string().url('URL da foto inválida').optional().nullable(),
   ativo: z.boolean(),
 });
 
 export const newDriverSchema = driverSchema.omit({ id: true, ativo: true });
+export const editDriverSchema = newDriverSchema.extend({});
+
 
 export const clientSchema = z.object({
     id: z.string(),

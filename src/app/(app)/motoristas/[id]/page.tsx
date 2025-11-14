@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -90,6 +90,12 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
           Detalhes do Motorista
         </h1>
+         <Button asChild size="sm">
+          <Link href={`/motoristas/${driverId}/editar`}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar Perfil
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-6">
@@ -98,7 +104,7 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
                 <AvatarImage
-                  src={driver.photoUrl}
+                  src={driver.photoUrl || undefined}
                   alt={`Foto de ${driver.nome}`}
                 />
                 <AvatarFallback>{driver.nome.charAt(0)}</AvatarFallback>
