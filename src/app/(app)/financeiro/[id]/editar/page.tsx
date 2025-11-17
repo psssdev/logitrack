@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/card';
 import { EditFinancialEntryForm } from '@/components/edit-financial-entry-form';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { FinancialEntry, Vehicle, Client, Driver } from '@/lib/types';
+import type { FinancialEntry, Vehicle, Client, Driver, FinancialCategory } from '@/lib/types';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -56,9 +56,9 @@ function EditFinancialEntryContent({ entryId }: { entryId: string }) {
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
+    // Removing orderBy to prevent index requirement error
     return query(
-        collection(firestore, 'companies', COMPANY_ID, 'financialCategories'),
-        orderBy('name', 'asc')
+        collection(firestore, 'companies', COMPANY_ID, 'financialCategories')
     );
   }, [firestore, isUserLoading, user]);
 
@@ -73,7 +73,7 @@ function EditFinancialEntryContent({ entryId }: { entryId: string }) {
   const { data: entry, isLoading: isLoadingEntry } = useDoc<FinancialEntry>(entryRef);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
-  const { data: categories, isLoading: isLoadingCategories } = useCollection(categoriesQuery);
+  const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
   const isLoading = isLoadingEntry || isLoadingVehicles || isLoadingClients || isLoadingCategories || isLoadingDrivers || isUserLoading;
