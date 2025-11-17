@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { FinancialCategory } from '@/lib/types';
-import { collection, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, doc, deleteDoc } from 'firebase/firestore';
 import { NewCategoryDialog } from '@/components/new-category-dialog';
 import { EditCategoryDialog } from '@/components/edit-category-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -50,14 +50,20 @@ export default function CategoriasPage() {
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
+    // Remove orderBy to avoid needing a composite index. Sorting will be done client-side.
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'financialCategories'),
-      orderBy('name', 'asc')
+      collection(firestore, 'companies', COMPANY_ID, 'financialCategories')
     );
   }, [firestore, isUserLoading, user]);
 
   const { data: categories, isLoading } = useCollection<FinancialCategory>(categoriesQuery);
   const pageIsLoading = isLoading || isUserLoading;
+
+  // Sort categories client-side
+  const sortedCategories = React.useMemo(() => {
+    if (!categories) return [];
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
 
   const handleEdit = (category: FinancialCategory) => {
     setEditingCategory(category);
@@ -118,7 +124,7 @@ export default function CategoriasPage() {
               <Skeleton className="h-48 w-full" />
             ) : (
               <CategoryList 
-                categories={categories || []} 
+                categories={sortedCategories || []} 
                 onEdit={handleEdit}
                 onDelete={handleDelete}
               />
@@ -226,4 +232,3 @@ function CategoryList({ categories, onEdit, onDelete }: CategoryListProps) {
       </div>
     );
   }
-  
