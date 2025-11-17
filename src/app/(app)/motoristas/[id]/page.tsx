@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Edit } from 'lucide-react';
+import { ChevronLeft, Edit, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -16,7 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Driver, Order } from '@/lib/types';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { collection, query, where, doc, Timestamp, orderBy } from 'firebase/firestore';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { OrderStatusBadge } from '@/components/status-badge';
 
 
 export default function MotoristaDetailPage({
@@ -41,7 +43,8 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
     if (!firestore || isUserLoading || !user) return null;
     return query(
       collection(firestore, 'companies', '1', 'orders'),
-      where('motoristaId', '==', driverId)
+      where('motoristaId', '==', driverId),
+      orderBy('createdAt', 'desc')
     );
   }, [firestore, isUserLoading, driverId, user]);
 
@@ -128,7 +131,39 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
           </CardHeader>
           <CardContent>
             {orders && orders.length > 0 ? (
-              <p>{orders.length} encomendas encontradas.</p>
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Código</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Cliente</TableHead>
+                                <TableHead>Data</TableHead>
+                                <TableHead><span className="sr-only">Ações</span></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {orders.map(order => {
+                                const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+                                return (
+                                <TableRow key={order.id}>
+                                    <TableCell><Badge variant="outline">{order.codigoRastreio}</Badge></TableCell>
+                                    <TableCell><OrderStatusBadge status={order.status} /></TableCell>
+                                    <TableCell>{order.nomeCliente}</TableCell>
+                                    <TableCell>{orderDate.toLocaleDateString('pt-BR')}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button asChild variant="ghost" size="icon">
+                                            <Link href={`/encomendas/${order.id}`}>
+                                                <ArrowRight className="h-4 w-4" />
+                                                <span className="sr-only">Ver Encomenda</span>
+                                            </Link>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            )})}
+                        </TableBody>
+                    </Table>
+                </div>
             ) : (
               <div className="text-center p-8 border-2 border-dashed rounded-md">
                 <p className="text-muted-foreground">
