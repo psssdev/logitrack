@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -24,6 +23,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2, UploadCloud, X } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { uploadFile } from '@/lib/storage';
 
 type EditDriverFormValues = z.infer<typeof editDriverSchema>;
 
@@ -36,6 +36,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(
     driver.photoUrl
   );
+  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
 
   const form = useForm<EditDriverFormValues>({
     resolver: zodResolver(editDriverSchema),
@@ -49,11 +50,10 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        setPhotoPreview(dataUrl);
-        form.setValue('photoUrl', dataUrl, { shouldValidate: true });
+        setPhotoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -67,8 +67,20 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
       });
       return;
     }
+    
+    form.formState.isSubmitting = true;
 
     try {
+      let uploadedPhotoUrl = data.photoUrl;
+
+      if (photoFile) {
+        toast({ description: 'Atualizando foto...' });
+        uploadedPhotoUrl = await uploadFile(
+          photoFile,
+          `companies/${COMPANY_ID}/driver_photos`
+        );
+      }
+      
       const driverRef = doc(
         firestore,
         'companies',
@@ -77,7 +89,10 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
         driver.id
       );
 
-      await updateDoc(driverRef, data);
+      await updateDoc(driverRef, {
+        ...data,
+        photoUrl: uploadedPhotoUrl,
+      });
 
       await triggerRevalidation('/motoristas');
       await triggerRevalidation(`/motoristas/${driver.id}`);
@@ -94,6 +109,8 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
         title: 'Erro ao atualizar motorista.',
         description: error.message || 'Ocorreu um erro desconhecido.',
       });
+    } finally {
+        form.formState.isSubmitting = false;
     }
   }
 
@@ -139,6 +156,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
                       size="sm"
                       onClick={() => {
                         setPhotoPreview(null);
+                        setPhotoFile(null);
                         form.setValue('photoUrl', null);
                       }}
                     >

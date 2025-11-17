@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -28,6 +27,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { triggerRevalidation } from '@/lib/actions';
+import { uploadFile } from '@/lib/storage';
 
 type City = {
   id: number;
@@ -84,7 +84,9 @@ export default function ConfiguracoesPage() {
   const [cities, setCities] = useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = useState(false);
   const [selectedState, setSelectedState] = useState('');
+  
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const [formValues, setFormValues] = useState<Partial<Company>>({
     nomeFantasia: 'LogiTrack',
@@ -113,11 +115,10 @@ export default function ConfiguracoesPage() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        setLogoPreview(dataUrl);
-        setFormValues(prev => ({ ...prev, logoUrl: dataUrl }));
+        setLogoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -266,36 +267,41 @@ export default function ConfiguracoesPage() {
         return;
     }
     setIsSaving(true);
-
-    const companyData: Partial<Company> = {
-        ...formValues,
-        updatedAt: serverTimestamp(),
-    };
     
-    // Ensure required fields have a default if they are empty
-    if (!companyData.nomeFantasia) companyData.nomeFantasia = 'LogiTrack';
-    if (!companyData.codigoPrefixo) companyData.codigoPrefixo = 'TR';
-    if (!companyData.linkBaseRastreio) companyData.linkBaseRastreio = 'https://seusite.com/rastreio/';
+    try {
+        let uploadedLogoUrl = formValues.logoUrl;
+        if (logoFile) {
+            toast({ description: "Fazendo upload do logo..."});
+            uploadedLogoUrl = await uploadFile(logoFile, `companies/${COMPANY_ID}/logos`);
+        }
 
-    setDoc(companyRef, companyData, { merge: true })
-      .then(async () => {
+        const companyData: Partial<Company> = {
+            ...formValues,
+            logoUrl: uploadedLogoUrl,
+            updatedAt: serverTimestamp(),
+        };
+        
+        if (!companyData.nomeFantasia) companyData.nomeFantasia = 'LogiTrack';
+        if (!companyData.codigoPrefixo) companyData.codigoPrefixo = 'TR';
+        if (!companyData.linkBaseRastreio) companyData.linkBaseRastreio = 'https://seusite.com/rastreio/';
+
+        await setDoc(companyRef, companyData, { merge: true });
+
         await triggerRevalidation('/'); 
         toast({
             title: "Configurações Salvas",
             description: "Suas alterações foram salvas com sucesso.",
         });
-      })
-      .catch((serverError) => {
+    } catch (error) {
         const permissionError = new FirestorePermissionError({
           path: companyRef.path,
           operation: 'update',
-          requestResourceData: companyData,
+          requestResourceData: formValues,
         });
         errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
+    } finally {
         setIsSaving(false);
-      });
+    }
   };
 
   if (isUserLoading || isLoadingCompany) {
@@ -365,7 +371,7 @@ export default function ConfiguracoesPage() {
                     </Button>
                     <Input id="logo-upload" type="file" className="hidden" accept="image/*" onChange={handleLogoChange} />
                     {logoPreview && (
-                        <Button variant="ghost" size="icon" onClick={() => { setLogoPreview(null); setFormValues(p => ({...p, logoUrl: ''}))}}>
+                        <Button variant="ghost" size="icon" onClick={() => { setLogoPreview(null); setLogoFile(null); setFormValues(p => ({...p, logoUrl: ''}))}}>
                             <X className="h-4 w-4" />
                         </Button>
                     )}

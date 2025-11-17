@@ -23,6 +23,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Loader2, UploadCloud, X } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { uploadFile } from '@/lib/storage';
 
 const COMPANY_ID = '1';
 
@@ -32,6 +33,7 @@ export function NewDriverForm() {
   const firestore = useFirestore();
   const { user } = useUser();
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
+  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
 
   const form = useForm<NewDriver>({
     resolver: zodResolver(newDriverSchema),
@@ -45,11 +47,10 @@ export function NewDriverForm() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        setPhotoPreview(dataUrl);
-        form.setValue('photoUrl', dataUrl, { shouldValidate: true });
+        setPhotoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -65,7 +66,18 @@ export function NewDriverForm() {
       return;
     }
 
+    form.formState.isSubmitting = true;
+
     try {
+      let uploadedPhotoUrl = '';
+      if (photoFile) {
+        toast({ description: 'Fazendo upload da foto...' });
+        uploadedPhotoUrl = await uploadFile(
+          photoFile,
+          `companies/${COMPANY_ID}/driver_photos`
+        );
+      }
+
       const driversCollection = collection(
         firestore,
         'companies',
@@ -75,6 +87,7 @@ export function NewDriverForm() {
 
       await addDoc(driversCollection, {
         ...data,
+        photoUrl: uploadedPhotoUrl,
         companyId: COMPANY_ID,
         ativo: true,
         createdAt: serverTimestamp(),
@@ -95,6 +108,8 @@ export function NewDriverForm() {
         title: 'Erro ao cadastrar motorista.',
         description: error.message || 'Ocorreu um erro desconhecido.',
       });
+    } finally {
+        form.formState.isSubmitting = false;
     }
   }
 
@@ -123,7 +138,7 @@ export function NewDriverForm() {
                     </Button>
                     <Input id="photo-upload" type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
                     {photoPreview && (
-                        <Button variant="ghost" size="sm" onClick={() => { setPhotoPreview(null); form.setValue('photoUrl', '')}}>
+                        <Button variant="ghost" size="sm" onClick={() => { setPhotoPreview(null); setPhotoFile(null); form.setValue('photoUrl', '')}}>
                             <X className="mr-2" />
                             Remover
                         </Button>
