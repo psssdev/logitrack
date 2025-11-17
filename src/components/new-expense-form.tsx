@@ -62,6 +62,11 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
   
   const selectedCategoryId = form.watch('categoryId');
 
+  // Sort categories client-side
+  const sortedCategories = React.useMemo(() => {
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
+
   async function onSubmit(data: NewExpenseFormValues) {
     if (!firestore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
@@ -79,8 +84,8 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
         description: data.otherCategoryDescription || category?.name || data.description,
         date: Timestamp.fromDate(data.date),
         amount: Math.abs(data.amount),
-        vehicleId: data.vehicleId,
-        driverId: data.driverId,
+        vehicleId: data.vehicleId || null,
+        driverId: data.driverId || null,
         driverName: driver ? driver.nome : undefined,
         createdAt: serverTimestamp(),
       };
@@ -158,7 +163,7 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
                         <SelectTrigger><SelectValue placeholder="Selecione uma categoria de despesa" /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            {sortedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                             <SelectItem value="outra">Outra...</SelectItem>
                         </SelectContent>
                     </Select>
@@ -192,7 +197,7 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
                             <SelectTrigger><SelectValue placeholder="Selecione um veículo para associar" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="">Nenhum</SelectItem>
+                                <SelectItem value="nenhum">Nenhum</SelectItem>
                                 {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.modelo} ({v.placa})</SelectItem>)}
                             </SelectContent>
                         </Select>
@@ -211,7 +216,7 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
                             <SelectTrigger><SelectValue placeholder="Selecione um motorista para associar" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="">Nenhum</SelectItem>
+                                <SelectItem value="nenhum">Nenhum</SelectItem>
                                 {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
                             </SelectContent>
                         </Select>

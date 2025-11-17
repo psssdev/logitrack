@@ -28,8 +28,7 @@ export default function NewExpensePage() {
     if (!firestore || isUserLoading || !user) return null;
     return query(
       collection(firestore, 'companies', COMPANY_ID, 'financialCategories'),
-      where('type', '==', 'Saída'),
-      orderBy('name', 'asc')
+      where('type', '==', 'Saída')
     );
   }, [firestore, isUserLoading, user]);
 
