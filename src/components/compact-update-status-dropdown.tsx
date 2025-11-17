@@ -72,7 +72,7 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
           status: newStatus,
           timeline: arrayUnion({
             status: newStatus,
-            at: serverTimestamp(),
+            at: new Date(),
             userId: user.uid,
           }),
         });
