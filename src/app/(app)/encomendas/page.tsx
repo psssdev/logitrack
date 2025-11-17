@@ -25,6 +25,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
+import { format } from 'date-fns';
 
 const COMPANY_ID = '1';
 
@@ -41,6 +42,7 @@ export default function EncomendasPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('TODAS');
 
   const statuses: OrderStatus[] = ['PENDENTE', 'EM_ROTA', 'ENTREGUE', 'CANCELADA'];
 
@@ -162,6 +164,62 @@ export default function EncomendasPage() {
       });
   }
 
+  const exportToCSV = () => {
+    if (!orders) {
+      toast({ variant: 'destructive', description: 'Não há dados de encomendas para exportar.' });
+      return;
+    }
+
+    const filteredOrders = activeTab === 'TODAS'
+        ? orders
+        : orders.filter(o => o.status === activeTab);
+
+    if (filteredOrders.length === 0) {
+        toast({ description: 'Nenhuma encomenda para exportar na aba atual.'});
+        return;
+    }
+
+    const headers = ['Data', 'Código', 'Cliente', 'Telefone', 'Origem', 'Destino', 'Valor', 'Status', 'Forma Pagamento'];
+    
+    // Helper para escapar vírgulas e aspas em campos de texto
+    const escapeCSV = (field: any) => {
+        if (typeof field === 'string') {
+            const cleanField = field.replace(/"/g, '""');
+            if (cleanField.includes(',')) {
+                return `"${cleanField}"`;
+            }
+            return cleanField;
+        }
+        return field;
+    }
+
+    const rows = filteredOrders.map(order => {
+        const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+        return [
+            format(orderDate, 'yyyy-MM-dd'),
+            order.codigoRastreio,
+            escapeCSV(order.nomeCliente),
+            order.telefone,
+            escapeCSV(order.origem),
+            escapeCSV(order.destino),
+            order.valorEntrega.toFixed(2),
+            order.status,
+            order.formaPagamento
+        ].join(',');
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `encomendas_${activeTab.toLowerCase()}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({ title: "Exportação Iniciada", description: "O download do arquivo CSV deve começar em breve."});
+  };
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -180,7 +238,7 @@ export default function EncomendasPage() {
               Notificar Pendentes
             </span>
           </Button>
-          <Button size="sm" variant="outline" className="h-8 gap-1">
+          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={exportToCSV}>
             <File className="h-3.5 w-3.5" />
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
               Exportar
@@ -196,7 +254,7 @@ export default function EncomendasPage() {
           </Button>
         </div>
       </div>
-      <Tabs defaultValue="TODAS">
+      <Tabs defaultValue="TODAS" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
           {allStatuses.map((status) => {
              const label = status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
