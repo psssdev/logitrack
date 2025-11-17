@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { PlusCircle, MoreHorizontal, Edit, Trash } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash, Sparkles } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { FinancialCategory } from '@/lib/types';
-import { collection, query, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, doc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { NewCategoryDialog } from '@/components/new-category-dialog';
 import { EditCategoryDialog } from '@/components/edit-category-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -37,6 +37,18 @@ import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
 
 const COMPANY_ID = '1';
+
+const defaultExpenseCategories = [
+    { name: "Combustível", type: "Saída" },
+    { name: "Alimentação", type: "Saída" },
+    { name: "Hospedagem", type: "Saída" },
+    { name: "Manutenção", type: "Saída" },
+    { name: "Pedágio", type: "Saída" },
+    { name: "Salário/Pró-labore", type: "Saída" },
+    { name: "Impostos", type: "Saída" },
+    { name: "Outros", type: "Saída" },
+];
+
 
 export default function CategoriasPage() {
   const firestore = useFirestore();
@@ -47,10 +59,10 @@ export default function CategoriasPage() {
   const [editingCategory, setEditingCategory] = React.useState<FinancialCategory | null>(null);
   const [deletingCategory, setDeletingCategory] = React.useState<FinancialCategory | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = React.useState(false);
+  const [isCreatingDefaults, setIsCreatingDefaults] = React.useState(false);
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    // Remove orderBy to avoid needing a composite index. Sorting will be done client-side.
     return query(
       collection(firestore, 'companies', COMPANY_ID, 'financialCategories')
     );
@@ -96,20 +108,74 @@ export default function CategoriasPage() {
     }
   }
 
+  const handleCreateDefaultCategories = async () => {
+    if (!firestore) {
+        toast({ variant: "destructive", title: "Erro de conexão" });
+        return;
+    }
+    setIsCreatingDefaults(true);
+    try {
+        const categoriesCollection = collection(firestore, 'companies', COMPANY_ID, 'financialCategories');
+        const existingCategoryNames = new Set(categories?.map(c => c.name.toLowerCase()));
+        
+        const batch = writeBatch(firestore);
+        let count = 0;
+
+        defaultExpenseCategories.forEach(defaultCategory => {
+            if (!existingCategoryNames.has(defaultCategory.name.toLowerCase())) {
+                const newDocRef = doc(categoriesCollection);
+                batch.set(newDocRef, defaultCategory);
+                count++;
+            }
+        });
+
+        if (count > 0) {
+            await batch.commit();
+            await triggerRevalidation('/categorias');
+            await triggerRevalidation('/financeiro/despesa/nova');
+            toast({
+                title: "Categorias Adicionadas!",
+                description: `${count} novas categorias padrão de despesa foram criadas.`
+            });
+        } else {
+             toast({
+                description: `Todas as categorias padrão já existem.`
+            });
+        }
+
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Erro ao criar categorias",
+            description: error.message,
+        });
+    } finally {
+        setIsCreatingDefaults(false);
+    }
+  };
+
 
   return (
     <>
       <div className="flex flex-col gap-6">
-        <div className="flex items-center">
+        <div className="flex items-center flex-wrap gap-2">
           <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
             Categorias Financeiras
           </h1>
-          <Button size="sm" className="h-8 gap-1" onClick={() => setIsNewCategoryOpen(true)}>
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Nova Categoria
-            </span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 gap-1" onClick={handleCreateDefaultCategories} disabled={isCreatingDefaults}>
+                <Sparkles className="h-3.5 w-3.5" />
+                 <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    Adicionar Padrões
+                </span>
+            </Button>
+            <Button size="sm" className="h-8 gap-1" onClick={() => setIsNewCategoryOpen(true)}>
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Nova Categoria
+                </span>
+            </Button>
+          </div>
         </div>
 
         <Card>
