@@ -117,7 +117,7 @@ export default function FinanceiroPage() {
                 </Link>
             </Button>
             <Button asChild>
-                <Link href="/financeiro/receita/nova">
+                <Link href="/vender-passagem">
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Nova Receita
                 </Link>

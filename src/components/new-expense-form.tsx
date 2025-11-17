@@ -79,8 +79,8 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
         description: data.otherCategoryDescription || category?.name || data.description,
         date: Timestamp.fromDate(data.date),
         amount: Math.abs(data.amount),
-        vehicleId: data.vehicleId === 'nenhum' ? undefined : data.vehicleId,
-        driverId: data.driverId === 'nenhum' ? undefined : data.driverId,
+        vehicleId: data.vehicleId,
+        driverId: data.driverId,
         driverName: driver ? driver.nome : undefined,
         createdAt: serverTimestamp(),
       };
@@ -192,7 +192,7 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
                             <SelectTrigger><SelectValue placeholder="Selecione um veículo para associar" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="nenhum">Nenhum</SelectItem>
+                                <SelectItem value="">Nenhum</SelectItem>
                                 {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.modelo} ({v.placa})</SelectItem>)}
                             </SelectContent>
                         </Select>
@@ -211,7 +211,7 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
                             <SelectTrigger><SelectValue placeholder="Selecione um motorista para associar" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="nenhum">Nenhum</SelectItem>
+                                <SelectItem value="">Nenhum</SelectItem>
                                 {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
                             </SelectContent>
                         </Select>

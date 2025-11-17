@@ -26,10 +26,9 @@ export default function NewExpensePage() {
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    // Removido o `where` para evitar a necessidade de um índice composto.
-    // A filtragem será feita no lado do cliente.
     return query(
       collection(firestore, 'companies', COMPANY_ID, 'financialCategories'),
+      where('type', '==', 'Saída'),
       orderBy('name', 'asc')
     );
   }, [firestore, isUserLoading, user]);
@@ -45,20 +44,14 @@ export default function NewExpensePage() {
   const driversQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'drivers'),
-      orderBy('nome', 'asc')
+        collection(firestore, 'companies', COMPANY_ID, 'drivers'),
+        orderBy('nome', 'asc')
     );
   }, [firestore, isUserLoading, user]);
 
-  const { data: allCategories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
+  const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
   const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
-  
-  // Filtra as categorias para "Saída" no lado do cliente
-  const expenseCategories = React.useMemo(() => {
-    if (!allCategories) return [];
-    return allCategories.filter(category => category.type === 'Saída');
-  }, [allCategories]);
 
   const isLoading = isLoadingCategories || isLoadingVehicles || isLoadingDrivers || isUserLoading;
 
@@ -86,7 +79,7 @@ export default function NewExpensePage() {
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : (
-            <NewExpenseForm categories={expenseCategories || []} vehicles={vehicles || []} drivers={drivers || []} />
+            <NewExpenseForm categories={categories || []} vehicles={vehicles || []} drivers={drivers || []} />
           )}
         </CardContent>
       </Card>
