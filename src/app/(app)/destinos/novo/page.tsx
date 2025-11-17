@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { NewDestinoForm } from '@/components/new-destino-form';
+import { NewLocationForm } from '@/components/new-location-form';
 
 export default function NewDestinoPage() {
   return (
@@ -32,7 +32,7 @@ export default function NewDestinoPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NewDestinoForm />
+          <NewLocationForm locationType="destino" />
         </CardContent>
       </Card>
     </div>

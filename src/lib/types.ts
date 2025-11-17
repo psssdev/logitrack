@@ -1,6 +1,7 @@
 
+
 import { z } from 'zod';
-import { orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, newDestinoSchema, vehicleSchema, baseFinancialEntrySchema, originSchema, newOriginSchema, destinoSchema } from './schemas';
+import { orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, vehicleSchema, baseFinancialEntrySchema, locationSchema, newLocationSchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
 export type Payment = {
@@ -55,26 +56,24 @@ export type Address = Omit<z.infer<typeof addressSchema>, 'lat'| 'lng'> & {
 
 export type NewAddress = z.infer<typeof newAddressFormSchema>;
 
+export type Location = z.infer<typeof locationSchema>;
+export type NewLocation = z.infer<typeof newLocationSchema>;
+
+
 // Base Origin type with potential Firestore Timestamp
-export type Origin = Omit<z.infer<typeof originSchema>, 'createdAt' | 'logradouro' | 'numero' | 'bairro' | 'cidade' | 'estado' | 'cep'> & {
+export type Origin = Omit<z.infer<typeof locationSchema>, 'createdAt' | 'address'> & {
     id: string;
     address: string;
     createdAt: Date | Timestamp;
-    lat: number;
-    lng: number;
-    city?: string;
-    active?: boolean;
 };
-export type NewOrigin = z.infer<typeof newOriginSchema>;
-
 
 // Base Destino type with potential Firestore Timestamp
-export type Destino = Omit<z.infer<typeof destinoSchema>, 'createdAt' | 'logradouro' | 'numero' | 'bairro' | 'cidade' | 'estado' | 'cep'> & {
+export type Destino = Omit<z.infer<typeof locationSchema>, 'createdAt' | 'address' | 'lat' | 'lng'> & {
     id: string;
     address: string;
     createdAt: Date | Timestamp;
 };
-export type NewDestino = z.infer<typeof newDestinoSchema>;
+
 
 // Company type, derived from the JSON schema
 export type Company = {
@@ -128,3 +127,5 @@ export type FinancialEntry = Omit<z.infer<typeof baseFinancialEntrySchema>, 'dat
     date: Date | Timestamp;
     travelDate?: Date | Timestamp;
 };
+
+    

@@ -143,29 +143,26 @@ export const newAddressFormSchema = addressSchema.omit({
   fullAddress: true,
 });
 
-export const originSchema = z.object({
-  id: z.string(),
+export const locationSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, 'O nome é obrigatório'),
-  logradouro: z.string().min(1, 'O logradouro é obrigatório').optional(),
-  numero: z.string().optional(),
-  bairro: z.string().optional(),
-  cidade: z.string().optional(),
-  estado: z.string().optional(),
-  cep: z.string().optional(),
-  address: z.string(), // This will be the concatenated full address
-  createdAt: z.any(), // Allow Date or Firestore Timestamp
-  lat: z.coerce.number(),
-  lng: z.coerce.number(),
+  logradouro: z.string().min(1, 'O logradouro é obrigatório'),
+  numero: z.string().min(1, 'O número é obrigatório'),
+  bairro: z.string().min(1, 'O bairro é obrigatório'),
+  cidade: z.string().min(1, 'A cidade é obrigatória'),
+  estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
+  cep: z.string().min(8, 'O CEP é obrigatório'),
+  address: z.string().optional(), // This will be the concatenated full address
+  createdAt: z.any().optional(), // Allow Date or Firestore Timestamp
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
 });
 
-export const newOriginSchema = originSchema.omit({
+export const newLocationSchema = locationSchema.omit({
   id: true,
-  address: true, // `address` will be generated in the server action
+  address: true,
   createdAt: true,
 });
-
-export const destinoSchema = originSchema.extend({}); 
-export const newDestinoSchema = newOriginSchema.extend({}).omit({lat: true, lng: true});
 
 
 export const vehicleSchema = z.object({
@@ -226,3 +223,5 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
 export const editFinancialEntrySchema = baseFinancialEntrySchema;
 
 export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });
+
+    

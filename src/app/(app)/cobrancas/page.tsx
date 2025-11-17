@@ -95,16 +95,19 @@ export default function CobrancasPage() {
     if (!allOrders) return [];
     const citySet = new Set<string>();
     allOrders.forEach(order => {
-      // Ensure order.destino is a string before splitting
-      if (typeof order.destino === 'string') {
-        const parts = order.destino.split(', ');
-        if (parts.length >= 2) {
-          const city = parts[parts.length - 2]?.trim();
-          if (city) {
-              citySet.add(city);
-          }
+        if (typeof order.destino === 'string') {
+            // Split by comma and get the second to last part, which is usually the city
+            const parts = order.destino.split(',').map(p => p.trim());
+            if (parts.length >= 2) {
+                // Heuristic: City is usually before State and CEP. E.g. "Street, 123, Neighborhood, City, State"
+                // Assuming City is the second to last element before the state abbreviation
+                const cityCandidate = parts[parts.length - 2];
+                // A simple check to avoid adding the state as a city
+                if (cityCandidate && cityCandidate.length > 2) { 
+                    citySet.add(cityCandidate);
+                }
+            }
         }
-      }
     });
     return Array.from(citySet).sort();
   }, [allOrders]);
@@ -128,7 +131,8 @@ export default function CobrancasPage() {
             order.codigoRastreio.toLowerCase().includes(searchTerm.toLowerCase());
             
         // City filter
-        const orderCity = typeof order.destino === 'string' ? order.destino.split(', ')[order.destino.split(', ').length - 2]?.trim() : '';
+         const orderCityParts = typeof order.destino === 'string' ? order.destino.split(',').map(p => p.trim()) : [];
+         const orderCity = orderCityParts.length >= 2 ? orderCityParts[orderCityParts.length - 2] : '';
         const isCityMatch = selectedCity === 'all' || orderCity === selectedCity;
 
         return isDateInRange && isStatusMatch && isSearchMatch && isCityMatch;

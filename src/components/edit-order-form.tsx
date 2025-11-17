@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { editOrderSchema } from '@/lib/schemas';
-import type { Order, Location, Address, Driver } from '@/lib/types';
+import type { Order, Origin, Address, Driver } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -65,7 +65,7 @@ export function EditOrderForm({
   origins,
 }: {
   order: Order;
-  origins: Location[];
+  origins: Origin[];
 }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -475,3 +475,5 @@ export function EditOrderForm({
     </Form>
   );
 }
+
+    
