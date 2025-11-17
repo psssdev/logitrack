@@ -69,6 +69,7 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
     resolver: zodResolver(editFinancialEntrySchema),
     defaultValues: {
       ...entry,
+      otherCategoryDescription: '',
       date: entry.date instanceof Timestamp ? entry.date.toDate() : (entry.date ? new Date(entry.date) : undefined),
       travelDate: entry.travelDate instanceof Timestamp ? entry.travelDate.toDate() : (entry.travelDate ? new Date(entry.travelDate) : undefined),
     },

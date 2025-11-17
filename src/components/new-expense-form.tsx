@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -54,6 +53,7 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
       amount: 0,
       date: new Date(),
       categoryId: '',
+      otherCategoryDescription: '',
       vehicleId: '',
       driverId: '',
       notes: '',
@@ -64,6 +64,7 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
 
   // Sort categories client-side
   const sortedCategories = React.useMemo(() => {
+    if (!categories) return [];
     return [...categories].sort((a, b) => a.name.localeCompare(b.name));
   }, [categories]);
 
@@ -178,7 +179,7 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Especifique a Categoria *</FormLabel>
-                        <FormControl><Input placeholder="Ex: Compra de pneu" {...field} /></FormControl>
+                        <FormControl><Input placeholder="Ex: Compra de pneu" {...field} value={field.value || ''} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
