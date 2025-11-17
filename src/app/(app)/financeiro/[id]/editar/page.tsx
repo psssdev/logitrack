@@ -56,7 +56,7 @@ function EditFinancialEntryContent({ entryId }: { entryId: string }) {
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    // Removing orderBy to prevent index requirement error
+    // Removing orderBy to prevent index requirement error. Client-side sorting will be used.
     return query(
         collection(firestore, 'companies', COMPANY_ID, 'financialCategories')
     );

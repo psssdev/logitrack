@@ -130,7 +130,7 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
 
   const availableCategories = React.useMemo(() => {
     if (!categories) return [];
-    return categories
+    return [...categories]
       .filter(c => c.type === entry.type)
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [categories, entry.type]);
