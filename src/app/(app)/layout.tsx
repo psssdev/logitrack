@@ -25,6 +25,7 @@ const navItems = [
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/cobrancas', icon: CircleDollarSign, label: 'Cobranças' },
   { href: '/financeiro', icon: Landmark, label: 'Financeiro' },
+  { href: '/financeiro/despesa/nova', icon: ArrowDownCircle, label: 'Despesas' },
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/veiculos', icon: Bus, label: 'Veículos' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
