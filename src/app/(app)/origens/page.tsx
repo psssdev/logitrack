@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -7,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { PlusCircle, MoreHorizontal } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash } from 'lucide-react';
 import type { Origin } from '@/lib/types';
 import Link from 'next/link';
 import {
@@ -22,20 +23,37 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, orderBy, query } from 'firebase/firestore';
+import { collection, orderBy, query, doc, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { triggerRevalidation } from '@/lib/actions';
+
+const COMPANY_ID = '1';
 
 export default function OrigensPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
+  const [deletingOrigin, setDeletingOrigin] = React.useState<Origin | null>(null);
 
   const originsQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
     return query(
-      collection(firestore, 'companies', '1', 'origins'),
+      collection(firestore, 'companies', COMPANY_ID, 'origins'),
       orderBy('name', 'asc')
     );
   }, [firestore, isUserLoading, user]);
@@ -43,37 +61,88 @@ export default function OrigensPage() {
   const { data: origins, isLoading } = useCollection<Origin>(originsQuery);
   const pageIsLoading = isLoading || isUserLoading;
 
+  const handleDelete = (origin: Origin) => {
+    setDeletingOrigin(origin);
+  };
+
+  const confirmDelete = async () => {
+    if (!firestore || !deletingOrigin) return;
+    try {
+      await deleteDoc(doc(firestore, 'companies', COMPANY_ID, 'origins', deletingOrigin.id));
+      await triggerRevalidation('/origens');
+      await triggerRevalidation('/vender-passagem');
+      toast({
+        title: 'Origem excluída',
+        description: `A origem "${deletingOrigin.name}" foi removida.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir',
+        description: error.message,
+      });
+    } finally {
+      setDeletingOrigin(null);
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center">
-        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Origens</h1>
-        <Button size="sm" className="h-8 gap-1" asChild>
-          <Link href="/origens/novo">
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Nova Origem
-            </span>
-          </Link>
-        </Button>
+    <>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center">
+          <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Origens</h1>
+          <Button size="sm" className="h-8 gap-1" asChild>
+            <Link href="/origens/novo">
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Nova Origem
+              </span>
+            </Link>
+          </Button>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Pontos de Partida</CardTitle>
+            <CardDescription>
+              Gerencie os endereços de origem das suas encomendas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {pageIsLoading && <Skeleton className="h-48 w-full" />}
+            {origins && !pageIsLoading && <OriginList origins={origins} onDelete={handleDelete} />}
+          </CardContent>
+        </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Pontos de Partida</CardTitle>
-          <CardDescription>
-            Gerencie os endereços de origem das suas encomendas.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {pageIsLoading && <Skeleton className="h-48 w-full" />}
-          {origins && !pageIsLoading && <OriginList origins={origins} />}
-        </CardContent>
-      </Card>
-    </div>
+      {deletingOrigin && (
+        <AlertDialog open={!!deletingOrigin} onOpenChange={(open) => !open && setDeletingOrigin(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita. Isso excluirá permanentemente a origem{' '}
+                <span className="font-bold">"{deletingOrigin.name}"</span>.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </>
   );
 }
 
-function OriginList({ origins }: { origins: Origin[] }) {
+function OriginList({
+  origins,
+  onDelete,
+}: {
+  origins: Origin[];
+  onDelete: (origin: Origin) => void;
+}) {
   if (origins.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/30 p-12 text-center">
@@ -104,7 +173,26 @@ function OriginList({ origins }: { origins: Origin[] }) {
               <TableCell>{origin.address}</TableCell>
               <TableCell>
                 <div className="flex justify-end">
-                  {/* Actions removed for now */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/origens/${origin.id}/editar`}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive" onSelect={() => onDelete(origin)}>
+                        <Trash className="mr-2 h-4 w-4" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </TableCell>
             </TableRow>
