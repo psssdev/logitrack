@@ -12,7 +12,7 @@ export type Payment = {
 }
 
 // Base Order type from schema
-export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' | 'dataPagamento' | 'payments'> & {
+export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' | 'dataPagamento' | 'payments' | 'messages'> & {
     id: string;
     createdAt: Date | Timestamp;
     dataPagamento?: Date | Timestamp;
@@ -22,6 +22,7 @@ export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' |
         userId: string;
     }[];
     payments?: Payment[];
+    messages?: string[];
 };
 
 // NewOrder type for form creation
@@ -55,10 +56,6 @@ export type Address = Omit<z.infer<typeof addressSchema>, 'lat'| 'lng'> & {
 };
 
 export type NewAddress = z.infer<typeof newAddressFormSchema>;
-
-export type Location = z.infer<typeof locationSchema>;
-export type NewLocation = z.infer<typeof newLocationSchema>;
-
 
 // Base Origin type with potential Firestore Timestamp
 export type Origin = Omit<z.infer<typeof locationSchema>, 'createdAt' | 'address'> & {
