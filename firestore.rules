@@ -11,30 +11,31 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function getUserCompanyId(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.companyId;
+    // Função que usa o Custom Claim em vez de ler o documento do usuário
+    function getUserCompanyId() {
+      return request.auth.token.companyId;
     }
 
+    // Função que usa o Custom Claim
     function isUserInCompany(companyId) {
-      return isUserAuthenticated() && getUserCompanyId(request.auth.uid) == companyId;
+      return isUserAuthenticated() && getUserCompanyId() == companyId;
     }
-
+    
+    // As regras do usuário podem ser mais simples agora
     match /users/{userId} {
       allow read: if isOwner(userId);
-      // Deny direct client-side creation. Must be done via trusted server (API route).
-      allow create: if false; 
-      // Users can only update their own displayName. companyId/role are protected.
-      allow update: if isOwner(userId) && request.resource.data.keys().hasOnly(['displayName', 'email']);
+      // Criação/Update só podem ser feitos via backend (API Route)
+      allow create, update, delete: if false; 
     }
 
     match /companies/{companyId} {
-      // Allow reads if the user belongs to the company.
-      // Deny direct client-side creation/writes. Must be done via trusted server (API route).
+      // Leitura permitida se o usuário pertence à empresa (via custom claim)
       allow read: if isUserInCompany(companyId);
+      // Escrita/Criação bloqueada para o cliente, deve ser feita pela API de provisionamento
       allow create, update, delete: if false;
     }
 
-    // This rule applies to all sub-collections of a company (e.g., orders, clients).
+    // Esta regra agora protege todas as subcoleções de uma empresa
     match /companies/{companyId}/{document=**} {
       allow read, write: if isUserInCompany(companyId);
     }

@@ -14,8 +14,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import { useToast } from '@/hooks/use-toast';
-import { FirebaseClientProvider, useAuth } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { useAuth, FirebaseClientProvider } from '@/firebase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -29,6 +32,7 @@ function LoginPageContent() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     if (!auth) {
       toast({
         variant: 'destructive',
@@ -37,13 +41,19 @@ function LoginPageContent() {
       });
       return;
     }
+
     setIsLoading(true);
 
     try {
+      // 1) tentar login
       await signInWithEmailAndPassword(auth, email, password);
       router.push('/inicio');
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+      // 2) se não existir, cria e entra
+      if (
+        error.code === 'auth/user-not-found' ||
+        error.code === 'auth/invalid-credential'
+      ) {
         try {
           await createUserWithEmailAndPassword(auth, email, password);
           router.push('/inicio');
@@ -127,11 +137,10 @@ function LoginPageContent() {
   );
 }
 
-
 export default function LoginPage() {
-    return (
-        <FirebaseClientProvider>
-            <LoginPageContent />
-        </FirebaseClientProvider>
-    )
+  return (
+    <FirebaseClientProvider>
+      <LoginPageContent />
+    </FirebaseClientProvider>
+  );
 }

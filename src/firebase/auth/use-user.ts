@@ -14,14 +14,20 @@ interface UserHookResult {
 
 export const useUser = (): UserHookResult => {
   const auth = useAuth();
-  const [user, setUser] = useState<User | null>(auth.currentUser);
-  const [isUserLoading, setIsLoading] = useState(true);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [isUserLoading, setIsLoading] = useState<boolean>(true);
   const [userError, setUserError] = useState<Error | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [isProvisioning, setIsProvisioning] = useState(false);
+  const [isProvisioning, setIsProvisioning] = useState<boolean>(false);
 
   useEffect(() => {
+    if (!auth) {
+      setIsLoading(false);
+      return;
+    }
+
     const unsubscribe = auth.onIdTokenChanged(async (firebaseUser) => {
       setIsLoading(true);
       setUser(firebaseUser);
@@ -38,8 +44,7 @@ export const useUser = (): UserHookResult => {
             setRole(claims.role as string);
             setIsLoading(false);
           } else {
-            // If claims are missing, it might be a new user.
-            // Trigger provisioning.
+            // Novo usuário → provisionar no backend
             setIsProvisioning(true);
             try {
               const response = await fetch('/api/provision-user', {
@@ -52,31 +57,33 @@ export const useUser = (): UserHookResult => {
 
               if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to provision user profile.');
+                throw new Error(
+                  errorData.error || 'Failed to provision user profile.'
+                );
               }
-              
-              // After successful provisioning, force a token refresh to get new claims.
-              const freshIdTokenResult = await firebaseUser.getIdTokenResult(true);
+
+              // Força refresh do token pra carregar os novos claims
+              const freshIdTokenResult = await firebaseUser.getIdTokenResult(
+                true
+              );
               const newClaims = freshIdTokenResult.claims;
               setCompanyId(newClaims.companyId as string);
               setRole(newClaims.role as string);
-
             } catch (provisionError: any) {
-              console.error("User Provisioning Error:", provisionError);
+              console.error('User Provisioning Error:', provisionError);
               setUserError(provisionError);
             } finally {
               setIsProvisioning(false);
             }
           }
         } catch (error: any) {
-          console.error("Error getting user token or claims:", error);
+          console.error('Error getting user token or claims:', error);
           setUserError(error);
         }
       }
-      // Set loading to false only after all async operations are done
       setIsLoading(false);
     }, (error) => {
-      console.error("Auth State Error:", error);
+      console.error('Auth State Error:', error);
       setUserError(error);
       setIsLoading(false);
     });
@@ -84,5 +91,11 @@ export const useUser = (): UserHookResult => {
     return () => unsubscribe();
   }, [auth]);
 
-  return { user, isUserLoading: isUserLoading || isProvisioning, userError, companyId, role };
+  return {
+    user,
+    isUserLoading: isUserLoading || isProvisioning,
+    userError,
+    companyId,
+    role,
+  };
 };
