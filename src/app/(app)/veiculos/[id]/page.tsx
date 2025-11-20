@@ -92,7 +92,7 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const isLoading = isLoadingVehicle || isLoadingSales || isUserLoading;
 
   const handleDelete = async () => {
-    if (!firestore || !vehicle || !vehicleRef) return;
+    if (!firestore || !vehicle || !vehicleRef || !companyId) return;
     try {
         await deleteDoc(vehicleRef);
         await triggerRevalidation('/veiculos');
