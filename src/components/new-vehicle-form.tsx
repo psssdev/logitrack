@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { vehicleSchema } from '@/lib/schemas';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import {
@@ -31,8 +31,6 @@ import { Textarea } from './ui/textarea';
 import type { Vehicle, SeatLayout } from '@/lib/types';
 
 type NewVehicleFormValues = z.infer<typeof vehicleSchema>;
-
-const COMPANY_ID = '1';
 
 const defaultSeatLayout: SeatLayout = {
   upperDeck: {
@@ -59,6 +57,7 @@ export function NewVehicleForm() {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { companyId } = useUser();
 
   const form = useForm<NewVehicleFormValues>({
     resolver: zodResolver(vehicleSchema.omit({ id: true })),
@@ -76,7 +75,7 @@ export function NewVehicleForm() {
   const vehicleType = form.watch('tipo');
 
   async function onSubmit(data: NewVehicleFormValues) {
-    if (!firestore) {
+    if (!firestore || !companyId) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -100,7 +99,7 @@ export function NewVehicleForm() {
     }
 
     try {
-      const vehiclesCollection = collection(firestore, 'companies', COMPANY_ID, 'vehicles');
+      const vehiclesCollection = collection(firestore, 'companies', companyId, 'vehicles');
       await addDoc(vehiclesCollection, {
         ...processedData,
         placa: data.placa.toUpperCase(),

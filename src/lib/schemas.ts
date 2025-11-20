@@ -95,7 +95,9 @@ export const driverSchema = z.object({
 });
 
 export const newDriverSchema = driverSchema.omit({ id: true, ativo: true });
-export const editDriverSchema = newDriverSchema.extend({});
+export const editDriverSchema = newDriverSchema.extend({
+    photoUrl: z.string().optional().nullable(),
+});
 
 
 export const clientSchema = z.object({

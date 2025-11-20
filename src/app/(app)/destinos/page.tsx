@@ -42,21 +42,19 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
 
-const COMPANY_ID = '1';
-
 export default function DestinosPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
   const { toast } = useToast();
   const [deletingDestino, setDeletingDestino] = React.useState<Destino | null>(null);
 
   const destinosQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || !companyId || isUserLoading) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'destinos'),
+      collection(firestore, 'companies', companyId, 'destinos'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, companyId, isUserLoading]);
 
   const { data: destinos, isLoading } = useCollection<Destino>(destinosQuery);
   const pageIsLoading = isLoading || isUserLoading;
@@ -66,9 +64,9 @@ export default function DestinosPage() {
   };
 
   const confirmDelete = async () => {
-    if (!firestore || !deletingDestino) return;
+    if (!firestore || !deletingDestino || !companyId) return;
     try {
-      await deleteDoc(doc(firestore, 'companies', COMPANY_ID, 'destinos', deletingDestino.id));
+      await deleteDoc(doc(firestore, 'companies', companyId, 'destinos', deletingDestino.id));
       await triggerRevalidation('/destinos');
       await triggerRevalidation('/vender-passagem');
       toast({

@@ -16,8 +16,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
-import { newDestinoSchema } from '@/lib/schemas';
-import type { NewDestino } from '@/lib/types';
+import { newLocationSchema } from '@/lib/schemas';
+import type { NewLocation } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
 import {
   Select,
@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 type City = {
@@ -64,18 +64,17 @@ const brazilianStates = [
     { value: 'TO', label: 'Tocantins' },
 ];
 
-const COMPANY_ID = '1';
-
 export function NewDestinoForm() {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { companyId } = useUser();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
 
-  const form = useForm<NewDestino>({
-    resolver: zodResolver(newDestinoSchema),
+  const form = useForm<NewLocation>({
+    resolver: zodResolver(newLocationSchema),
     defaultValues: {
       name: '',
       logradouro: '',
@@ -168,8 +167,8 @@ export function NewDestinoForm() {
     }
   };
 
-  async function onSubmit(data: NewDestino) {
-    if (!firestore) {
+  async function onSubmit(data: NewLocation) {
+    if (!firestore || !companyId) {
         toast({
             variant: 'destructive',
             title: 'Erro de conexão',
@@ -179,7 +178,7 @@ export function NewDestinoForm() {
     }
 
     try {
-        const destinosCollection = collection(firestore, 'companies', COMPANY_ID, 'destinos');
+        const destinosCollection = collection(firestore, 'companies', companyId, 'destinos');
         const { logradouro, numero, bairro, cidade, estado, cep, name } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 

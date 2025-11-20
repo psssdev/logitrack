@@ -16,19 +16,17 @@ import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, orderBy, query } from 'firebase/firestore';
 
-const COMPANY_ID = '1';
-
 export default function MotoristasPage() {
     const firestore = useFirestore();
-    const { user, isUserLoading } = useUser();
+    const { user, companyId, isUserLoading } = useUser();
 
     const driversQuery = useMemoFirebase(() => {
-        if (!firestore || isUserLoading || !user) return null;
+        if (!firestore || !companyId || isUserLoading) return null;
         return query(
-            collection(firestore, 'companies', COMPANY_ID, 'drivers'),
+            collection(firestore, 'companies', companyId, 'drivers'),
             orderBy('nome', 'asc')
         );
-    }, [firestore, isUserLoading, user]);
+    }, [firestore, companyId, isUserLoading]);
 
     const { data: drivers, isLoading } = useCollection<Driver>(driversQuery);
     const pageIsLoading = isLoading || isUserLoading;

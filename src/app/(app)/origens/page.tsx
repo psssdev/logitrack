@@ -42,21 +42,19 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
 
-const COMPANY_ID = '1';
-
 export default function OrigensPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
   const { toast } = useToast();
   const [deletingOrigin, setDeletingOrigin] = React.useState<Origin | null>(null);
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || !companyId || isUserLoading) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'origins'),
+      collection(firestore, 'companies', companyId, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, companyId, isUserLoading]);
 
   const { data: origins, isLoading } = useCollection<Origin>(originsQuery);
   const pageIsLoading = isLoading || isUserLoading;
@@ -66,9 +64,9 @@ export default function OrigensPage() {
   };
 
   const confirmDelete = async () => {
-    if (!firestore || !deletingOrigin) return;
+    if (!firestore || !deletingOrigin || !companyId) return;
     try {
-      await deleteDoc(doc(firestore, 'companies', COMPANY_ID, 'origins', deletingOrigin.id));
+      await deleteDoc(doc(firestore, 'companies', companyId, 'origins', deletingOrigin.id));
       await triggerRevalidation('/origens');
       await triggerRevalidation('/vender-passagem');
       toast({

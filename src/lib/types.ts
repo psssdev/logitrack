@@ -57,6 +57,11 @@ export type Address = Omit<z.infer<typeof addressSchema>, 'lat'| 'lng'> & {
 
 export type NewAddress = z.infer<typeof newAddressFormSchema>;
 
+
+// NewLocation type for form creation
+export type NewLocation = z.infer<typeof newLocationSchema>;
+
+
 // Base Origin type with potential Firestore Timestamp
 export type Origin = Omit<z.infer<typeof locationSchema>, 'createdAt' | 'address'> & {
     id: string;

@@ -64,8 +64,6 @@ export function NewDriverForm() {
       return;
     }
 
-    form.formState.isSubmitting = true;
-
     try {
       let uploadedPhotoUrl = '';
       if (photoFile) {
@@ -106,8 +104,6 @@ export function NewDriverForm() {
         title: 'Erro ao cadastrar motorista.',
         description: error.message || 'Ocorreu um erro desconhecido.',
       });
-    } finally {
-        form.formState.isSubmitting = false;
     }
   }
 

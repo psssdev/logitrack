@@ -19,10 +19,8 @@ import { triggerRevalidation } from '@/lib/actions';
 import { newLocationSchema } from '@/lib/schemas';
 import type { Origin } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-
-const COMPANY_ID = '1';
 
 // Helper to parse the full address
 const parseFullAddress = (fullAddress: string) => {
@@ -49,6 +47,7 @@ export function EditOriginForm({ origin }: { origin: Origin }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { companyId } = useUser();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(newLocationSchema),
@@ -61,13 +60,13 @@ export function EditOriginForm({ origin }: { origin: Origin }) {
   });
 
   async function onSubmit(data: FormValues) {
-    if (!firestore) {
+    if (!firestore || !companyId) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
-      const originRef = doc(firestore, 'companies', COMPANY_ID, 'origins', origin.id);
+      const originRef = doc(firestore, 'companies', companyId, 'origins', origin.id);
       const { logradouro, numero, bairro, cidade, estado, cep } = data;
       const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 

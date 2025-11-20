@@ -66,8 +66,6 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
       });
       return;
     }
-    
-    form.formState.isSubmitting = true;
 
     try {
       let uploadedPhotoUrl = data.photoUrl;
@@ -108,8 +106,6 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
         title: 'Erro ao atualizar motorista.',
         description: error.message || 'Ocorreu um erro desconhecido.',
       });
-    } finally {
-        form.formState.isSubmitting = false;
     }
   }
 

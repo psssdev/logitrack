@@ -29,12 +29,12 @@ export default function EditDriverPage({
 
 function EditDriverContent({ driverId }: { driverId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
 
   const driverRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', '1', 'drivers', driverId);
-  }, [firestore, isUserLoading, driverId, user]);
+    if (!firestore || !companyId || isUserLoading) return null;
+    return doc(firestore, 'companies', companyId, 'drivers', driverId);
+  }, [firestore, isUserLoading, driverId, companyId]);
 
   const { data: driver, isLoading } = useDoc<Driver>(driverRef);
 
