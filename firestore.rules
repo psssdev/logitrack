@@ -3,29 +3,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to get the user's companyId from their profile
+    function isUserAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
     function getUserCompanyId(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.companyId;
     }
 
-    // Users can read their own profile.
-    // They can create it if it doesn't exist.
-    // They can only update their own displayName and email.
+    function isUserInCompany(companyId) {
+      return isUserAuthenticated() && getUserCompanyId(request.auth.uid) == companyId;
+    }
+
     match /users/{userId} {
-      allow read: if request.auth.uid == userId;
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId && request.resource.data.keys().hasOnly(['displayName', 'email', 'companyId', 'role', 'createdAt']);
+      allow read: if isOwner(userId);
+      // Deny direct client-side creation. Must be done via trusted server (API route).
+      allow create: if false; 
+      // Users can only update their own displayName. companyId/role are protected.
+      allow update: if isOwner(userId) && request.resource.data.keys().hasOnly(['displayName', 'email']);
     }
 
-    // Companies can be read by any authenticated user of that company.
-    // Write access should be restricted, perhaps only to admins via cloud functions in a real scenario
     match /companies/{companyId} {
-      allow read, write: if request.auth != null && getUserCompanyId(request.auth.uid) == companyId;
+      // Allow reads if the user belongs to the company.
+      // Deny direct client-side creation/writes. Must be done via trusted server (API route).
+      allow read: if isUserInCompany(companyId);
+      allow create, update, delete: if false;
     }
 
-    // All subcollections of a company are protected by the same multi-tenancy rule
+    // This rule applies to all sub-collections of a company (e.g., orders, clients).
     match /companies/{companyId}/{document=**} {
-      allow read, write: if request.auth != null && getUserCompanyId(request.auth.uid) == companyId;
+      allow read, write: if isUserInCompany(companyId);
     }
   }
 }
