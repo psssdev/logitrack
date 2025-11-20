@@ -34,8 +34,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DatePickerWithRange } from '@/components/date-range-picker';
 import { Timestamp } from 'firebase/firestore';
 
-const COMPANY_ID = '1';
-
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
     value
@@ -57,7 +55,7 @@ const openWhatsApp = (phone: string, message: string) => {
 
 export default function CobrancasPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
   const { toast } = useToast();
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -74,17 +72,17 @@ export default function CobrancasPage() {
 
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
+    if (!firestore || !user || !companyId) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'orders'),
+      collection(firestore, 'companies', companyId, 'orders'),
       orderBy('createdAt', 'desc')
     );
-  }, [firestore, user, isUserLoading]);
+  }, [firestore, user, companyId]);
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore, user, isUserLoading]);
+    if (!firestore || !user || !companyId) return null;
+    return doc(firestore, 'companies', companyId);
+  }, [firestore, user, companyId]);
 
   const { data: allOrders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
@@ -140,6 +138,7 @@ export default function CobrancasPage() {
   }, [allOrders, dateRange, paymentStatus, searchTerm, selectedCity]);
   
   const summary = useMemo(() => {
+    if (!filteredOrders) return { pendente: 0, recebido: 0, geral: 0 };
     const summaryData = filteredOrders.reduce((acc, order) => {
         const value = order.valorEntrega || 0;
         acc.geral += value;
@@ -147,9 +146,9 @@ export default function CobrancasPage() {
         const paidAmount = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
 
         if(order.pago) {
-            acc.recebido += value + paidAmount;
+            acc.recebido += value; // Assuming valorEntrega is the final correct value if pago is true.
         } else {
-             acc.pendente += value;
+             acc.pendente += (value - paidAmount);
              acc.recebido += paidAmount;
         }
         return acc;

@@ -23,7 +23,7 @@ export default function NewExpensePage() {
   const { user, isUserLoading, companyId } = useUser();
 
   const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
+    if (!firestore || !user || isUserLoading || !companyId) return null;
     return query(
       collection(firestore, 'companies', companyId, 'financialCategories'),
       where('type', '==', 'Saída')
@@ -31,7 +31,7 @@ export default function NewExpensePage() {
   }, [firestore, isUserLoading, user, companyId]);
 
   const vehiclesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
+    if (!firestore || !user || isUserLoading || !companyId) return null;
     return query(
       collection(firestore, 'companies', companyId, 'vehicles'),
       orderBy('modelo', 'asc')
@@ -39,7 +39,7 @@ export default function NewExpensePage() {
   }, [firestore, isUserLoading, user, companyId]);
 
   const driversQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
+    if (!firestore || !user || isUserLoading || !companyId) return null;
     return query(
         collection(firestore, 'companies', companyId, 'drivers'),
         orderBy('nome', 'asc')
@@ -83,3 +83,5 @@ export default function NewExpensePage() {
     </div>
   );
 }
+
+    

@@ -81,7 +81,10 @@ export const useUser = (): UserHookResult => {
           setUserError(error);
         }
       }
-      setIsLoading(false);
+      // Only set loading to false if not provisioning
+      if (!isProvisioning) {
+        setIsLoading(false);
+      }
     }, (error) => {
       console.error('Auth State Error:', error);
       setUserError(error);
@@ -89,6 +92,7 @@ export const useUser = (): UserHookResult => {
     });
 
     return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth]);
 
   return {
@@ -99,3 +103,5 @@ export const useUser = (): UserHookResult => {
     role,
   };
 };
+
+    

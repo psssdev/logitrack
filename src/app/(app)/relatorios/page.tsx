@@ -64,22 +64,22 @@ const COLORS = [
 
 export default function RelatoriosPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
   
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return query(collection(firestore, 'companies', '1', 'orders'));
-  }, [firestore, isUserLoading, user]);
+    if (!firestore || !user || isUserLoading || !companyId) return null;
+    return query(collection(firestore, 'companies', companyId, 'orders'));
+  }, [firestore, user, companyId, isUserLoading]);
   
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return query(collection(firestore, 'companies', '1', 'clients'));
-  }, [firestore, isUserLoading, user]);
+    if (!firestore || !user || isUserLoading || !companyId) return null;
+    return query(collection(firestore, 'companies', companyId, 'clients'));
+  }, [firestore, user, companyId, isUserLoading]);
   
   const driversQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return query(collection(firestore, 'companies', '1', 'drivers'));
-  }, [firestore, isUserLoading, user]);
+    if (!firestore || !user || isUserLoading || !companyId) return null;
+    return query(collection(firestore, 'companies', companyId, 'drivers'));
+  }, [firestore, user, companyId, isUserLoading]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
@@ -339,3 +339,5 @@ export default function RelatoriosPage() {
     </div>
   );
 }
+
+    

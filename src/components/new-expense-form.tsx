@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { baseFinancialEntrySchema } from '@/lib/schemas';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import {
@@ -39,12 +39,11 @@ import Link from 'next/link';
 
 type NewExpenseFormValues = Omit<FinancialEntry, 'id' | 'date'> & { date: Date };
 
-const COMPANY_ID = '1';
-
 export function NewExpenseForm({ categories, vehicles, drivers }: { categories: FinancialCategory[], vehicles: Vehicle[], drivers: Driver[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { companyId } = useUser();
 
   const form = useForm<NewExpenseFormValues>({
     resolver: zodResolver(baseFinancialEntrySchema),
@@ -70,13 +69,13 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
   }, [categories]);
 
   async function onSubmit(data: NewExpenseFormValues) {
-    if (!firestore) {
+    if (!firestore || !companyId) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
-      const entriesCollection = collection(firestore, 'companies', COMPANY_ID, 'financialEntries');
+      const entriesCollection = collection(firestore, 'companies', companyId, 'financialEntries');
       
       const category = categories.find(c => c.id === data.categoryId);
       const driver = drivers.find(d => d.id === data.driverId);
@@ -255,3 +254,5 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
     </Form>
   );
 }
+
+    
