@@ -90,10 +90,29 @@ export async function POST(req: NextRequest) {
     if (email === 'jiverson.t@gmail.com') {
        const fixedCompanyId = '1';
        const fixedRole = 'admin';
-       await userRefByUid.set(
-         { displayName: name, email, companyId: fixedCompanyId, role: fixedRole, createdAt: new Date() },
-         { merge: true }
-       );
+       
+       const companyRef = db.collection('companies').doc(fixedCompanyId);
+       const companyDoc = await companyRef.get();
+       const batch = db.batch();
+
+       if (!companyDoc.exists) {
+         batch.set(companyRef, {
+           nomeFantasia: 'LogiTrack',
+           codigoPrefixo: 'TR',
+           linkBaseRastreio: 'https://seusite.com/rastreio/',
+           createdAt: new Date(),
+         });
+       }
+
+       batch.set(userRefByUid, {
+         displayName: name,
+         email,
+         companyId: fixedCompanyId,
+         role: fixedRole,
+         createdAt: new Date(),
+       }, { merge: true });
+
+       await batch.commit();
        await adminAuth.setCustomUserClaims(uid, { companyId: fixedCompanyId, role: fixedRole });
        return NextResponse.json(
          { message: 'Owner provisioned into existing company.' },
