@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newFinancialEntrySchema } from '@/lib/schemas';
-import { useFirestore, useMemoFirebase } from '@/firebase';
+import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs, doc } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check, Ticket, Wallet } from 'lucide-react';
 import {
@@ -52,9 +52,6 @@ import { Badge } from './ui/badge';
 
 type NewFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date' | 'travelDate'> & { date?: Date, travelDate?: Date };
 
-
-const COMPANY_ID = '1';
-
 const incomeCategories = [
     { id: 'venda-passagem', name: 'Venda de Passagem' },
     { id: 'encomendas', name: 'Encomendas' },
@@ -75,6 +72,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { companyId } = useUser();
   const [clientPopoverOpen, setClientPopoverOpen] = React.useState(false);
   const [selectedSeats, setSelectedSeats] = React.useState<string[]>([]);
   const [passagemValue, setPassagemValue] = React.useState<number>(0);
@@ -105,12 +103,12 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   
   // Fetch all sales for the selected vehicle
   const relevantSalesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedVehicleId) return null;
+    if (!firestore || !selectedVehicleId || !companyId) return null;
     return query(
-        collection(firestore, 'companies', COMPANY_ID, 'financialEntries'),
+        collection(firestore, 'companies', companyId, 'financialEntries'),
         where('vehicleId', '==', selectedVehicleId)
     );
-  }, [firestore, selectedVehicleId]);
+  }, [firestore, selectedVehicleId, companyId]);
 
   const { data: relevantSales } = useCollection<FinancialEntry>(relevantSalesQuery);
   
@@ -127,11 +125,11 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
 
   React.useEffect(() => {
     async function fetchClientAddressesAndSuggestOrigin() {
-        if (!selectedClientId || origins.length === 0 || !firestore) {
+        if (!selectedClientId || origins.length === 0 || !firestore || !companyId) {
             setSuggestMeta(null);
             return;
         };
-        const clientRef = doc(firestore, 'companies', COMPANY_ID, 'clients', selectedClientId);
+        const clientRef = doc(firestore, 'companies', companyId, 'clients', selectedClientId);
         const addressesRef = collection(clientRef, 'addresses');
         
         try {
@@ -183,7 +181,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
     
     fetchClientAddressesAndSuggestOrigin();
 
-  }, [selectedClientId, origins, firestore, form, clients]);
+  }, [selectedClientId, origins, firestore, form, clients, companyId]);
 
 
   // Auto-update description
@@ -219,7 +217,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   }, [selectedSeats, form]);
 
   async function onSubmit(data: NewFinancialEntryFormValues) {
-    if (!firestore) {
+    if (!firestore || !companyId) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
@@ -236,7 +234,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
 
 
     try {
-      const entriesCollection = collection(firestore, 'companies', COMPANY_ID, 'financialEntries');
+      const entriesCollection = collection(firestore, 'companies', companyId, 'financialEntries');
       
       const client = data.clientId ? clients.find(c => c.id === data.clientId) : null;
       
@@ -530,7 +528,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Especifique a Receita *</FormLabel>
-                                <FormControl><Input placeholder="Ex: Venda de sucata" {...field} /></FormControl>
+                                <FormControl><Input placeholder="Ex: Venda de sucata" {...field} value={field.value || ''} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                             )}
@@ -542,7 +540,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Descrição *</FormLabel>
-                                <FormControl><Input placeholder="Ex: Recebimento de frete" {...field} /></FormControl>
+                                <FormControl><Input placeholder="Ex: Recebimento de frete" {...field} value={field.value || ''} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                             )}

@@ -35,8 +35,6 @@ import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { triggerRevalidation } from '@/lib/actions';
 
-const COMPANY_ID = '1';
-
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
     value
@@ -51,7 +49,7 @@ const formatDate = (date: Date | Timestamp) => {
 
 export default function FinanceiroPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
   const { toast } = useToast();
 
   const [deletingEntry, setDeletingEntry] = React.useState<FinancialEntry | null>(null);
@@ -59,12 +57,12 @@ export default function FinanceiroPage() {
 
 
   const entriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !user || !companyId) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'financialEntries'),
+      collection(firestore, 'companies', companyId, 'financialEntries'),
       orderBy('date', 'desc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const { data: entries, isLoading } = useCollection<FinancialEntry>(entriesQuery);
   const pageIsLoading = isLoading || isUserLoading;
@@ -88,9 +86,9 @@ export default function FinanceiroPage() {
   }
 
   const confirmDelete = async () => {
-    if (!firestore || !deletingEntry) return;
+    if (!firestore || !deletingEntry || !companyId) return;
     try {
-        await deleteDoc(doc(firestore, 'companies', COMPANY_ID, 'financialEntries', deletingEntry.id));
+        await deleteDoc(doc(firestore, 'companies', companyId, 'financialEntries', deletingEntry.id));
         await triggerRevalidation('/financeiro');
         toast({ title: 'Lançamento excluído com sucesso.' });
     } catch (error: any) {

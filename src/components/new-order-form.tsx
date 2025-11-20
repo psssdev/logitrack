@@ -82,8 +82,6 @@ const paymentMethodLabels = {
   haver: 'A Haver',
 };
 
-const COMPANY_ID = '1';
-
 const formatCurrency = (value: number | undefined) => {
     if (typeof value !== 'number') return 'R$ 0,00';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -106,7 +104,7 @@ export function NewOrderForm({
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -135,26 +133,26 @@ export function NewOrderForm({
   const totalValue = items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0);
 
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedClientId || isUserLoading || !user) return null;
+    if (!firestore || !selectedClientId || isUserLoading || !user || !companyId) return null;
     return query(
       collection(
         firestore,
         'companies',
-        COMPANY_ID,
+        companyId,
         'clients',
         selectedClientId,
         'addresses'
       )
     );
-  }, [firestore, selectedClientId, isUserLoading, user]);
+  }, [firestore, selectedClientId, isUserLoading, user, companyId]);
 
   const { data: addresses, isLoading: loadingAddresses } =
     useCollection<Address>(addressesQuery);
 
   const { data: drivers, isLoading: loadingDrivers } = useCollection<Driver>(useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return collection(firestore, 'companies', COMPANY_ID, 'drivers');
-  }, [firestore, isUserLoading, user]));
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return collection(firestore, 'companies', companyId, 'drivers');
+  }, [firestore, isUserLoading, user, companyId]));
 
 
   React.useEffect(() => {
@@ -197,7 +195,7 @@ export function NewOrderForm({
   }, [origins, form]);
 
   async function onSubmit(data: NewOrder) {
-    if (!firestore || !user) {
+    if (!firestore || !user || !companyId) {
       toast({
         variant: 'destructive',
         title: 'Erro',
@@ -226,7 +224,7 @@ export function NewOrderForm({
       const ordersCollection = collection(
         firestore,
         'companies',
-        COMPANY_ID,
+        companyId,
         'orders'
       );
       const newOrderData = {
@@ -681,6 +679,7 @@ export function NewOrderForm({
                   placeholder="Ex: Entregar na portaria, pacote frágil, etc."
                   className="resize-none"
                   {...field}
+                  value={field.value || ''}
                 />
               </FormControl>
               <FormMessage />
@@ -710,5 +709,3 @@ export function NewOrderForm({
     </Form>
   );
 }
-
-    

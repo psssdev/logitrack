@@ -37,7 +37,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useMemo } from 'react';
 import type { Client, Order, OrderStatus } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 
 interface TopClient extends Client {
   orderCount: number;
@@ -52,21 +52,19 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-const COMPANY_ID = '1';
-
 export default function InicioPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return collection(firestore, 'companies', COMPANY_ID, 'orders');
-  }, [firestore, isUserLoading, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return collection(firestore, 'companies', companyId, 'orders');
+  }, [firestore, isUserLoading, user, companyId]);
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return collection(firestore, 'companies', COMPANY_ID, 'clients');
-  }, [firestore, isUserLoading, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return collection(firestore, 'companies', companyId, 'clients');
+  }, [firestore, isUserLoading, user, companyId]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);

@@ -27,8 +27,6 @@ import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
 import { format } from 'date-fns';
 
-const COMPANY_ID = '1';
-
 const openWhatsApp = (phone: string, message: string) => {
     const cleanedPhone = phone.replace(/\\D/g, '');
     const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
@@ -39,7 +37,7 @@ const openWhatsApp = (phone: string, message: string) => {
 
 export default function EncomendasPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('TODAS');
@@ -47,14 +45,14 @@ export default function EncomendasPage() {
   const statuses: OrderStatus[] = ['PENDENTE', 'EM_ROTA', 'ENTREGUE', 'CANCELADA'];
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return query(collection(firestore, 'companies', COMPANY_ID, 'orders'), orderBy('createdAt', 'desc'));
-  }, [firestore, isUserLoading, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return query(collection(firestore, 'companies', companyId, 'orders'), orderBy('createdAt', 'desc'));
+  }, [firestore, isUserLoading, user, companyId]);
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore, isUserLoading, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return doc(firestore, 'companies', companyId);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
@@ -81,7 +79,7 @@ export default function EncomendasPage() {
   const allStatuses = ['TODAS', ...statuses] as const;
 
   const handleSetTodaysPendingToInTransit = async () => {
-    if (!firestore || !user || !orders) return;
+    if (!firestore || !user || !orders || !companyId) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -100,7 +98,7 @@ export default function EncomendasPage() {
     try {
         const batch = writeBatch(firestore);
         pendingToday.forEach(order => {
-            const orderRef = doc(firestore, 'companies', COMPANY_ID, 'orders', order.id);
+            const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
             batch.update(orderRef, {
                 status: 'EM_ROTA',
                 timeline: arrayUnion({ status: 'EM_ROTA', at: new Date(), userId: user.uid }),

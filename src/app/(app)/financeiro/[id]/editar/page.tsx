@@ -27,48 +27,47 @@ export default function EditFinancialEntryPage({
   return <EditFinancialEntryContent entryId={id} />;
 }
 
-const COMPANY_ID = '1';
 
 function EditFinancialEntryContent({ entryId }: { entryId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
 
   const entryRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', COMPANY_ID, 'financialEntries', entryId);
-  }, [firestore, isUserLoading, entryId, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return doc(firestore, 'companies', companyId, 'financialEntries', entryId);
+  }, [firestore, isUserLoading, entryId, user, companyId]);
   
   const vehiclesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !user || !companyId) return null;
     return query(
-        collection(firestore, 'companies', COMPANY_ID, 'vehicles'),
+        collection(firestore, 'companies', companyId, 'vehicles'),
         orderBy('modelo', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isUserLoading, user, companyId]);
   
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !user || !companyId) return null;
     return query(
-        collection(firestore, 'companies', COMPANY_ID, 'clients'),
+        collection(firestore, 'companies', companyId, 'clients'),
         orderBy('nome', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !user || !companyId) return null;
     // Removing orderBy to prevent index requirement error. Client-side sorting will be used.
     return query(
-        collection(firestore, 'companies', COMPANY_ID, 'financialCategories')
+        collection(firestore, 'companies', companyId, 'financialCategories')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const driversQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !user || !companyId) return null;
     return query(
-        collection(firestore, 'companies', COMPANY_ID, 'drivers'),
+        collection(firestore, 'companies', companyId, 'drivers'),
         orderBy('nome', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const { data: entry, isLoading: isLoadingEntry } = useDoc<FinancialEntry>(entryRef);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);

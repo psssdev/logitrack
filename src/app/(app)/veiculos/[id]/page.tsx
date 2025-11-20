@@ -52,11 +52,10 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
   return <VehicleDetailContent vehicleId={id} />;
 }
 
-const COMPANY_ID = '1';
 
 function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -65,22 +64,22 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
 
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', '1', 'vehicles', vehicleId);
-  }, [firestore, isUserLoading, vehicleId, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return doc(firestore, 'companies', companyId, 'vehicles', vehicleId);
+  }, [firestore, isUserLoading, vehicleId, user, companyId]);
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useDoc<Vehicle>(vehicleRef);
 
   const salesQuery = React.useMemo(() => {
-    if (!firestore || !vehicleId || !selectedDate) return null;
+    if (!firestore || !vehicleId || !selectedDate || !companyId) return null;
     const startOfSelectedDay = startOfDay(selectedDate);
 
     return query(
-        collection(firestore, 'companies', COMPANY_ID, 'financialEntries'),
+        collection(firestore, 'companies', companyId, 'financialEntries'),
         where('vehicleId', '==', vehicleId),
         where('travelDate', '>=', Timestamp.fromDate(startOfSelectedDay))
     );
-  }, [firestore, vehicleId, selectedDate]);
+  }, [firestore, vehicleId, selectedDate, companyId]);
 
   const { data: sales, isLoading: isLoadingSales } = useCollection<FinancialEntry>(salesQuery);
 
@@ -93,7 +92,7 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const isLoading = isLoadingVehicle || isLoadingSales || isUserLoading;
 
   const handleDelete = async () => {
-    if (!firestore || !vehicle) return;
+    if (!firestore || !vehicle || !vehicleRef) return;
     try {
         await deleteDoc(vehicleRef);
         await triggerRevalidation('/veiculos');

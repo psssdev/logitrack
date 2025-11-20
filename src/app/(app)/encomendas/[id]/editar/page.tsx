@@ -29,20 +29,20 @@ export default function EditOrderPage({
 
 function EditOrderContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', '1', 'orders', orderId);
-  }, [firestore, isUserLoading, orderId, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return doc(firestore, 'companies', companyId, 'orders', orderId);
+  }, [firestore, isUserLoading, orderId, user, companyId]);
   
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !user || !companyId) return null;
     return query(
-      collection(firestore, 'companies', '1', 'origins'),
+      collection(firestore, 'companies', companyId, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
@@ -123,5 +123,3 @@ function EditOrderContent({ orderId }: { orderId: string }) {
     </div>
   );
 }
-
-    

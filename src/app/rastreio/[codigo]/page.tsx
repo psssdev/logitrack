@@ -21,28 +21,35 @@ import { useEffect, useState, use } from 'react';
 import { collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const COMPANY_ID = '1';
-
 async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | null> {
     const firestore = getFirestoreServer();
-    const ordersCollection = collection(firestore, `companies/${COMPANY_ID}/orders`);
-    const q = query(
-      ordersCollection,
-      where("codigoRastreio", "==", codigoRastreio.toUpperCase()),
-      limit(1)
-    );
-  
-    try {
-      const querySnapshot = await getDocs(q);
-      if (querySnapshot.empty) {
-        return null;
-      }
-      const orderDoc = querySnapshot.docs[0];
-      return { id: orderDoc.id, ...orderDoc.data() } as Order;
-    } catch (error) {
-      console.error("Error fetching order by tracking code: ", error);
-      return null;
+    // In a multi-tenant app, we can't easily know which company the tracking code belongs to on the server.
+    // A better approach would be a dedicated public collection or a different lookup method.
+    // For this single-company context, we will query all companies' orders, which is inefficient.
+    const companiesCollection = collection(firestore, 'companies');
+    const companiesSnapshot = await getDocs(companiesCollection);
+
+    for (const companyDoc of companiesSnapshot.docs) {
+        const ordersCollection = collection(companyDoc.ref, 'orders');
+         const q = query(
+            ordersCollection,
+            where("codigoRastreio", "==", codigoRastreio.toUpperCase()),
+            limit(1)
+        );
+        
+        try {
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const orderDoc = querySnapshot.docs[0];
+                return { id: orderDoc.id, ...orderDoc.data() } as Order;
+            }
+        } catch (error) {
+            console.error("Error fetching order by tracking code from company " + companyDoc.id, error);
+            // Continue to the next company
+        }
     }
+  
+    return null;
 }
 
 

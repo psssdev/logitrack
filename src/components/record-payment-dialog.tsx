@@ -70,7 +70,9 @@ export function RecordPaymentDialog({
 
   useEffect(() => {
     if (order) {
-      setPaymentAmount(order.valorEntrega);
+      const alreadyPaid = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+      const remaining = order.valorEntrega - alreadyPaid;
+      setPaymentAmount(remaining > 0 ? remaining : 0);
       setPaymentMethod(order.formaPagamento === 'haver' ? 'pix' : order.formaPagamento);
       setPaymentNotes('');
       setPaymentDate(new Date());
@@ -78,6 +80,10 @@ export function RecordPaymentDialog({
   }, [order]);
 
   if (!order) return null;
+  
+  const alreadyPaid = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+  const currentPendentValue = order.valorEntrega - alreadyPaid;
+
 
   const handleSave = async () => {
     if (!firestore || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0 || !companyId) {
@@ -93,8 +99,8 @@ export function RecordPaymentDialog({
     const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
 
     try {
-      const remainingAmount = order.valorEntrega - paymentAmount;
-      const isPaid = remainingAmount <= 0.001; // Use a small epsilon for float comparison
+      const totalPaid = alreadyPaid + paymentAmount;
+      const isPaid = totalPaid >= order.valorEntrega;
 
       const paymentRecord = {
           amount: paymentAmount,
@@ -105,8 +111,6 @@ export function RecordPaymentDialog({
 
       await updateDoc(orderRef, {
         pago: isPaid,
-        valorEntrega: isPaid ? order.valorEntrega : remainingAmount, // On full payment, keep original value for history
-        formaPagamento: isPaid ? paymentMethod : 'haver', // Keep as 'haver' if not fully paid
         dataPagamento: isPaid ? Timestamp.fromDate(paymentDate) : null,
         payments: arrayUnion(paymentRecord),
         updatedAt: serverTimestamp(),
@@ -145,7 +149,7 @@ export function RecordPaymentDialog({
         <div className="grid gap-6 py-4">
            <div className="p-4 bg-muted/50 rounded-md">
                 <p className="text-sm text-muted-foreground">Valor pendente</p>
-                <p className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.valorEntrega)}</p>
+                <p className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(currentPendentValue)}</p>
            </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">

@@ -64,19 +64,19 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
 
 function ReceiptContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', '1', 'orders', orderId);
-  }, [firestore, isUserLoading, orderId, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return doc(firestore, 'companies', companyId, 'orders', orderId);
+  }, [firestore, isUserLoading, orderId, user, companyId]);
   
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', '1');
-  }, [firestore, isUserLoading, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return doc(firestore, 'companies', companyId);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
@@ -84,7 +84,7 @@ function ReceiptContent({ orderId }: { orderId: string }) {
   const isLoading = isLoadingOrder || isLoadingCompany || isUserLoading;
   
   const handleSendNotification = async () => {
-    if (!order || !company || !firestore || !user) return;
+    if (!order || !company || !firestore || !user || !orderRef) return;
 
     const trackingLink = `${company.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
     const totalValue = formatCurrency(order.valorEntrega);

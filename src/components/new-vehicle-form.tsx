@@ -227,6 +227,7 @@ export function NewVehicleForm() {
                     placeholder='Cole aqui o JSON da configuração dos assentos...'
                     className="min-h-[200px] font-mono text-xs"
                     {...field}
+                    value={field.value ?? ''}
                   />
                 </FormControl>
                 <FormMessage />
@@ -249,5 +250,3 @@ export function NewVehicleForm() {
     </Form>
   );
 }
-
-    

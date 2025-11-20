@@ -18,35 +18,33 @@ import type { FinancialCategory, Vehicle, Driver } from '@/lib/types';
 import { collection, query, orderBy, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const COMPANY_ID = '1';
-
 export default function NewExpensePage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
 
   const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !user || !companyId) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'financialCategories'),
+      collection(firestore, 'companies', companyId, 'financialCategories'),
       where('type', '==', 'Saída')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const vehiclesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !user || !companyId) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'vehicles'),
+      collection(firestore, 'companies', companyId, 'vehicles'),
       orderBy('modelo', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const driversQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !user || !companyId) return null;
     return query(
-        collection(firestore, 'companies', COMPANY_ID, 'drivers'),
+        collection(firestore, 'companies', companyId, 'drivers'),
         orderBy('nome', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isUserLoading, user, companyId]);
 
   const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);

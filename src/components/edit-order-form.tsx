@@ -50,8 +50,6 @@ const paymentMethodLabels = {
   haver: 'A Haver',
 };
 
-const COMPANY_ID = '1';
-
 const formatCurrency = (value: number | undefined) => {
   if (typeof value !== 'number') return 'R$ 0,00';
   return new Intl.NumberFormat('pt-BR', {
@@ -70,7 +68,7 @@ export function EditOrderForm({
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
 
   const form = useForm<EditOrderFormValues>({
     resolver: zodResolver(editOrderSchema),
@@ -97,31 +95,31 @@ export function EditOrderForm({
   );
 
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !order.clientId || isUserLoading || !user) return null;
+    if (!firestore || !order.clientId || isUserLoading || !user || !companyId) return null;
     return query(
       collection(
         firestore,
         'companies',
-        COMPANY_ID,
+        companyId,
         'clients',
         order.clientId,
         'addresses'
       )
     );
-  }, [firestore, order.clientId, isUserLoading, user]);
+  }, [firestore, order.clientId, isUserLoading, user, companyId]);
 
   const { data: addresses, isLoading: loadingAddresses } =
     useCollection<Address>(addressesQuery);
     
     const { data: drivers, isLoading: loadingDrivers } = useCollection<Driver>(
         useMemoFirebase(() => {
-            if(!firestore || !user || isUserLoading) return null;
-            return collection(firestore, 'companies', COMPANY_ID, 'drivers');
-        }, [firestore, user, isUserLoading])
+            if(!firestore || !user || isUserLoading || !companyId) return null;
+            return collection(firestore, 'companies', companyId, 'drivers');
+        }, [firestore, user, isUserLoading, companyId])
     );
 
   async function onSubmit(data: EditOrderFormValues) {
-    if (!firestore) {
+    if (!firestore || !companyId) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -134,7 +132,7 @@ export function EditOrderForm({
       const orderRef = doc(
         firestore,
         'companies',
-        COMPANY_ID,
+        companyId,
         'orders',
         order.id
       );
@@ -452,6 +450,7 @@ export function EditOrderForm({
                   placeholder="Ex: Entregar na portaria, pacote frágil, etc."
                   className="resize-none"
                   {...field}
+                  value={field.value ?? ''}
                 />
               </FormControl>
               <FormMessage />
@@ -475,5 +474,3 @@ export function EditOrderForm({
     </Form>
   );
 }
-
-    

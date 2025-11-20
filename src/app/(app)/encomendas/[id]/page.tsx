@@ -65,12 +65,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
 function OrderDetailContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, companyId } = useUser();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', '1', 'orders', orderId);
-  }, [firestore, isUserLoading, orderId, user]);
+    if (!firestore || isUserLoading || !user || !companyId) return null;
+    return doc(firestore, 'companies', companyId, 'orders', orderId);
+  }, [firestore, isUserLoading, orderId, user, companyId]);
 
   const { data: order, isLoading } = useDoc<Order>(orderRef);
   const pageIsLoading = isLoading || isUserLoading;

@@ -17,8 +17,6 @@ import { PlusCircle, Bus, Car, Truck, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-const COMPANY_ID = '1';
-
 const statusConfig = {
     "Ativo": "bg-green-500/80",
     "Inativo": "bg-gray-500/80",
@@ -34,15 +32,15 @@ const iconConfig = {
 
 export default function VeiculosPage() {
     const firestore = useFirestore();
-    const { user, isUserLoading } = useUser();
+    const { user, isUserLoading, companyId } = useUser();
 
     const vehiclesQuery = useMemoFirebase(() => {
-        if (!firestore || isUserLoading || !user) return null;
+        if (!firestore || isUserLoading || !user || !companyId) return null;
         return query(
-            collection(firestore, 'companies', COMPANY_ID, 'vehicles'),
+            collection(firestore, 'companies', companyId, 'vehicles'),
             orderBy('modelo', 'asc')
         );
-    }, [firestore, isUserLoading, user]);
+    }, [firestore, isUserLoading, user, companyId]);
 
     const { data: vehicles, isLoading } = useCollection<Vehicle>(vehiclesQuery);
     const pageIsLoading = isLoading || isUserLoading;
