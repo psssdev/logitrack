@@ -23,8 +23,6 @@ import {
 import { triggerRevalidation } from '@/lib/actions';
 import { OrderStatusBadge } from './status-badge';
 
-const COMPANY_ID = '1';
-
 const openWhatsApp = (phone: string, message: string) => {
   const cleanedPhone = phone.replace(/\D/g, '');
   const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
@@ -49,13 +47,13 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
 
   const handleUpdateStatus = (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
 
     startTransition(async () => {
-      if (!firestore || !user) {
+      if (!firestore || !user || !companyId) {
         toast({
           variant: 'destructive',
           title: 'Erro',
@@ -64,7 +62,7 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
         return;
       }
 
-      const orderRef = doc(firestore, 'companies', COMPANY_ID, 'orders', order.id);
+      const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
 
       try {
         await updateDoc(orderRef, {

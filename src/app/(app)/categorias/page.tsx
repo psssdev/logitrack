@@ -36,7 +36,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
 
-const COMPANY_ID = '1';
 
 const defaultExpenseCategories = [
     { name: "Combustível", type: "Saída" },
@@ -52,7 +51,7 @@ const defaultExpenseCategories = [
 
 export default function CategoriasPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
   const { toast } = useToast();
 
   const [isNewCategoryOpen, setIsNewCategoryOpen] = React.useState(false);
@@ -62,11 +61,11 @@ export default function CategoriasPage() {
   const [isCreatingDefaults, setIsCreatingDefaults] = React.useState(false);
 
   const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !companyId) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'financialCategories')
+      collection(firestore, 'companies', companyId, 'financialCategories')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, companyId, isUserLoading]);
 
   const { data: categories, isLoading } = useCollection<FinancialCategory>(categoriesQuery);
   const pageIsLoading = isLoading || isUserLoading;
@@ -87,9 +86,9 @@ export default function CategoriasPage() {
   };
   
   const confirmDelete = async () => {
-    if (!firestore || !deletingCategory) return;
+    if (!firestore || !deletingCategory || !companyId) return;
     try {
-      await deleteDoc(doc(firestore, 'companies', COMPANY_ID, 'financialCategories', deletingCategory.id));
+      await deleteDoc(doc(firestore, 'companies', companyId, 'financialCategories', deletingCategory.id));
       await triggerRevalidation('/categorias');
       await triggerRevalidation('/financeiro/novo');
       toast({
@@ -109,13 +108,13 @@ export default function CategoriasPage() {
   }
 
   const handleCreateDefaultCategories = async () => {
-    if (!firestore) {
+    if (!firestore || !companyId) {
         toast({ variant: "destructive", title: "Erro de conexão" });
         return;
     }
     setIsCreatingDefaults(true);
     try {
-        const categoriesCollection = collection(firestore, 'companies', COMPANY_ID, 'financialCategories');
+        const categoriesCollection = collection(firestore, 'companies', companyId, 'financialCategories');
         const existingCategoryNames = new Set(categories?.map(c => c.name.toLowerCase()));
         
         const batch = writeBatch(firestore);

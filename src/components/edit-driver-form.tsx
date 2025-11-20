@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editDriverSchema } from '@/lib/schemas';
 import type { Driver } from '@/lib/types';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2, UploadCloud, X } from 'lucide-react';
 import Link from 'next/link';
@@ -27,12 +27,11 @@ import { uploadFile } from '@/lib/storage';
 
 type EditDriverFormValues = z.infer<typeof editDriverSchema>;
 
-const COMPANY_ID = '1';
-
 export function EditDriverForm({ driver }: { driver: Driver }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { companyId } = useUser();
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(
     driver.photoUrl
   );
@@ -60,7 +59,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   };
 
   async function onSubmit(data: EditDriverFormValues) {
-    if (!firestore) {
+    if (!firestore || !companyId) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -77,14 +76,14 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
         toast({ description: 'Atualizando foto...' });
         uploadedPhotoUrl = await uploadFile(
           photoFile,
-          `companies/${COMPANY_ID}/driver_photos`
+          `companies/${companyId}/driver_photos`
         );
       }
       
       const driverRef = doc(
         firestore,
         'companies',
-        COMPANY_ID,
+        companyId,
         'drivers',
         driver.id
       );

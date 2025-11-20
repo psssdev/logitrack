@@ -34,7 +34,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
-const COMPANY_ID = '1';
 
 type ClientWithAddresses = Client & { addresses: Address[] };
 
@@ -116,7 +115,7 @@ const openWhatsAppSmart = (phoneRaw: string, message: string, mode: SendMode) =>
 
 export default function AvisamePage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
   const { toast } = useToast();
 
   // UI/controle
@@ -126,16 +125,16 @@ export default function AvisamePage() {
 
   // Company (template de mensagem)
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore, user, isUserLoading]);
+    if (!firestore || isUserLoading || !companyId) return null;
+    return doc(firestore, 'companies', companyId);
+  }, [firestore, companyId, isUserLoading]);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
   // Clients
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return collection(firestore, 'companies', COMPANY_ID, 'clients');
-  }, [firestore, user, isUserLoading]);
+    if (!firestore || isUserLoading || !companyId) return null;
+    return collection(firestore, 'companies', companyId, 'clients');
+  }, [firestore, companyId, isUserLoading]);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
   const [clientsWithAddresses, setClientsWithAddresses] = useState<ClientWithAddresses[]>([]);
@@ -143,7 +142,7 @@ export default function AvisamePage() {
 
   // Busca addresses de todos os clientes
   useEffect(() => {
-    if (!clients || !firestore) return;
+    if (!clients || !firestore || !companyId) return;
 
     const fetchAllAddresses = async () => {
       setIsLoadingAddresses(true);
@@ -153,7 +152,7 @@ export default function AvisamePage() {
             const addressesCollection = collection(
               firestore,
               'companies',
-              COMPANY_ID,
+              companyId,
               'clients',
               client.id,
               'addresses'
@@ -177,7 +176,7 @@ export default function AvisamePage() {
     };
 
     fetchAllAddresses();
-  }, [clients, firestore, toast]);
+  }, [clients, firestore, toast, companyId]);
 
   const isLoading = isLoadingClients || isLoadingCompany || isLoadingAddresses || isUserLoading;
 

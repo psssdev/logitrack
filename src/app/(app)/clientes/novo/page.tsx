@@ -17,19 +17,17 @@ import type { Origin } from '@/lib/types';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const COMPANY_ID = '1';
-
 export default function NewClientPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !companyId) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'origins'),
+      collection(firestore, 'companies', companyId, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, companyId, isUserLoading]);
 
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
 

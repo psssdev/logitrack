@@ -5,27 +5,31 @@ import { getFirestoreServer } from '@/firebase/server-init';
 import type { Order, Client, Driver } from './types';
 
 
-const COMPANY_ID = '1';
-
-export async function triggerRevalidation(path: string) {
-  revalidatePath(path);
-}
-
-export async function getDashboardData() {
+// This function is problematic as it assumes a single company '1'. 
+// It needs to be refactored or used carefully in a single-tenant context.
+// For multi-tenant, data fetching should happen on the client with the user's companyId.
+export async function getDashboardData(companyId: string) {
   noStore(); 
+
+  if (!companyId) {
+     return { 
+        summary: { total: 0, pendentes: 0, emRota: 0, entregues: 0, canceladas: 0 },
+        topClients: [] 
+    };
+  }
 
   try {
     const db = await getFirestoreServer();
 
     const ordersPromise = db
       .collection('companies')
-      .doc(COMPANY_ID)
+      .doc(companyId)
       .collection('orders')
       .get();
       
     const clientsPromise = db
       .collection('companies')
-      .doc(COMPANY_ID)
+      .doc(companyId)
       .collection('clients')
       .get();
 
@@ -79,11 +83,12 @@ export async function getDashboardData() {
 }
 
 
-export async function getDrivers(): Promise<Driver[]> {
+export async function getDrivers(companyId: string): Promise<Driver[]> {
     noStore();
+    if (!companyId) return [];
     try {
         const db = await getFirestoreServer();
-        const driversSnap = await db.collection('companies').doc(COMPANY_ID).collection('drivers').get();
+        const driversSnap = await db.collection('companies').doc(companyId).collection('drivers').get();
         const drivers: Driver[] = [];
         driversSnap.forEach(doc => {
             drivers.push({ id: doc.id, ...doc.data() } as Driver);
@@ -93,4 +98,8 @@ export async function getDrivers(): Promise<Driver[]> {
         console.error("Error fetching drivers:", error);
         return [];
     }
+}
+
+export async function triggerRevalidation(path: string) {
+  revalidatePath(path);
 }

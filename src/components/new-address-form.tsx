@@ -20,7 +20,7 @@ import { newAddressFormSchema } from '@/lib/schemas';
 import type { NewAddress } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 
@@ -59,12 +59,11 @@ const brazilianStates = [
     { value: 'TO', label: 'Tocantins' },
 ];
 
-const COMPANY_ID = '1';
-
 export function NewAddressForm({ clientId }: { clientId: string }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { companyId } = useUser();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
@@ -170,13 +169,13 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
   };
 
   async function onSubmit(data: NewAddress) {
-      if (!firestore) {
+      if (!firestore || !companyId) {
         toast({ variant: 'destructive', title: 'Erro de conexão', description: 'Não foi possível conectar ao banco de dados.' });
         return;
     }
 
      try {
-        const addressCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', data.clientId, 'addresses');
+        const addressCollection = collection(firestore, 'companies', companyId, 'clients', data.clientId, 'addresses');
         const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 

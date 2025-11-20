@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newClientSchema } from '@/lib/schemas';
 import type { NewClientWithAddress, Origin } from '@/lib/types';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { collection, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Loader2, Search } from 'lucide-react';
 import {
@@ -64,13 +64,11 @@ const brazilianStates = [
     { value: 'TO', label: 'Tocantins' },
 ];
 
-
-const COMPANY_ID = '1';
-
 export function NewClientForm({ origins }: { origins: Origin[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { companyId } = useUser();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
@@ -173,7 +171,7 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
 
 
   async function onSubmit(data: NewClientWithAddress) {
-    if (!firestore) {
+    if (!firestore || !companyId) {
         toast({
             variant: 'destructive',
             title: 'Erro de conexão',
@@ -186,7 +184,7 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
         const batch = writeBatch(firestore);
         
         // 1. Create Client
-        const clientsCollection = collection(firestore, 'companies', COMPANY_ID, 'clients');
+        const clientsCollection = collection(firestore, 'companies', companyId, 'clients');
         const newClientRef = await addDoc(clientsCollection, {
             nome: data.nome,
             telefone: data.telefone,
@@ -197,7 +195,7 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
         // 2. Create Address if provided
         const hasAddress = data.logradouro && data.cidade && data.estado && data.cep;
         if(hasAddress) {
-            const addressCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', newClientRef.id, 'addresses');
+            const addressCollection = collection(firestore, 'companies', companyId, 'clients', newClientRef.id, 'addresses');
             const { logradouro, numero, bairro, cidade, estado, cep } = data;
             const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
             

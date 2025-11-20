@@ -8,16 +8,14 @@ import type { Company } from '@/lib/types';
 import { Logo } from './logo';
 import { Skeleton } from './ui/skeleton';
 
-const COMPANY_ID = '1';
-
 export function CompanyBranding() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore, isUserLoading, user]);
+    if (!firestore || isUserLoading || !companyId) return null;
+    return doc(firestore, 'companies', companyId);
+  }, [firestore, companyId, isUserLoading]);
 
   const { data: company, isLoading } = useDoc<Company>(companyRef);
 

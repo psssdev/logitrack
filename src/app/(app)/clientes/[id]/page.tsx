@@ -18,28 +18,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
 
 
-export default function ClientDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-    const { id } = React.use(params);
-    return <ClientDetailContent clientId={id} />
-}
-
 function ClientDetailContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', '1', 'clients', clientId);
-  }, [firestore, isUserLoading, clientId, user]);
+    if (!firestore || !companyId || isUserLoading) return null;
+    return doc(firestore, 'companies', companyId, 'clients', clientId);
+  }, [firestore, companyId, isUserLoading, clientId]);
   
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return collection(firestore, 'companies', '1', 'clients', clientId, 'addresses');
-  }, [firestore, isUserLoading, clientId, user]);
+    if (!firestore || !companyId || isUserLoading) return null;
+    return collection(firestore, 'companies', companyId, 'clients', clientId, 'addresses');
+  }, [firestore, companyId, isUserLoading, clientId]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: addresses, isLoading: isLoadingAddresses } = useCollection<Address>(addressesQuery);
@@ -133,6 +124,15 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
       </div>
     </div>
   );
+}
+
+export default function ClientDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+    const { id } = React.use(params);
+    return <ClientDetailContent clientId={id} />
 }
 
 function ClientDetailSkeleton() {

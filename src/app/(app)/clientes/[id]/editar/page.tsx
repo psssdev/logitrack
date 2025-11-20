@@ -17,33 +17,22 @@ import type { Client, Origin } from '@/lib/types';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const COMPANY_ID = '1';
-
-export default function EditClientPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { id } = React.use(params);
-  return <EditClientContent clientId={id} />;
-}
-
 function EditClientContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'companies', COMPANY_ID, 'clients', clientId);
-  }, [firestore, isUserLoading, clientId, user]);
+    if (!firestore || isUserLoading || !companyId) return null;
+    return doc(firestore, 'companies', companyId, 'clients', clientId);
+  }, [firestore, companyId, isUserLoading, clientId]);
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || isUserLoading || !companyId) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'origins'),
+      collection(firestore, 'companies', companyId, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, companyId, isUserLoading]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
@@ -122,4 +111,13 @@ function EditClientContent({ clientId }: { clientId: string }) {
       </Card>
     </div>
   );
+}
+
+export default function EditClientPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const { id } = React.use(params);
+  return <EditClientContent clientId={id} />;
 }

@@ -18,19 +18,18 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editClientSchema } from '@/lib/schemas';
 import type { Client, Origin } from '@/lib/types';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 type EditClientFormValues = z.infer<typeof editClientSchema>;
 
-const COMPANY_ID = '1';
-
 export function EditClientForm({ client, origins }: { client: Client, origins: Origin[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { companyId } = useUser();
 
   const form = useForm<EditClientFormValues>({
     resolver: zodResolver(editClientSchema),
@@ -42,7 +41,7 @@ export function EditClientForm({ client, origins }: { client: Client, origins: O
   });
 
   async function onSubmit(data: EditClientFormValues) {
-    if (!firestore) {
+    if (!firestore || !companyId) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -55,7 +54,7 @@ export function EditClientForm({ client, origins }: { client: Client, origins: O
       const clientRef = doc(
         firestore,
         'companies',
-        COMPANY_ID,
+        companyId,
         'clients',
         client.id
       );
