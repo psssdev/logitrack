@@ -1,4 +1,4 @@
-// src/app/api/provision-user/route.ts
+
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const usersCol = db.collection('users');
 
-    // 1) Tenta achar perfil pelo UID
+    // 1) Tenta achar perfil pelo UID (modelo novo)
     const userRefByUid = usersCol.doc(uid);
     const userDocByUid = await userRefByUid.get();
 
@@ -51,19 +51,23 @@ export async function POST(req: NextRequest) {
 
     if (userDocByUid.exists) {
       const data = userDocByUid.data()!;
-      companyId = data.companyId || null;
-      role = data.role || null;
+      companyId = (data.companyId as string) || null;
+      role = (data.role as string) || null;
     } else {
-      // 2) Opcional: tenta achar pelo email (caso antigo sistema usasse email como id)
-      const snapByEmail = await usersCol.where('email', '==', email).limit(1).get();
+      // 2) OPCIONAL: tenta achar pelo email (caso antigo sistema usasse email como id)
+      const snapByEmail = await usersCol
+        .where('email', '==', email)
+        .limit(1)
+        .get();
+
       if (!snapByEmail.empty) {
         const docByEmail = snapByEmail.docs[0];
         const data = docByEmail.data();
 
-        companyId = data.companyId || null;
-        role = data.role || null;
+        companyId = (data.companyId as string) || null;
+        role = (data.role as string) || null;
 
-        // Garante que agora exista o doc com id = uid
+        // Garante que agora exista doc com id = uid
         await userRefByUid.set(
           {
             displayName: data.displayName || name,
@@ -77,7 +81,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3) Se já achamos companyId/role, só garante claims e sai
+    // 3) Se já achamos companyId/role → reaproveita a empresa antiga
     if (companyId && role) {
       await adminAuth.setCustomUserClaims(uid, { companyId, role });
       return NextResponse.json(
@@ -86,42 +90,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4) Caso especial: se você quiser forçar seu email para uma empresa fixa (ex.: "1")
+    // 4) CASO ESPECIAL: se quiser forçar SEU email pra uma empresa fixa (ex: id "1")
     if (email === 'jiverson.t@gmail.com') {
-       const fixedCompanyId = '1';
+       const fixedCompanyId = '1'; // <- ID da empresa com dados antigos
        const fixedRole = 'admin';
-       
-       const companyRef = db.collection('companies').doc(fixedCompanyId);
-       const companyDoc = await companyRef.get();
-       const batch = db.batch();
 
-       if (!companyDoc.exists) {
-         batch.set(companyRef, {
-           nomeFantasia: 'LogiTrack',
-           codigoPrefixo: 'TR',
-           linkBaseRastreio: 'https://seusite.com/rastreio/',
+       await userRefByUid.set(
+         {
+           displayName: name,
+           email,
+           companyId: fixedCompanyId,
+           role: fixedRole,
            createdAt: new Date(),
-         });
-       }
+         },
+         { merge: true }
+       );
 
-       batch.set(userRefByUid, {
-         displayName: name,
-         email,
+       await adminAuth.setCustomUserClaims(uid, {
          companyId: fixedCompanyId,
          role: fixedRole,
-         createdAt: new Date(),
-       }, { merge: true });
+       });
 
-       await batch.commit();
-       await adminAuth.setCustomUserClaims(uid, { companyId: fixedCompanyId, role: fixedRole });
        return NextResponse.json(
          { message: 'Owner provisioned into existing company.' },
          { status: 200 }
        );
     }
 
-    // 5) Se realmente não existe nada ainda → cria nova empresa
-    const companyRef = db.collection('companies').doc();
+    // 5) Se REALMENTE não existe nada ainda → cria nova empresa e vincula o usuário
+    const companyRef = db.collection('companies').doc(); // id automático
     const batch = db.batch();
 
     batch.set(companyRef, {
