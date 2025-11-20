@@ -15,9 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, FirebaseClientProvider } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 function LoginPageContent() {
   const [email, setEmail] = useState('');
@@ -38,6 +39,7 @@ function LoginPageContent() {
         return;
     }
     setIsLoading(true);
+
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast({
@@ -46,13 +48,32 @@ function LoginPageContent() {
       });
       router.push('/inicio');
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro no Login',
-        description:
-          'Email ou senha inválidos. Por favor, tente novamente.',
-      });
-      console.error('Login Error:', error);
+        // If login fails because user not found, try to sign them up automatically.
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+            try {
+                toast({
+                    title: 'Usuário não encontrado. Tentando criar...',
+                });
+                await createUserWithEmailAndPassword(auth, email, password);
+                toast({
+                    title: 'Conta criada com sucesso!',
+                    description: 'Login bem-sucedido. Redirecionando...',
+                });
+                router.push('/inicio');
+            } catch (signupError: any) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro no Cadastro',
+                    description: signupError.message || 'Não foi possível criar a conta.',
+                });
+            }
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Erro no Login',
+                description: error.message || 'Ocorreu um erro desconhecido.',
+            });
+        }
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +122,7 @@ function LoginPageContent() {
               {isLoading ? (
                 <Loader2 className="animate-spin" />
               ) : (
-                'Entrar'
+                'Entrar ou Cadastrar'
               )}
             </Button>
           </form>
