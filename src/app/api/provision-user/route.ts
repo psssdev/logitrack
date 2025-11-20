@@ -7,7 +7,7 @@ import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Inicializa Admin SDK usando as credenciais do ambiente (Firebase Studio / GOOGLE_APPLICATION_CREDENTIALS)
+// Admin SDK init
 if (!getApps().length) {
   initializeApp({
     credential: applicationDefault(),
@@ -19,97 +19,102 @@ const db = getFirestore();
 
 export async function POST(req: NextRequest) {
   try {
-    const authorization = req.headers.get('Authorization');
-    if (!authorization?.startsWith('Bearer ')) {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
-        { error: 'Unauthorized: Missing or invalid token' },
+        { error: 'Unauthorized: missing bearer token' },
         { status: 401 }
       );
     }
 
-    const idToken = authorization.split('Bearer ')[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    const { uid, email, name } = decodedToken;
+    const idToken = authHeader.split('Bearer ')[1];
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    const uid = decoded.uid;
+    const email = decoded.email;
+    const name = decoded.name || decoded.email || 'Usuário';
 
     if (!email) {
       return NextResponse.json(
-        { error: 'User email is required for provisioning.' },
+        { error: 'Email é obrigatório para provisionamento.' },
         { status: 400 }
       );
     }
 
-    const userRef = db.collection('users').doc(uid);
-    const userDoc = await userRef.get();
+    const usersCol = db.collection('users');
 
-    // 1. Já existe perfil de usuário → só garante claims e sai
-    if (userDoc.exists) {
-      const userData = userDoc.data();
-      if (userData?.companyId && userData?.role) {
-        const currentClaims = (await adminAuth.getUser(uid)).customClaims;
-        if (!currentClaims?.companyId || !currentClaims?.role) {
-          await adminAuth.setCustomUserClaims(uid, {
-            companyId: userData.companyId,
-            role: userData.role,
-          });
-        }
-        return NextResponse.json(
-          { message: 'User already provisioned' },
-          { status: 200 }
+    // 1) Tenta achar perfil pelo UID
+    const userRefByUid = usersCol.doc(uid);
+    const userDocByUid = await userRefByUid.get();
+
+    let companyId: string | null = null;
+    let role: string | null = null;
+
+    if (userDocByUid.exists) {
+      const data = userDocByUid.data()!;
+      companyId = data.companyId || null;
+      role = data.role || null;
+    } else {
+      // 2) Opcional: tenta achar pelo email (caso antigo sistema usasse email como id)
+      const snapByEmail = await usersCol.where('email', '==', email).limit(1).get();
+      if (!snapByEmail.empty) {
+        const docByEmail = snapByEmail.docs[0];
+        const data = docByEmail.data();
+
+        companyId = data.companyId || null;
+        role = data.role || null;
+
+        // Garante que agora exista o doc com id = uid
+        await userRefByUid.set(
+          {
+            displayName: data.displayName || name,
+            email,
+            companyId,
+            role: role || 'admin',
+            createdAt: data.createdAt || new Date(),
+          },
+          { merge: true }
         );
       }
     }
 
-    // 2. Tratamento especial pro "primeiro admin" em empresa fixa (companies/1)
-    if (email === 'jiverson.t@gmail.com') {
-      const companyId = '1';
-      const role = 'admin';
-
-      const companyRef = db.collection('companies').doc(companyId);
-      const companyDoc = await companyRef.get();
-      const batch = db.batch();
-
-      if (!companyDoc.exists) {
-        batch.set(companyRef, {
-          nomeFantasia: 'LogiTrack',
-          codigoPrefixo: 'TR',
-          linkBaseRastreio: 'https://seusite.com/rastreio/',
-          createdAt: new Date(),
-        });
-      }
-
-      batch.set(userRef, {
-        displayName: name || email,
-        email,
-        companyId,
-        role,
-        createdAt: new Date(),
-      });
-
-      await batch.commit();
+    // 3) Se já achamos companyId/role, só garante claims e sai
+    if (companyId && role) {
       await adminAuth.setCustomUserClaims(uid, { companyId, role });
-
       return NextResponse.json(
-        { message: 'Admin user provisioned for existing company.' },
+        { message: 'User provisioned from existing profile.' },
         { status: 200 }
       );
     }
 
-    // 3. Fluxo padrão: novo login → nova empresa + usuário admin
-    const companyRef = db.collection('companies').doc(); // ID automático
-    const userProfileRef = db.collection('users').doc(uid);
+    // 4) Caso especial: se você quiser forçar seu email para uma empresa fixa (ex.: "1")
+    if (email === 'jiverson.t@gmail.com') {
+       const fixedCompanyId = '1';
+       const fixedRole = 'admin';
+       await userRefByUid.set(
+         { displayName: name, email, companyId: fixedCompanyId, role: fixedRole, createdAt: new Date() },
+         { merge: true }
+       );
+       await adminAuth.setCustomUserClaims(uid, { companyId: fixedCompanyId, role: fixedRole });
+       return NextResponse.json(
+         { message: 'Owner provisioned into existing company.' },
+         { status: 200 }
+       );
+    }
+
+    // 5) Se realmente não existe nada ainda → cria nova empresa
+    const companyRef = db.collection('companies').doc();
     const batch = db.batch();
 
     batch.set(companyRef, {
-      nomeFantasia: `Empresa de ${name || email}`,
+      nomeFantasia: `Empresa de ${name}`,
       codigoPrefixo: 'LG',
       linkBaseRastreio: 'https://rastreio.com/',
       createdAt: new Date(),
     });
 
     const newRole = 'admin';
-
-    batch.set(userProfileRef, {
-      displayName: name || email,
+    batch.set(userRefByUid, {
+      displayName: name,
       email,
       companyId: companyRef.id,
       role: newRole,
@@ -117,14 +122,13 @@ export async function POST(req: NextRequest) {
     });
 
     await batch.commit();
-
     await adminAuth.setCustomUserClaims(uid, {
       companyId: companyRef.id,
       role: newRole,
     });
 
     return NextResponse.json(
-      { message: 'New user and company provisioned successfully' },
+      { message: 'New user and company provisioned successfully.' },
       { status: 200 }
     );
   } catch (error: any) {
