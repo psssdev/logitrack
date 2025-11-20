@@ -42,7 +42,6 @@ export const useUser = (): UserHookResult => {
           if (claims.companyId && claims.role) {
             setCompanyId(claims.companyId as string);
             setRole(claims.role as string);
-            setIsLoading(false);
           } else {
             // Novo usuário → provisionar no backend
             setIsProvisioning(true);
@@ -81,10 +80,7 @@ export const useUser = (): UserHookResult => {
           setUserError(error);
         }
       }
-      // Only set loading to false if not provisioning
-      if (!isProvisioning) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }, (error) => {
       console.error('Auth State Error:', error);
       setUserError(error);
@@ -103,5 +99,3 @@ export const useUser = (): UserHookResult => {
     role,
   };
 };
-
-    
