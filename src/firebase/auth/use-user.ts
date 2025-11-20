@@ -20,7 +20,6 @@ export const useUser = (): UserHookResult => {
   const [userError, setUserError] = useState<Error | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [isProvisioning, setIsProvisioning] = useState<boolean>(false);
 
   useEffect(() => {
     if (!auth) {
@@ -33,53 +32,54 @@ export const useUser = (): UserHookResult => {
       setUser(firebaseUser);
       setCompanyId(null);
       setRole(null);
+      setUserError(null);
 
       if (firebaseUser) {
         try {
-          const idTokenResult = await firebaseUser.getIdTokenResult();
-          const claims = idTokenResult.claims;
+          // Check for existing claims first
+          let idTokenResult = await firebaseUser.getIdTokenResult();
+          let claims = idTokenResult.claims;
 
           if (claims.companyId && claims.role) {
+            // Claims exist, user is provisioned
             setCompanyId(claims.companyId as string);
             setRole(claims.role as string);
           } else {
-            // Novo usuário → provisionar no backend
-            setIsProvisioning(true);
-            try {
-              const response = await fetch('/api/provision-user', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${await firebaseUser.getIdToken()}`,
-                },
-              });
+            // No claims, this is likely a new user. Trigger provisioning.
+            const response = await fetch('/api/provision-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${await firebaseUser.getIdToken()}`,
+              },
+            });
 
-              if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(
-                  errorData.error || 'Failed to provision user profile.'
-                );
-              }
-
-              // Força refresh do token pra carregar os novos claims
-              const freshIdTokenResult = await firebaseUser.getIdTokenResult(
-                true
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(
+                errorData.error || 'Failed to provision user profile.'
               );
-              const newClaims = freshIdTokenResult.claims;
-              setCompanyId(newClaims.companyId as string);
-              setRole(newClaims.role as string);
-            } catch (provisionError: any) {
-              console.error('User Provisioning Error:', provisionError);
-              setUserError(provisionError);
-            } finally {
-              setIsProvisioning(false);
+            }
+
+            // After provisioning, force a token refresh to get the new claims.
+            idTokenResult = await firebaseUser.getIdTokenResult(true);
+            claims = idTokenResult.claims;
+
+            if (claims.companyId && claims.role) {
+                setCompanyId(claims.companyId as string);
+                setRole(claims.role as string);
+            } else {
+                // This should not happen if provisioning was successful
+                throw new Error('Provisioning succeeded but claims are still missing.');
             }
           }
         } catch (error: any) {
-          console.error('Error getting user token or claims:', error);
+          console.error('Error during auth state processing:', error);
           setUserError(error);
         }
       }
+      
+      // Only set loading to false after all async operations are done
       setIsLoading(false);
     }, (error) => {
       console.error('Auth State Error:', error);
@@ -88,12 +88,11 @@ export const useUser = (): UserHookResult => {
     });
 
     return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth]);
 
   return {
     user,
-    isUserLoading: isUserLoading || isProvisioning,
+    isUserLoading,
     userError,
     companyId,
     role,
