@@ -2,8 +2,8 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore } from 'firebase/firestore';
-import { Auth, User, onIdTokenChanged } from 'firebase/auth';
+import { Firestore, doc, getDoc, setDoc, writeBatch, collection, serverTimestamp } from 'firebase/firestore';
+import { Auth, User, onIdTokenChanged, signOut } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 
@@ -32,6 +32,73 @@ export interface UserHookResult {
 // React Context
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
+// --- Funções de Provisionamento movidas para o Cliente ---
+
+async function provisionUserProfile(
+  firestore: Firestore,
+  user: User
+): Promise<{ companyId: string; role: string }> {
+  const { uid, email, displayName } = user;
+  if (!email) throw new Error("Email é obrigatório para o provisionamento.");
+
+  const userRef = doc(firestore, 'users', uid);
+  const userSnap = await getDoc(userRef);
+
+  if (userSnap.exists()) {
+    const userData = userSnap.data();
+    const companyId = userData.companyId;
+    const role = userData.role;
+    if (companyId && role) {
+      console.log('User profile exists, claims should be present.');
+      // O token deve ser atualizado no listener para refletir isso
+      return { companyId, role };
+    }
+  }
+
+  // Se o perfil não existe ou está incompleto, provisiona.
+  console.log(`Provisioning new profile for user ${uid}...`);
+
+  // Lógica especial para o proprietário
+  if (email === 'athosguariza@gmail.com') {
+    const fixedCompanyId = '1';
+    const fixedRole = 'admin';
+    await setDoc(userRef, {
+      displayName: displayName || email,
+      email,
+      companyId: fixedCompanyId,
+      role: fixedRole,
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+    console.log(`Owner provisioned into company ${fixedCompanyId}.`);
+    throw new Error('PROVISION_RELOAD_REQUIRED');
+  }
+
+  // Lógica para novos utilizadores
+  const batch = writeBatch(firestore);
+  const newCompanyRef = doc(collection(firestore, 'companies'));
+
+  batch.set(newCompanyRef, {
+    nomeFantasia: `Empresa de ${displayName || 'Utilizador'}`,
+    codigoPrefixo: 'LG',
+    linkBaseRastreio: 'https://rastreio.com/',
+    createdAt: serverTimestamp(),
+  });
+
+  const newUserRole = 'admin';
+  batch.set(userRef, {
+    displayName: displayName || email,
+    email,
+    companyId: newCompanyRef.id,
+    role: newUserRole,
+    createdAt: serverTimestamp(),
+  });
+
+  await batch.commit();
+  console.log(`New user and company ${newCompanyRef.id} provisioned.`);
+  throw new Error('PROVISION_RELOAD_REQUIRED');
+}
+
+
 /**
  * FirebaseProvider manages and provides Firebase services and user authentication state.
  */
@@ -52,8 +119,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
-    if (!auth) {
-      setAuthState(prev => ({ ...prev, isUserLoading: false, userError: new Error("Auth service not provided.") }));
+    if (!auth || !firestore) {
+      setAuthState(prev => ({ ...prev, isUserLoading: false, userError: new Error("Auth ou Firestore não disponíveis.") }));
       return;
     }
 
@@ -62,36 +129,34 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          let idTokenResult = await firebaseUser.getIdTokenResult();
-          let claims = idTokenResult.claims;
+          const idTokenResult = await firebaseUser.getIdTokenResult();
+          const claims = idTokenResult.claims;
 
           if (!claims.companyId || !claims.role) {
-            const response = await fetch('/api/provision-user', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${await firebaseUser.getIdToken()}`,
-              },
+             console.log("Claims not found, attempting to provision profile...");
+             await provisionUserProfile(firestore, firebaseUser);
+             // O erro PROVISION_RELOAD_REQUIRED será apanhado abaixo
+          } else {
+             // Claims existem, utilizador está pronto
+             setAuthState({
+                user: firebaseUser,
+                isUserLoading: false,
+                userError: null,
+                companyId: claims.companyId as string,
+                role: claims.role as string,
             });
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.error || 'Failed to provision user profile.');
-            }
-            idTokenResult = await firebaseUser.getIdTokenResult(true);
-            claims = idTokenResult.claims;
           }
 
-          setAuthState({
-            user: firebaseUser,
-            isUserLoading: false,
-            userError: null,
-            companyId: claims.companyId as string,
-            role: claims.role as string,
-          });
-
         } catch (error: any) {
-          console.error('Error during user processing:', error);
-          setAuthState({ user: firebaseUser, isUserLoading: false, userError: error, companyId: null, role: null });
+           if (error.message === 'PROVISION_RELOAD_REQUIRED') {
+            console.log("Provisioning complete, reloading page to apply claims...");
+            // Força o logout e recarrega a página para que o fluxo de login seja refeito com o novo perfil
+            await signOut(auth);
+            window.location.reload();
+          } else {
+            console.error('Error during user processing:', error);
+            setAuthState({ user: firebaseUser, isUserLoading: false, userError: error, companyId: null, role: null });
+          }
         }
       } else {
         // User is signed out
@@ -103,7 +168,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     });
 
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth, firestore]);
 
   const contextValue = useMemo((): FirebaseContextState => ({
     firebaseApp,
