@@ -86,9 +86,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4) Caso especial: se você quiser forçar seu email para uma empresa fixa (ex.: "1")
-    if (email === 'jiverson.t@gmail.com') {
-       const fixedCompanyId = '1'; // <- ID da empresa com dados antigos
+    // 4) Caso especial: Força o email principal para a empresa '1'
+    if (email === 'athosguariza@gmail.com') {
+       const fixedCompanyId = '1';
        const fixedRole = 'admin';
 
        await userRefByUid.set(
