@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app';
 
 export const runtime = 'nodejs';
@@ -13,10 +14,10 @@ if (!getApps().length) {
 }
 
 const adminAuth = getAuth();
+const db = getFirestore();
 
 /**
- * API endpoint to set custom claims on a user.
- * This is called by the client-side provisioning logic.
+ * API endpoint to set custom claims on a user AND provision their user profile.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -29,29 +30,55 @@ export async function POST(req: NextRequest) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decoded = await adminAuth.verifyIdToken(idToken);
-    const uid = decoded.uid;
-    
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+    const email = decodedToken.email;
+    const name = decodedToken.name || decodedToken.email || 'Usuário';
+
+    if (!email) {
+      return NextResponse.json(
+        { error: 'Email é obrigatório para provisionamento.' },
+        { status: 400 }
+      );
+    }
+
     const { claims } = await req.json();
 
     if (!claims || !claims.companyId || !claims.role) {
-         return NextResponse.json(
-            { error: 'Invalid claims object provided.' },
-            { status: 400 }
-        );
+      return NextResponse.json(
+        { error: 'Invalid claims object provided.' },
+        { status: 400 }
+      );
     }
 
-    await adminAuth.setCustomUserClaims(uid, { 
+    // 1. Provision user profile document in Firestore
+    const userRef = db.collection('users').doc(uid);
+    await userRef.set(
+      {
+        displayName: name,
+        email,
         companyId: claims.companyId,
         role: claims.role,
-     });
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+     // Set createdAt only if the document is new
+    await userRef.set({ createdAt: FieldValue.serverTimestamp() }, { merge: true });
+
+
+    // 2. Set custom claims for the user
+    await adminAuth.setCustomUserClaims(uid, {
+      companyId: claims.companyId,
+      role: claims.role,
+    });
 
     return NextResponse.json(
-      { message: 'Custom claims set successfully.' },
+      { message: 'User provisioned and claims set successfully.' },
       { status: 200 }
     );
   } catch (error: any) {
-    console.error('Error in set-claims:', error);
+    console.error('Error in set-claims/provision-user:', error);
     return NextResponse.json(
       { error: error.message || 'Internal Server Error' },
       { status: 500 }

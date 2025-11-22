@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, writeBatch, collection, serverTimestamp } from 'firebase/firestore';
+import { Firestore, doc, getDoc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onIdTokenChanged, signOut } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
@@ -35,8 +35,9 @@ export interface UserHookResult {
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 
-// --- Funções de Provisionamento movidas para o Cliente ---
-async function provisionUserProfile(
+// This function is now only responsible for determining the correct company and role
+// It does NOT write to the database. The API endpoint handles that.
+async function determineUserCompanyAndRole(
   firestore: Firestore,
   user: User
 ): Promise<{ companyId: string; role: string }> {
@@ -44,74 +45,38 @@ async function provisionUserProfile(
   if (!email) throw new Error("Email é obrigatório para o provisionamento.");
 
   const userRef = doc(firestore, 'users', uid);
-  
-  try {
-    const userSnap = await getDoc(userRef);
+  const userSnap = await getDoc(userRef).catch(error => {
+      // Convert getDoc permission error into our custom error
+      const permError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'get',
+      });
+      errorEmitter.emit('permission-error', permError);
+      throw permError;
+  });
 
-    if (userSnap.exists()) {
-      const userData = userSnap.data();
-      if (userData.companyId && userData.role) {
-        return { companyId: userData.companyId, role: userData.role };
-      }
+  if (userSnap.exists()) {
+    const userData = userSnap.data();
+    if (userData.companyId && userData.role) {
+      return { companyId: userData.companyId, role: userData.role };
     }
-    
-    // Lógica para novos utilizadores ou provisionamento inicial
-    const fixedCompanyId = '1';
-    const fixedRole = 'admin';
-
-    // Para o email principal, garanta que ele esteja associado à empresa '1'
-    if (email === 'athosguariza@gmail.com') {
-      await setDoc(userRef, {
-        displayName: displayName || email,
-        email,
-        companyId: fixedCompanyId,
-        role: fixedRole,
-      }, { merge: true });
-      return { companyId: fixedCompanyId, role: fixedRole };
-    }
-
-    // Para outros novos utilizadores, cria nova empresa
-    const batch = writeBatch(firestore);
-    const newCompanyRef = doc(collection(firestore, 'companies'));
-
-    batch.set(newCompanyRef, {
-      nomeFantasia: `Empresa de ${displayName || 'Utilizador'}`,
-      codigoPrefixo: 'LG',
-      linkBaseRastreio: 'https://rastreio.com/',
-      createdAt: serverTimestamp(),
-    });
-
-    const newUserRole = 'admin';
-    batch.set(userRef, {
-      displayName: displayName || email,
-      email,
-      companyId: newCompanyRef.id,
-      role: newUserRole,
-      createdAt: serverTimestamp(),
-    });
-
-    await batch.commit();
-    return { companyId: newCompanyRef.id, role: newUserRole };
-
-  } catch (error) {
-     if (error instanceof FirestorePermissionError) {
-        throw error;
-    }
-    // Captura erros de permissão do getDoc ou setDoc
-    const permissionError = new FirestorePermissionError({
-        path: userRef.path,
-        operation: 'write', // Assumimos 'write' como a operação mais provável
-        requestResourceData: { uid, email }
-    });
-    errorEmitter.emit('permission-error', permissionError);
-    // Lança o erro para interromper a execução
-    throw permissionError;
   }
+
+  // Special case for the main owner
+  if (email === 'athosguariza@gmail.com') {
+    return { companyId: '1', role: 'admin' };
+  }
+
+  // Fallback for a truly new user: they will get a new company ID.
+  // The server-side API will create the company document.
+  // Here, we just generate the ID to be sent.
+  const newCompanyRef = doc(collection(firestore, 'companies'));
+  return { companyId: newCompanyRef.id, role: 'admin' };
 }
 
 
 // A new API call is needed to set the claims from the client-side logic
-async function setCustomClaimsOnServer(idToken: string, claims: { companyId: string; role: string }) {
+async function setClaimsAndProvisionProfileOnServer(idToken: string, claims: { companyId: string; role: string }) {
   const response = await fetch('/api/set-claims', {
     method: 'POST',
     headers: {
@@ -168,12 +133,15 @@ export const FirebaseProvider: React.FC<{
 
           // Se não houver claims, provisiona e define-os.
           if (!claims.companyId || !claims.role) {
-             const userProfileData = await provisionUserProfile(firestore, firebaseUser);
+             const userProfileData = await determineUserCompanyAndRole(firestore, firebaseUser);
              const idToken = await firebaseUser.getIdToken();
-             await setCustomClaimsOnServer(idToken, userProfileData);
+             
+             // Server call to create profile and set claims
+             await setClaimsAndProvisionProfileOnServer(idToken, userProfileData);
              
              // Força a atualização do token para obter os novos claims
              await firebaseUser.getIdToken(true); 
+             
              // Recarrega a página para garantir que tudo seja reavaliado com os novos claims
              window.location.reload();
              // O return aqui impede que o setLoading(false) seja chamado antes do reload
