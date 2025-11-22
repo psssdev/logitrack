@@ -11,8 +11,6 @@ export const dynamic = 'force-dynamic';
 if (!getApps().length) {
   initializeApp({
     credential: applicationDefault(),
-    // Explicitly set the project ID to match the client's configuration
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   });
 }
 
