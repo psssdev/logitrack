@@ -6,6 +6,8 @@ import { Firestore, doc, getDoc, setDoc, writeBatch, collection, serverTimestamp
 import { Auth, User, onIdTokenChanged, signOut } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+import { FirestorePermissionError } from './errors';
+import { errorEmitter } from './error-emitter';
 
 // Combined state for the Firebase context
 export interface FirebaseContextState {
@@ -42,56 +44,69 @@ async function provisionUserProfile(
   if (!email) throw new Error("Email é obrigatório para o provisionamento.");
 
   const userRef = doc(firestore, 'users', uid);
-  const userSnap = await getDoc(userRef);
+  
+  try {
+    const userSnap = await getDoc(userRef);
 
-  if (userSnap.exists()) {
-    const userData = userSnap.data();
-    // Se o perfil já tem companyId, não precisamos provisionar, só garantir os claims.
-    if (userData.companyId && userData.role) {
-      // Este retorno não significa que os claims JÁ estão no token,
-      // apenas que os dados existem para serem colocados nos claims.
-      return { companyId: userData.companyId, role: userData.role };
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      if (userData.companyId && userData.role) {
+        return { companyId: userData.companyId, role: userData.role };
+      }
     }
-  }
-
-  // Lógica especial para o proprietário
-  if (email === 'athosguariza@gmail.com') {
-    const fixedCompanyId = '1'; 
+    
+    // Lógica para novos utilizadores ou provisionamento inicial
+    const fixedCompanyId = '1';
     const fixedRole = 'admin';
-    await setDoc(userRef, {
+
+    // Para o email principal, garanta que ele esteja associado à empresa '1'
+    if (email === 'athosguariza@gmail.com') {
+      await setDoc(userRef, {
+        displayName: displayName || email,
+        email,
+        companyId: fixedCompanyId,
+        role: fixedRole,
+      }, { merge: true });
+      return { companyId: fixedCompanyId, role: fixedRole };
+    }
+
+    // Para outros novos utilizadores, cria nova empresa
+    const batch = writeBatch(firestore);
+    const newCompanyRef = doc(collection(firestore, 'companies'));
+
+    batch.set(newCompanyRef, {
+      nomeFantasia: `Empresa de ${displayName || 'Utilizador'}`,
+      codigoPrefixo: 'LG',
+      linkBaseRastreio: 'https://rastreio.com/',
+      createdAt: serverTimestamp(),
+    });
+
+    const newUserRole = 'admin';
+    batch.set(userRef, {
       displayName: displayName || email,
       email,
-      companyId: fixedCompanyId,
-      role: fixedRole,
+      companyId: newCompanyRef.id,
+      role: newUserRole,
       createdAt: serverTimestamp(),
-    }, { merge: true });
-     // O retorno aqui é o que deve ir para o claim
-    return { companyId: fixedCompanyId, role: fixedRole };
+    });
+
+    await batch.commit();
+    return { companyId: newCompanyRef.id, role: newUserRole };
+
+  } catch (error) {
+     if (error instanceof FirestorePermissionError) {
+        throw error;
+    }
+    // Captura erros de permissão do getDoc ou setDoc
+    const permissionError = new FirestorePermissionError({
+        path: userRef.path,
+        operation: 'write', // Assumimos 'write' como a operação mais provável
+        requestResourceData: { uid, email }
+    });
+    errorEmitter.emit('permission-error', permissionError);
+    // Lança o erro para interromper a execução
+    throw permissionError;
   }
-
-  // Lógica para novos utilizadores
-  const batch = writeBatch(firestore);
-  const newCompanyRef = doc(collection(firestore, 'companies'));
-
-  batch.set(newCompanyRef, {
-    nomeFantasia: `Empresa de ${displayName || 'Utilizador'}`,
-    codigoPrefixo: 'LG',
-    linkBaseRastreio: 'https://rastreio.com/',
-    createdAt: serverTimestamp(),
-  });
-
-  const newUserRole = 'admin';
-  batch.set(userRef, {
-    displayName: displayName || email,
-    email,
-    companyId: newCompanyRef.id,
-    role: newUserRole,
-    createdAt: serverTimestamp(),
-  });
-
-  await batch.commit();
-   // O retorno aqui é o que deve ir para o claim
-  return { companyId: newCompanyRef.id, role: newUserRole };
 }
 
 
@@ -176,9 +191,15 @@ export const FirebaseProvider: React.FC<{
 
         } catch (error: any) {
             console.error('Error during user processing:', error);
-            // Em caso de erro, força o logout para evitar loops e estado inconsistente
-            signOut(auth);
-            setAuthState({ user: null, isUserLoading: false, userError: error, companyId: null, role: null });
+            // Se o erro já for do tipo que queremos, apenas o emitimos e definimos.
+            if (error instanceof FirestorePermissionError) {
+                 setAuthState({ user: null, isUserLoading: false, userError: error, companyId: null, role: null });
+                 errorEmitter.emit('permission-error', error);
+            } else {
+                 // Em caso de outro erro, força o logout para evitar loops e estado inconsistente
+                signOut(auth);
+                setAuthState({ user: null, isUserLoading: false, userError: error, companyId: null, role: null });
+            }
         }
       } else {
         // User is signed out
