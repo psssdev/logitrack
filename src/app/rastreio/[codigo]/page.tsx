@@ -58,6 +58,11 @@ export default function RastreioPage({
     async function fetchOrder() {
         setLoading(true);
         setError(false);
+        if(!codigo) {
+            setError(true);
+            setLoading(false);
+            return;
+        }
         const fetchedOrder = await getOrderByTrackingCode(codigo);
         if(fetchedOrder) {
             setOrder(fetchedOrder);
@@ -85,7 +90,7 @@ export default function RastreioPage({
             <CardDescription>
               O código de rastreio{' '}
               <strong className="font-mono text-foreground">
-                {codigo.toUpperCase()}
+                {codigo ? codigo.toUpperCase() : ''}
               </strong>{' '}
               não foi encontrado em nosso sistema.
             </CardDescription>

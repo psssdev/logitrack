@@ -17,6 +17,15 @@ import type { Client, Origin, Destino } from '@/lib/types';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
+export default function EditClientPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const { id } = React.use(params);
+  return <EditClientContent clientId={id} />;
+}
+
 function EditClientContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
@@ -116,18 +125,9 @@ function EditClientContent({ clientId }: { clientId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {origins && destinos && <EditClientForm client={client} origins={origins} destinos={destinos} />}
+          {client && destinos && <EditClientForm client={client} destinos={destinos} />}
         </CardContent>
       </Card>
     </div>
   );
-}
-
-export default function EditClientPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { id } = React.use(params);
-  return <EditClientContent clientId={id} />;
 }

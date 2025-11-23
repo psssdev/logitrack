@@ -17,6 +17,14 @@ import type { Client, Address } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
 
+export default function ClientDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+    const { id } = React.use(params);
+    return <ClientDetailContent clientId={id} />
+}
 
 function ClientDetailContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
@@ -124,15 +132,6 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
       </div>
     </div>
   );
-}
-
-export default function ClientDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-    const { id } = React.use(params);
-    return <ClientDetailContent clientId={id} />
 }
 
 function ClientDetailSkeleton() {
