@@ -70,7 +70,7 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useDoc<Vehicle>(vehicleRef);
 
-  const salesQuery = React.useMemo(() => {
+  const salesQuery = useMemoFirebase(() => {
     if (!firestore || !vehicleId || !selectedDate) return null;
     const startOfSelectedDay = startOfDay(selectedDate);
 
