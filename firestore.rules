@@ -8,18 +8,10 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Regra específica para perfis de utilizador
-    match /users/{userId} {
-      allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
-    }
-
-    // Regra para coleções na raiz (permite ler/listar a coleção e ler/escrever documentos)
-    match /{collection}/{document} {
-      allow read, write: if isUserAuthenticated();
-    }
-    
-    // Regra para subcoleções (permite ler/listar a subcoleção e ler/escrever documentos)
-    match /{collection}/{document}/{subcollection}/{subdocument} {
+    // Acesso geral para qualquer utilizador autenticado a todos os documentos.
+    // Esta regra é permissiva e adequada para um ambiente de empresa única onde
+    // todos os utilizadores autenticados devem ter acesso total.
+    match /{path=**} {
       allow read, write: if isUserAuthenticated();
     }
   }
