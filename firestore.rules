@@ -16,9 +16,10 @@ service cloud.firestore {
 
     // Rule for the user's own profile document
     match /users/{userId} {
-      // Allow a user to read and write to their own profile document.
-      // This is necessary for client-side user provisioning.
-      allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
+      // Allow a user to read their own profile.
+      allow get: if isUserAuthenticated() && request.auth.uid == userId;
+      // Creation/updates should happen on the server with admin privileges, not on the client.
+      allow write: if false; 
     }
 
     // This single rule protects all subcollections within a company document

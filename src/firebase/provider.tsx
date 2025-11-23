@@ -1,13 +1,30 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect, useCallback } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp, writeBatch, collection } from 'firebase/firestore';
+import { Firestore } from 'firebase/firestore';
 import { Auth, User, onIdTokenChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { Loader2 } from 'lucide-react';
-import { FirestorePermissionError } from './errors';
+
+
+// This server-side function is now responsible for provisioning and setting claims.
+async function setClaimsAndProvisionProfileOnServer(idToken: string) {
+  const response = await fetch('/api/set-claims', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token: idToken }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to set custom claims.');
+  }
+}
+
 
 // Combined state for the Firebase context
 export interface FirebaseContextState {
@@ -33,76 +50,6 @@ export interface UserHookResult {
 
 // React Context
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
-
-// This client-side function now handles provisioning
-async function provisionUserProfile(db: Firestore, user: User): Promise<{ companyId: string, role: string, shouldReload: boolean }> {
-  const { uid, email, displayName } = user;
-  const userRef = doc(db, 'users', uid);
-
-  try {
-    const userDoc = await getDoc(userRef);
-
-    if (userDoc.exists() && userDoc.data()?.companyId && userDoc.data()?.role) {
-      // User profile already exists and is valid
-      return {
-        companyId: userDoc.data()?.companyId,
-        role: userDoc.data()?.role,
-        shouldReload: false,
-      };
-    }
-
-    // --- NEW PROVISIONING LOGIC ---
-    // If we are here, it means the user doc doesn't exist or is incomplete.
-    const name = displayName || email?.split('@')[0] || 'Novo Usuário';
-
-    // Specific override for your user to ensure you are admin of company '1'
-    if (email === 'athosguariza@gmail.com' || email === 'jiverson.t@gmail.com') {
-      await setDoc(userRef, {
-        displayName: name,
-        email,
-        companyId: '1',
-        role: 'admin',
-      }, { merge: true });
-      // We return shouldReload: true to force a token refresh and get claims on the client
-      return { companyId: '1', role: 'admin', shouldReload: true };
-    }
-
-    // Standard flow for any other new user
-    const companyRef = doc(collection(db, 'companies')); // Create a new company doc ref
-    const batch = writeBatch(db);
-
-    batch.set(companyRef, {
-      id: companyRef.id,
-      nomeFantasia: `Empresa de ${name}`,
-      codigoPrefixo: 'TR',
-      linkBaseRastreio: 'https://seusite.com/rastreio/',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    const newRole = 'admin';
-    batch.set(userRef, {
-      displayName: name,
-      email,
-      companyId: companyRef.id,
-      role: newRole,
-    });
-
-    await batch.commit();
-     // We return shouldReload: true to force a token refresh and get claims on the client
-    return { companyId: companyRef.id, role: newRole, shouldReload: true };
-
-  } catch (error: any) {
-    // This is a critical failure, we re-throw to be caught by the main logic
-     const permissionError = new FirestorePermissionError({
-        path: userRef.path,
-        operation: 'write', // Assumed operation
-        requestResourceData: { uid, email }
-     });
-     console.error("Error during provisioning user profile:", permissionError);
-     throw permissionError;
-  }
-}
 
 /**
  * FirebaseProvider manages and provides Firebase services and user authentication state.
@@ -140,33 +87,27 @@ export const FirebaseProvider: React.FC<{
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Provision user profile on the client if it doesn't exist.
-          // This will also return the correct companyId and role.
-          const { companyId, role, shouldReload } = await provisionUserProfile(firestore, firebaseUser);
+            const idTokenResult = await firebaseUser.getIdTokenResult();
+            const claims = idTokenResult.claims;
 
-          // After provisioning, the user might need a token refresh to get claims.
-          // The simplest, most reliable way to ensure the whole app gets the new claims
-          // is to reload the page.
-          if (shouldReload) {
-             // To be absolutely sure the claims are on the token for the next load,
-             // we can force a refresh here, but the reload is the main goal.
-             await firebaseUser.getIdToken(true);
-             window.location.reload();
-             return; // Don't proceed with setting state, page will reload
-          }
-
-          // If we are here, it means the user was already provisioned.
-          // We can try to get claims from the token.
-          const idTokenResult = await firebaseUser.getIdTokenResult();
-          const claims = idTokenResult.claims;
-
-          setAuthState({
+            // If claims are not present, call the server to set them
+            if (!claims.companyId || !claims.role) {
+                 await setClaimsAndProvisionProfileOnServer(idTokenResult.token);
+                 // Force a token refresh to get the new claims on the client.
+                 // This will re-trigger this onIdTokenChanged listener with the new token.
+                 await firebaseUser.getIdToken(true);
+                 // We don't set state here; we wait for the listener to re-run with the correct claims.
+                 return; 
+            }
+            
+            // If we are here, claims are present on the token.
+            setAuthState({
               user: firebaseUser,
               isUserLoading: false,
               userError: null,
-              companyId: (claims.companyId as string) || companyId,
-              role: (claims.role as string) || role,
-          });
+              companyId: (claims.companyId as string) || null,
+              role: (claims.role as string) || null,
+            });
 
         } catch (error: any) {
             console.error('Error during user processing:', error);
