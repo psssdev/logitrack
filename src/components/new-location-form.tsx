@@ -170,7 +170,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
   };
 
   async function onSubmit(data: NewLocation) {
-    if (!firestore) {
+    if (!firestore || !companyId) {
         toast({
             variant: 'destructive',
             title: 'Erro de conexão',
@@ -181,7 +181,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
 
     try {
         const collectionName = locationType === 'origin' ? 'origins' : 'destinos';
-        const collectionRef = collection(firestore, collectionName);
+        const collectionRef = collection(firestore, 'companies', companyId, collectionName);
         const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 
