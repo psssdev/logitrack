@@ -282,7 +282,7 @@ export default function AvisamePage() {
                       checked={sendMode === 'force-app'}
                       onCheckedChange={(checked) => setSendMode(checked ? 'force-app' : 'auto')}
                     />
-                    <Label htmlFor="force-app" className="text-sm">Forçar app do celular</Label>
+                    <Label htmlFor="force-app" className="text-sm">Forçar app</Label>
                   </div>
                   <Button
                     variant={sendMode === 'force-web' ? 'default' : 'outline'}
@@ -313,7 +313,7 @@ export default function AvisamePage() {
           {/* Lista e ações */}
           {selectedCity && (
             <Card className="border-dashed">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <div>
                   <CardTitle>Clientes em {selectedCity}</CardTitle>
                   <CardDescription>

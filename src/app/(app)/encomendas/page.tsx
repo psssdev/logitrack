@@ -26,6 +26,7 @@ import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
 import { format, isToday } from 'date-fns';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 const openWhatsApp = (phone: string, message: string) => {
     const cleanedPhone = phone.replace(/\\D/g, '');
@@ -159,17 +160,20 @@ export default function EncomendasPage() {
         </div>
       </div>
       <Tabs defaultValue="TODAS" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
-          {allStatuses.map((status) => {
-             const label = status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
-             const count = pageIsLoading ? '' : `(${statusCounts[status]})`;
-            return (
-                <TabsTrigger key={status} value={status}>
-                 {label} {count}
-                </TabsTrigger>
-            )
-          })}
-        </TabsList>
+        <ScrollArea className="w-full whitespace-nowrap rounded-md">
+            <TabsList className="grid w-full grid-cols-5">
+              {allStatuses.map((status) => {
+                 const label = status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
+                 const count = pageIsLoading ? '' : `(${statusCounts[status]})`;
+                return (
+                    <TabsTrigger key={status} value={status}>
+                     {label} {count}
+                    </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
         
         {pageIsLoading && <Card><CardContent><Skeleton className="w-full h-64 mt-4" /></CardContent></Card>}
 
