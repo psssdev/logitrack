@@ -69,13 +69,13 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
   }, [categories]);
 
   async function onSubmit(data: NewExpenseFormValues) {
-    if (!firestore || !companyId) {
+    if (!firestore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
-      const entriesCollection = collection(firestore, 'companies', companyId, 'financialEntries');
+      const entriesCollection = collection(firestore, 'financialEntries');
       
       const category = categories.find(c => c.id === data.categoryId);
       const driver = drivers.find(d => d.id === data.driverId);
@@ -198,7 +198,6 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
                             <SelectTrigger><SelectValue placeholder="Selecione um veículo para associar" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="nenhum">Nenhum</SelectItem>
                                 {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.modelo} ({v.placa})</SelectItem>)}
                             </SelectContent>
                         </Select>
@@ -217,7 +216,6 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
                             <SelectTrigger><SelectValue placeholder="Selecione um motorista para associar" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="nenhum">Nenhum</SelectItem>
                                 {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
                             </SelectContent>
                         </Select>

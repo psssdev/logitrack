@@ -68,7 +68,6 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
@@ -272,11 +271,10 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
                 <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                         <SelectTrigger>
-                            <SelectValue placeholder="Selecione a origem mais conveniente" />
+                            <SelectValue placeholder="Nenhuma" />
                         </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        <SelectItem value="">Nenhuma</SelectItem>
                         {origins.map(origin => (
                             <SelectItem key={origin.id} value={origin.id}>{origin.name}</SelectItem>
                         ))}

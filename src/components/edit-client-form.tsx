@@ -29,7 +29,6 @@ export function EditClientForm({ client, origins }: { client: Client, origins: O
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
 
   const form = useForm<EditClientFormValues>({
     resolver: zodResolver(editClientSchema),
@@ -120,11 +119,10 @@ export function EditClientForm({ client, origins }: { client: Client, origins: O
                 <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                         <SelectTrigger>
-                            <SelectValue placeholder="Selecione a origem mais conveniente" />
+                            <SelectValue placeholder="Nenhuma" />
                         </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        <SelectItem value="">Nenhuma</SelectItem>
                         {origins.map(origin => (
                             <SelectItem key={origin.id} value={origin.id}>{origin.name}</SelectItem>
                         ))}
