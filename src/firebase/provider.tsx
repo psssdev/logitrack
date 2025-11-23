@@ -2,12 +2,11 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onIdTokenChanged, signOut } from 'firebase/auth';
+import { Firestore } from 'firebase/firestore';
+import { Auth, User, onIdTokenChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
-import { FirestorePermissionError } from './errors';
-import { errorEmitter } from './error-emitter';
+import { Loader2 } from 'lucide-react';
 
 // Combined state for the Firebase context
 export interface FirebaseContextState {
@@ -35,56 +34,17 @@ export interface UserHookResult {
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 
-// This function is now only responsible for determining the correct company and role
-// It does NOT write to the database. The API endpoint handles that.
-async function determineUserCompanyAndRole(
-  firestore: Firestore,
-  user: User
-): Promise<{ companyId: string; role: string }> {
-  const { uid, email, displayName } = user;
-  if (!email) throw new Error("Email é obrigatório para o provisionamento.");
-
-  const userRef = doc(firestore, 'users', uid);
-  const userSnap = await getDoc(userRef).catch(error => {
-      // Convert getDoc permission error into our custom error
-      const permError = new FirestorePermissionError({
-          path: userRef.path,
-          operation: 'get',
-      });
-      errorEmitter.emit('permission-error', permError);
-      throw permError;
-  });
-
-  if (userSnap.exists()) {
-    const userData = userSnap.data();
-    if (userData.companyId && userData.role) {
-      return { companyId: userData.companyId, role: userData.role };
-    }
-  }
-
-  // Special case for the main owner
-  if (email === 'athosguariza@gmail.com') {
-    return { companyId: '1', role: 'admin' };
-  }
-
-  // Fallback for a truly new user: they will get a new company ID.
-  // The server-side API will create the company document.
-  // Here, we just generate the ID to be sent.
-  const newCompanyRef = doc(collection(firestore, 'companies'));
-  return { companyId: newCompanyRef.id, role: 'admin' };
-}
-
-
-// A new API call is needed to set the claims from the client-side logic
-async function setClaimsAndProvisionProfileOnServer(idToken: string, claims: { companyId: string; role: string }) {
+// Client-side function to call the API route for provisioning
+async function setClaimsAndProvisionProfileOnServer(user: User) {
+  const token = await user.getIdToken();
   const response = await fetch('/api/set-claims', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${idToken}`,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ claims }),
   });
+
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.error || 'Failed to set custom claims.');
@@ -131,24 +91,14 @@ export const FirebaseProvider: React.FC<{
           let idTokenResult = await firebaseUser.getIdTokenResult();
           let claims = idTokenResult.claims;
 
-          // Se não houver claims, provisiona e define-os.
+          // If no claims, call the API to provision and set them, then force refresh.
           if (!claims.companyId || !claims.role) {
-             const userProfileData = await determineUserCompanyAndRole(firestore, firebaseUser);
-             const idToken = await firebaseUser.getIdToken();
-             
-             // Server call to create profile and set claims
-             await setClaimsAndProvisionProfileOnServer(idToken, userProfileData);
-             
-             // Força a atualização do token para obter os novos claims
-             await firebaseUser.getIdToken(true); 
-             
-             // Recarrega a página para garantir que tudo seja reavaliado com os novos claims
-             window.location.reload();
-             // O return aqui impede que o setLoading(false) seja chamado antes do reload
-             return;
+             await setClaimsAndProvisionProfileOnServer(firebaseUser);
+             // Force a refresh of the token to get the new claims
+             idTokenResult = await firebaseUser.getIdTokenResult(true);
+             claims = idTokenResult.claims;
           }
           
-          // Se os claims existem, o utilizador está pronto
           setAuthState({
               user: firebaseUser,
               isUserLoading: false,
@@ -159,15 +109,7 @@ export const FirebaseProvider: React.FC<{
 
         } catch (error: any) {
             console.error('Error during user processing:', error);
-            // Se o erro já for do tipo que queremos, apenas o emitimos e definimos.
-            if (error instanceof FirestorePermissionError) {
-                 setAuthState({ user: null, isUserLoading: false, userError: error, companyId: null, role: null });
-                 errorEmitter.emit('permission-error', error);
-            } else {
-                 // Em caso de outro erro, força o logout para evitar loops e estado inconsistente
-                signOut(auth);
-                setAuthState({ user: null, isUserLoading: false, userError: error, companyId: null, role: null });
-            }
+            setAuthState({ user: null, isUserLoading: false, userError: error, companyId: null, role: null });
         }
       } else {
         // User is signed out
@@ -192,7 +134,13 @@ export const FirebaseProvider: React.FC<{
   return (
     <FirebaseContext.Provider value={contextValue}>
       <FirebaseErrorListener />
-      {children}
+      {authState.isUserLoading ? (
+         <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+         </div>
+      ) : (
+         children
+      )}
     </FirebaseContext.Provider>
   );
 };
