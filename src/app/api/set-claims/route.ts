@@ -3,12 +3,8 @@
 import {NextRequest, NextResponse} from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 
-// Initialize Firebase Admin SDK using the new helper
-const auth = adminAuth();
-const db = adminDb();
-
-
 async function provisionUserProfile(uid: string, email: string | null | undefined, displayName: string | null | undefined): Promise<{ companyId: string, role: string }> {
+    const db = adminDb();
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
 
@@ -64,7 +60,8 @@ export async function POST(request: NextRequest) {
         if (!token) {
             return NextResponse.json({ error: 'ID token is required.' }, { status: 400 });
         }
-
+        
+        const auth = adminAuth();
         const decodedToken = await auth.verifyIdToken(token);
         const { uid, email, name } = decodedToken;
 
