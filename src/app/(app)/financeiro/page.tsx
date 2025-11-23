@@ -49,7 +49,7 @@ const formatDate = (date: Date | Timestamp) => {
 
 export default function FinanceiroPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
   const [deletingEntry, setDeletingEntry] = React.useState<FinancialEntry | null>(null);
@@ -57,12 +57,12 @@ export default function FinanceiroPage() {
 
 
   const entriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return query(
-      collection(firestore, 'companies', companyId, 'financialEntries'),
+      collection(firestore, 'financialEntries'),
       orderBy('date', 'desc')
     );
-  }, [firestore, isUserLoading, user, companyId]);
+  }, [firestore, isUserLoading, user]);
 
   const { data: entries, isLoading } = useCollection<FinancialEntry>(entriesQuery);
   const pageIsLoading = isLoading || isUserLoading;
@@ -86,9 +86,9 @@ export default function FinanceiroPage() {
   }
 
   const confirmDelete = async () => {
-    if (!firestore || !deletingEntry || !companyId) return;
+    if (!firestore || !deletingEntry) return;
     try {
-        await deleteDoc(doc(firestore, 'companies', companyId, 'financialEntries', deletingEntry.id));
+        await deleteDoc(doc(firestore, 'financialEntries', deletingEntry.id));
         await triggerRevalidation('/financeiro');
         toast({ title: 'Lançamento excluído com sucesso.' });
     } catch (error: any) {
