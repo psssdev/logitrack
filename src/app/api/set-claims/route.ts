@@ -1,3 +1,4 @@
+
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
@@ -10,6 +11,8 @@ export const dynamic = 'force-dynamic';
 if (!getApps().length) {
   initializeApp({
     credential: applicationDefault(),
+    // Force the correct project ID to match the client's configuration
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   });
 }
 
@@ -53,18 +56,22 @@ export async function POST(req: NextRequest) {
 
     // 1. Provision user profile document in Firestore
     const userRef = db.collection('users').doc(uid);
-    await userRef.set(
-      {
-        displayName: name,
-        email,
-        companyId: claims.companyId,
-        role: claims.role,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-     // Set createdAt only if the document is new
-    await userRef.set({ createdAt: FieldValue.serverTimestamp() }, { merge: true });
+    const userSnap = await userRef.get();
+
+    // Only write if the document doesn't exist to prevent overwriting
+    if (!userSnap.exists) {
+        await userRef.set(
+          {
+            displayName: name,
+            email,
+            companyId: claims.companyId,
+            role: claims.role,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true } // Use merge to be safe
+        );
+    }
 
 
     // 2. Set custom claims for the user
