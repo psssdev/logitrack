@@ -103,3 +103,15 @@ export type FinancialEntry = Omit<z.infer<typeof baseFinancialEntrySchema>, 'dat
     date: Date | Timestamp;
     travelDate?: Date | Timestamp;
 };
+
+
+export type Company = {
+    id: string;
+    nomeFantasia: string;
+    codigoPrefixo: string;
+    linkBaseRastreio: string;
+    msgCobranca?: string;
+    msgRecebido?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
