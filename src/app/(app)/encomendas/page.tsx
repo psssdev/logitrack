@@ -25,7 +25,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
-import { format } from 'date-fns';
+import { format, isToday } from 'date-fns';
 
 const openWhatsApp = (phone: string, message: string) => {
     const cleanedPhone = phone.replace(/\\D/g, '');
@@ -37,22 +37,26 @@ const openWhatsApp = (phone: string, message: string) => {
 
 export default function EncomendasPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, companyId, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isNotifying, setIsNotifying] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('TODAS');
 
   const statuses: OrderStatus[] = ['PENDENTE', 'EM_ROTA', 'ENTREGUE', 'CANCELADA'];
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    return query(collection(firestore, 'orders'), orderBy('createdAt', 'desc'));
-  }, [firestore, isUserLoading, user]);
+    return query(collection(firestore, 'companies', companyId!, 'orders'), orderBy('createdAt', 'desc'));
+  }, [firestore, isUserLoading, user, companyId]);
 
-  // This will be null now, but we keep the structure for now
-  const { data: company, isLoading: isLoadingCompany } = {data: null, isLoading: false};
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !companyId) return null;
+    return doc(firestore, 'companies', companyId);
+  }, [firestore, isUserLoading, companyId]);
   
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
   
   const pageIsLoading = isLoadingOrders || isUserLoading || isLoadingCompany;
 
@@ -76,7 +80,7 @@ export default function EncomendasPage() {
   const allStatuses = ['TODAS', ...statuses] as const;
 
   const handleSetTodaysPendingToInTransit = async () => {
-    if (!firestore || !user || !orders) return;
+    if (!firestore || !user || !orders || !companyId) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -95,7 +99,7 @@ export default function EncomendasPage() {
     try {
         const batch = writeBatch(firestore);
         pendingToday.forEach(order => {
-            const orderRef = doc(firestore, 'orders', order.id);
+            const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
             batch.update(orderRef, {
                 status: 'EM_ROTA',
                 timeline: arrayUnion({ status: 'EM_ROTA', at: new Date(), userId: user.uid }),
@@ -119,44 +123,79 @@ export default function EncomendasPage() {
     }
   }
 
-  const handleNotifyAllPending = () => {
-      if (!orders) {
-          toast({ variant: "destructive", title: "Erro", description: "Dados das encomendas não carregados."});
+  const handleNotifyInTransitToday = async () => {
+      if (!orders || !company || !firestore || !companyId) {
+          toast({ variant: "destructive", title: "Erro", description: "Dados das encomendas ou da empresa não carregados."});
           return;
       }
       
-      const pendingOrders = orders.filter(o => o.status === 'PENDENTE');
-      if (pendingOrders.length === 0) {
-          toast({ description: "Nenhuma encomenda pendente para notificar."});
+      setIsNotifying(true);
+
+      const inTransitTodayOrders = orders.filter(o => {
+        if (o.status !== 'EM_ROTA') return false;
+        
+        // Find the "EM_ROTA" event in the timeline
+        const inTransitEvent = o.timeline.find(t => t.status === 'EM_ROTA');
+        if (!inTransitEvent) return false;
+        
+        const eventDate = inTransitEvent.at instanceof Timestamp ? inTransitEvent.at.toDate() : new Date(inTransitEvent.at);
+        return isToday(eventDate);
+      });
+
+      const ordersToNotify = inTransitTodayOrders.filter(o => 
+          !o.messages?.some(msg => msg.includes("Notificação de 'Em Rota' enviada"))
+      );
+      
+      if (ordersToNotify.length === 0) {
+          toast({ description: "Nenhuma nova encomenda em rota para notificar hoje."});
+          setIsNotifying(false);
           return;
       }
 
-      const messageTemplate = company?.msgRecebido || `Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}`;
-      const baseLink = company?.linkBaseRastreio || 'https://seusite.com/rastreio/';
+      const messageTemplate = company.msgEmRota || "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
+      const baseLink = company.linkBaseRastreio || 'https://seusite.com/rastreio/';
       
       let notifiedCount = 0;
-      pendingOrders.forEach((order, index) => {
-        const trackingLink = `${baseLink}${order.codigoRastreio}`;
-        const totalValue = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.valorEntrega);
-        const totalVolumes = order.items.reduce((acc, item) => acc + item.quantity, 0).toString();
+      const batch = writeBatch(firestore);
 
-        let message = messageTemplate
+      ordersToNotify.forEach((order, index) => {
+        const trackingLink = `${baseLink}${order.codigoRastreio}`;
+        const message = messageTemplate
             .replace('{cliente}', order.nomeCliente)
             .replace('{codigo}', order.codigoRastreio)
-            .replace('{link}', trackingLink)
-            .replace('{valor}', totalValue)
-            .replace('{volumes}', totalVolumes);
+            .replace('{link}', trackingLink);
         
         setTimeout(() => {
             openWhatsApp(order.telefone, message);
-        }, index * 500); // Intervalo de 500ms
+        }, index * 500); // Interval to avoid browser blocking popups
+        
+        // Log that the notification was sent
+        const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
+        const logMessage = `Notificação de 'Em Rota' enviada em ${new Date().toLocaleString('pt-BR')}`;
+        batch.update(orderRef, {
+            messages: arrayUnion(logMessage)
+        });
+
         notifiedCount++;
       });
       
-      toast({
-          title: `Notificando ${notifiedCount} Clientes`,
-          description: "Verifique as janelas do WhatsApp que serão abertas.",
-      });
+      try {
+        await batch.commit();
+        await triggerRevalidation('/encomendas');
+        toast({
+            title: `Notificando ${notifiedCount} Cliente(s)`,
+            description: "Verifique as janelas do WhatsApp que serão abertas.",
+        });
+      } catch (error: any) {
+        console.error("Error logging notification status:", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao registrar notificações",
+            description: "As notificações foram abertas, mas houve um erro ao salvar o status.",
+        });
+      } finally {
+        setIsNotifying(false);
+      }
   }
 
   const exportToCSV = () => {
@@ -227,10 +266,10 @@ export default function EncomendasPage() {
               Colocar em Rota (Hoje)
             </span>
           </Button>
-           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleNotifyAllPending}>
-            <Megaphone className="h-3.5 w-3.5" />
+           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleNotifyInTransitToday} disabled={isNotifying}>
+             {isNotifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Megaphone className="h-3.5 w-3.5" />}
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Notificar Pendentes
+              Notificar 'Em Rota' (Hoje)
             </span>
           </Button>
           <Button size="sm" variant="outline" className="h-8 gap-1" onClick={exportToCSV}>
