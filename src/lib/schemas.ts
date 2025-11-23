@@ -90,7 +90,9 @@ export const driverSchema = z.object({
   ativo: z.boolean(),
 });
 
-export const newDriverSchema = driverSchema.omit({ id: true, ativo: true });
+export const newDriverSchema = driverSchema.omit({ id: true, ativo: true }).extend({
+    photoUrl: z.string().optional().nullable(), // Making photo optional on creation too
+});
 export const editDriverSchema = newDriverSchema.extend({
     photoUrl: z.string().optional().nullable(),
 });
