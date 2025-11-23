@@ -37,7 +37,7 @@ const openWhatsApp = (phone: string, message: string) => {
 
 export default function EncomendasPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('TODAS');
@@ -45,17 +45,14 @@ export default function EncomendasPage() {
   const statuses: OrderStatus[] = ['PENDENTE', 'EM_ROTA', 'ENTREGUE', 'CANCELADA'];
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
-    return query(collection(firestore, 'companies', companyId, 'orders'), orderBy('createdAt', 'desc'));
-  }, [firestore, isUserLoading, user, companyId]);
+    if (!firestore || isUserLoading || !user) return null;
+    return query(collection(firestore, 'orders'), orderBy('createdAt', 'desc'));
+  }, [firestore, isUserLoading, user]);
 
-  const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
-    return doc(firestore, 'companies', companyId);
-  }, [firestore, isUserLoading, user, companyId]);
-
+  // This will be null now, but we keep the structure for now
+  const { data: company, isLoading: isLoadingCompany } = {data: null, isLoading: false};
+  
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
-  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
   
   const pageIsLoading = isLoadingOrders || isUserLoading || isLoadingCompany;
 
@@ -79,7 +76,7 @@ export default function EncomendasPage() {
   const allStatuses = ['TODAS', ...statuses] as const;
 
   const handleSetTodaysPendingToInTransit = async () => {
-    if (!firestore || !user || !orders || !companyId) return;
+    if (!firestore || !user || !orders) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -98,7 +95,7 @@ export default function EncomendasPage() {
     try {
         const batch = writeBatch(firestore);
         pendingToday.forEach(order => {
-            const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
+            const orderRef = doc(firestore, 'orders', order.id);
             batch.update(orderRef, {
                 status: 'EM_ROTA',
                 timeline: arrayUnion({ status: 'EM_ROTA', at: new Date(), userId: user.uid }),
@@ -123,8 +120,8 @@ export default function EncomendasPage() {
   }
 
   const handleNotifyAllPending = () => {
-      if (!orders || !company) {
-          toast({ variant: "destructive", title: "Erro", description: "Dados da empresa ou encomendas não carregados."});
+      if (!orders) {
+          toast({ variant: "destructive", title: "Erro", description: "Dados das encomendas não carregados."});
           return;
       }
       
@@ -134,8 +131,8 @@ export default function EncomendasPage() {
           return;
       }
 
-      const messageTemplate = company.msgRecebido || `Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}`;
-      const baseLink = company.linkBaseRastreio || 'https://seusite.com/rastreio/';
+      const messageTemplate = company?.msgRecebido || `Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}`;
+      const baseLink = company?.linkBaseRastreio || 'https://seusite.com/rastreio/';
       
       let notifiedCount = 0;
       pendingOrders.forEach((order, index) => {

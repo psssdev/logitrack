@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  BarChart3, ChevronLeft, Home, Menu, Package, Settings, Users, Truck,
+  BarChart3, ChevronLeft, Home, Menu, Package, Users, Truck,
   MapPin, Megaphone, CircleDollarSign, Landmark, Bus, Ticket, ArrowDownCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { FirebaseClientProvider } from '@/firebase';
 import { AuthGuard } from '@/components/auth-guard';
-import { CompanyBranding } from '@/components/company-branding';
+import { Logo } from '@/components/logo';
 import { useUser } from '@/firebase';
 
 const navItems = [
@@ -32,7 +32,6 @@ const navItems = [
   { href: '/origens', icon: MapPin, label: 'Origens' },
   { href: '/destinos', icon: MapPin, label: 'Destinos' },
   { href: '/avisame', icon: Megaphone, label: 'Avisa-me' },
-  { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -61,7 +60,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {isSidebarOpen && (
               <div className="flex h-full max-h-screen flex-col gap-2">
                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                  <CompanyBranding />
+                  <Link href="/inicio" className="flex items-center gap-2 font-semibold">
+                    <Logo className="h-6 w-6" />
+                    <span>LogiTrack</span>
+                  </Link>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
@@ -98,7 +100,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </SheetHeader>
                   <nav className="grid gap-2 text-lg font-medium">
                     <div className="mb-4 flex items-center gap-2 text-lg font-semibold">
-                      <CompanyBranding />
+                       <Link href="/inicio" className="flex items-center gap-2 font-semibold">
+                         <Logo className="h-6 w-6" />
+                         <span>LogiTrack</span>
+                       </Link>
                     </div>
                     <NavLinks />
                   </nav>
@@ -172,7 +177,6 @@ const UserMenu = () => {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild><Link href="/configuracoes">Configurações</Link></DropdownMenuItem>
         <DropdownMenuItem>Suporte</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild><Link href="/">Sair</Link></DropdownMenuItem>

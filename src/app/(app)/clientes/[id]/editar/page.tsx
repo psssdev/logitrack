@@ -19,20 +19,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 function EditClientContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !companyId) return null;
-    return doc(firestore, 'companies', companyId, 'clients', clientId);
-  }, [firestore, companyId, isUserLoading, clientId]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'clients', clientId);
+  }, [firestore, isUserLoading, clientId]);
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !companyId) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
-      collection(firestore, 'companies', companyId, 'origins'),
+      collection(firestore, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, companyId, isUserLoading]);
+  }, [firestore, isUserLoading]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);

@@ -57,7 +57,7 @@ export function NewVehicleForm() {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
+  const { user } = useUser();
 
   const form = useForm<NewVehicleFormValues>({
     resolver: zodResolver(vehicleSchema.omit({ id: true })),
@@ -75,7 +75,7 @@ export function NewVehicleForm() {
   const vehicleType = form.watch('tipo');
 
   async function onSubmit(data: NewVehicleFormValues) {
-    if (!firestore || !companyId) {
+    if (!firestore || !user) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -99,7 +99,7 @@ export function NewVehicleForm() {
     }
 
     try {
-      const vehiclesCollection = collection(firestore, 'companies', companyId, 'vehicles');
+      const vehiclesCollection = collection(firestore, 'vehicles');
       await addDoc(vehiclesCollection, {
         ...processedData,
         placa: data.placa.toUpperCase(),

@@ -32,15 +32,15 @@ const iconConfig = {
 
 export default function VeiculosPage() {
     const firestore = useFirestore();
-    const { user, isUserLoading, companyId } = useUser();
+    const { user, isUserLoading } = useUser();
 
     const vehiclesQuery = useMemoFirebase(() => {
-        if (!firestore || isUserLoading || !user || !companyId) return null;
+        if (!firestore || isUserLoading || !user) return null;
         return query(
-            collection(firestore, 'companies', companyId, 'vehicles'),
+            collection(firestore, 'vehicles'),
             orderBy('modelo', 'asc')
         );
-    }, [firestore, isUserLoading, user, companyId]);
+    }, [firestore, isUserLoading, user]);
 
     const { data: vehicles, isLoading } = useCollection<Vehicle>(vehiclesQuery);
     const pageIsLoading = isLoading || isUserLoading;

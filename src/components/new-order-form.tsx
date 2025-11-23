@@ -104,7 +104,7 @@ export function NewOrderForm({
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -133,26 +133,24 @@ export function NewOrderForm({
   const totalValue = items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0);
 
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedClientId || isUserLoading || !user || !companyId) return null;
+    if (!firestore || !selectedClientId || isUserLoading || !user) return null;
     return query(
       collection(
         firestore,
-        'companies',
-        companyId,
         'clients',
         selectedClientId,
         'addresses'
       )
     );
-  }, [firestore, selectedClientId, isUserLoading, user, companyId]);
+  }, [firestore, selectedClientId, isUserLoading, user]);
 
   const { data: addresses, isLoading: loadingAddresses } =
     useCollection<Address>(addressesQuery);
 
   const { data: drivers, isLoading: loadingDrivers } = useCollection<Driver>(useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
-    return collection(firestore, 'companies', companyId, 'drivers');
-  }, [firestore, isUserLoading, user, companyId]));
+    if (!firestore || isUserLoading || !user) return null;
+    return collection(firestore, 'drivers');
+  }, [firestore, isUserLoading, user]));
 
 
   React.useEffect(() => {
@@ -195,7 +193,7 @@ export function NewOrderForm({
   }, [origins, form]);
 
   async function onSubmit(data: NewOrder) {
-    if (!firestore || !user || !companyId) {
+    if (!firestore || !user) {
       toast({
         variant: 'destructive',
         title: 'Erro',
@@ -223,8 +221,6 @@ export function NewOrderForm({
 
       const ordersCollection = collection(
         firestore,
-        'companies',
-        companyId,
         'orders'
       );
       const newOrderData = {
@@ -679,7 +675,7 @@ export function NewOrderForm({
                   placeholder="Ex: Entregar na portaria, pacote frágil, etc."
                   className="resize-none"
                   {...field}
-                  value={field.value || ''}
+                  value={field.value ?? ''}
                 />
               </FormControl>
               <FormMessage />

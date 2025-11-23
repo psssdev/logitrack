@@ -20,17 +20,17 @@ import { Timestamp } from 'firebase/firestore';
 
 function ClientDetailContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || !companyId || isUserLoading) return null;
-    return doc(firestore, 'companies', companyId, 'clients', clientId);
-  }, [firestore, companyId, isUserLoading, clientId]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'clients', clientId);
+  }, [firestore, isUserLoading, clientId]);
   
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !companyId || isUserLoading) return null;
-    return collection(firestore, 'companies', companyId, 'clients', clientId, 'addresses');
-  }, [firestore, companyId, isUserLoading, clientId]);
+    if (!firestore || isUserLoading) return null;
+    return collection(firestore, 'clients', clientId, 'addresses');
+  }, [firestore, isUserLoading, clientId]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: addresses, isLoading: isLoadingAddresses } = useCollection<Address>(addressesQuery);

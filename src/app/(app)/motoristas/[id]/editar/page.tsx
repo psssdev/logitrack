@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -29,12 +28,12 @@ export default function EditDriverPage({
 
 function EditDriverContent({ driverId }: { driverId: string }) {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const driverRef = useMemoFirebase(() => {
-    if (!firestore || !companyId || isUserLoading) return null;
-    return doc(firestore, 'companies', companyId, 'drivers', driverId);
-  }, [firestore, isUserLoading, driverId, companyId]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'drivers', driverId);
+  }, [firestore, isUserLoading, driverId]);
 
   const { data: driver, isLoading } = useDoc<Driver>(driverRef);
 

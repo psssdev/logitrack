@@ -28,7 +28,7 @@ export function EditDestinoForm({ destino }: { destino: Destino }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
+  const { user } = useUser();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(newLocationSchema),
@@ -45,13 +45,13 @@ export function EditDestinoForm({ destino }: { destino: Destino }) {
   });
 
   async function onSubmit(data: FormValues) {
-    if (!firestore || !companyId) {
+    if (!firestore || !user) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
-      const destinoRef = doc(firestore, 'companies', companyId, 'destinos', destino.id);
+      const destinoRef = doc(firestore, 'destinos', destino.id);
       
       await updateDoc(destinoRef, {
         name: data.name,

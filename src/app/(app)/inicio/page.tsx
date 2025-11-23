@@ -54,17 +54,17 @@ const formatCurrency = (value: number) => {
 
 export default function InicioPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
-    return collection(firestore, 'companies', companyId, 'orders');
-  }, [firestore, isUserLoading, user, companyId]);
+    if (!firestore || isUserLoading || !user) return null;
+    return collection(firestore, 'orders');
+  }, [firestore, isUserLoading, user]);
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
-    return collection(firestore, 'companies', companyId, 'clients');
-  }, [firestore, isUserLoading, user, companyId]);
+    if (!firestore || isUserLoading || !user) return null;
+    return collection(firestore, 'clients');
+  }, [firestore, isUserLoading, user]);
 
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);

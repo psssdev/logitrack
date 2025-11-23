@@ -41,7 +41,7 @@ export function EditClientForm({ client, origins }: { client: Client, origins: O
   });
 
   async function onSubmit(data: EditClientFormValues) {
-    if (!firestore || !companyId) {
+    if (!firestore) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -53,8 +53,6 @@ export function EditClientForm({ client, origins }: { client: Client, origins: O
     try {
       const clientRef = doc(
         firestore,
-        'companies',
-        companyId,
         'clients',
         client.id
       );

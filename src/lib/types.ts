@@ -1,5 +1,3 @@
-
-
 import { z } from 'zod';
 import { orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, vehicleSchema, baseFinancialEntrySchema, locationSchema, newLocationSchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
@@ -77,33 +75,9 @@ export type Destino = Omit<z.infer<typeof locationSchema>, 'createdAt' | 'addres
 };
 
 
-// Company type, derived from the JSON schema
-export type Company = {
-    id: string;
-    nomeFantasia: string;
-    cnpj?: string;
-    logoUrl?: string;
-    cep?: string;
-    logradouro?: string;
-    numero?: string;
-    bairro?: string;
-    cidade?: string;
-    estado?: string;
-    msgRecebido?: string;
-    msgEmRota?: string;
-    msgEntregue?: string;
-    msgChegueiCidade?: string;
-    msgCobranca?: string;
-    codigoPrefixo: string;
-    linkBaseRastreio: string;
-    createdAt?: Date | Timestamp;
-    updatedAt?: Date | Timestamp;
-};
-
 export type UserProfile = {
     displayName: string;
     email: string;
-    companyId: string;
     role: string;
 }
 
@@ -129,5 +103,3 @@ export type FinancialEntry = Omit<z.infer<typeof baseFinancialEntrySchema>, 'dat
     date: Date | Timestamp;
     travelDate?: Date | Timestamp;
 };
-
-    

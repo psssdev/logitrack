@@ -19,7 +19,7 @@ import { triggerRevalidation } from '@/lib/actions';
 import { newClientSchema } from '@/lib/schemas';
 import type { NewClientWithAddress, Origin } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
 import { Loader2, Search } from 'lucide-react';
 import {
   Select,
@@ -171,7 +171,7 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
 
 
   async function onSubmit(data: NewClientWithAddress) {
-    if (!firestore || !companyId) {
+    if (!firestore) {
         toast({
             variant: 'destructive',
             title: 'Erro de conexão',
@@ -184,8 +184,8 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
         const batch = writeBatch(firestore);
         
         // 1. Create Client
-        const clientsCollection = collection(firestore, 'companies', companyId, 'clients');
-        const newClientRef = await addDoc(clientsCollection, {
+        const newClientRef = doc(collection(firestore, 'clients'));
+        batch.set(newClientRef, {
             nome: data.nome,
             telefone: data.telefone,
             defaultOriginId: data.defaultOriginId || null,
@@ -195,11 +195,12 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
         // 2. Create Address if provided
         const hasAddress = data.logradouro && data.cidade && data.estado && data.cep;
         if(hasAddress) {
-            const addressCollection = collection(firestore, 'companies', companyId, 'clients', newClientRef.id, 'addresses');
+            const addressCollection = collection(firestore, 'clients', newClientRef.id, 'addresses');
+            const newAddressRef = doc(addressCollection);
             const { logradouro, numero, bairro, cidade, estado, cep } = data;
             const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
             
-            await addDoc(addressCollection, {
+            batch.set(newAddressRef, {
                 label: 'Principal', // Default label
                 logradouro,
                 numero,
@@ -212,6 +213,7 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
             });
         }
         
+        await batch.commit();
         await triggerRevalidation('/clientes');
 
         toast({

@@ -16,15 +16,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ClientesPage() {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !companyId) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
-      collection(firestore, 'companies', companyId, 'clients'),
+      collection(firestore, 'clients'),
       orderBy('nome', 'asc')
     );
-  }, [firestore, companyId, isUserLoading]);
+  }, [firestore, isUserLoading]);
 
   const { data: clients, isLoading } = useCollection(clientsQuery);
   const pageIsLoading = isLoading || isUserLoading;

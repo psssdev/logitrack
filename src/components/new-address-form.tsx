@@ -144,7 +144,6 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
       } else {
         form.setValue('estado', data.uf, { shouldValidate: true });
         // The useEffect for state change will handle fetching cities.
-        // We need to wait for cities to be loaded before setting the value.
         // This is a bit of a hack, but it works for now. A better solution would be to use a callback or promise.
         setTimeout(() => {
             form.setValue('cidade', data.localidade, { shouldValidate: true });
@@ -169,13 +168,13 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
   };
 
   async function onSubmit(data: NewAddress) {
-      if (!firestore || !companyId) {
+      if (!firestore) {
         toast({ variant: 'destructive', title: 'Erro de conexão', description: 'Não foi possível conectar ao banco de dados.' });
         return;
     }
 
      try {
-        const addressCollection = collection(firestore, 'companies', companyId, 'clients', data.clientId, 'addresses');
+        const addressCollection = collection(firestore, 'clients', data.clientId, 'addresses');
         const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 

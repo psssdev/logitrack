@@ -1,5 +1,3 @@
-
-
 import { z } from 'zod';
 
 export const orderStatusSchema = z.enum([
@@ -57,7 +55,6 @@ export const orderSchema = z.object({
   messages: z.array(z.string()).optional(),
   createdAt: z.any(), // Allow Date, string, or Firestore Timestamp
   createdBy: z.string(),
-  companyId: z.string(),
   clientId: z.string(),
   dataPagamento: z.any().optional(),
   notasPagamento: z.string().optional(),
@@ -70,7 +67,6 @@ export const newOrderSchema = orderSchema.omit({
   timeline: true,
   createdAt: true,
   createdBy: true,
-  companyId: true,
   pago: true,
   status: true,
   nomeCliente: true, // Will be derived from clientId
@@ -227,5 +223,3 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
 export const editFinancialEntrySchema = baseFinancialEntrySchema;
 
 export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });
-
-    

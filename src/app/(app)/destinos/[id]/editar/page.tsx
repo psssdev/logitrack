@@ -28,12 +28,12 @@ export default function EditDestinoPage({
 
 function EditDestinoContent({ destinoId }: { destinoId: string }) {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const destinoRef = useMemoFirebase(() => {
-    if (!firestore || !companyId || isUserLoading) return null;
-    return doc(firestore, 'companies', companyId, 'destinos', destinoId);
-  }, [firestore, isUserLoading, destinoId, companyId]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'destinos', destinoId);
+  }, [firestore, isUserLoading, destinoId]);
 
   const { data: destino, isLoading } = useDoc<Destino>(destinoRef);
 

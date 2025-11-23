@@ -7,20 +7,20 @@ service cloud.firestore {
     function isUserAuthenticated() {
       return request.auth != null;
     }
-
-    // Allow a user to read and write ONLY their own profile document.
+    
+    // Users can only read and write their own profile
     match /users/{userId} {
       allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
     }
-
-    // Helper function to get the companyId from the user's auth token
-    function getUserCompanyId() {
-      return request.auth.token.companyId;
-    }
     
-    // This single rule protects all subcollections within a company document
-    match /companies/{companyId}/{document=**} {
-      allow read, write: if isUserAuthenticated() && getUserCompanyId() == companyId;
+    // Any authenticated user can interact with the data collections.
+    // This simplifies the rules for a single-company setup.
+    match /{collection}/{docId} {
+       allow read, write: if isUserAuthenticated();
+    }
+
+     match /{collection}/{docId}/{subcollection}/{subdocId} {
+       allow read, write: if isUserAuthenticated();
     }
   }
 }

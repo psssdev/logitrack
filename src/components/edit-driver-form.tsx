@@ -31,7 +31,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
+  const { user } = useUser();
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(
     driver.photoUrl
   );
@@ -59,7 +59,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   };
 
   async function onSubmit(data: EditDriverFormValues) {
-    if (!firestore || !companyId) {
+    if (!firestore || !user) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -72,16 +72,15 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
 
       if (photoFile) {
         toast({ description: 'Atualizando foto...' });
+        // Path no longer needs companyId
         uploadedPhotoUrl = await uploadFile(
           photoFile,
-          `companies/${companyId}/driver_photos`
+          `driver_photos`
         );
       }
       
       const driverRef = doc(
         firestore,
-        'companies',
-        companyId,
         'drivers',
         driver.id
       );

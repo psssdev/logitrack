@@ -13,12 +13,13 @@ function loadServiceAccountFromEnv(): ServiceAccount {
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
   if (!projectId || !clientEmail || !privateKey) {
+    // This will run on server start-up, so it's safe to throw here.
     throw new Error(
-      'Firebase Admin SDK envs ausentes. Defina FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY.'
+      'Firebase Admin SDK env vars are missing. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in your environment.'
     );
   }
 
-  // Corrige \n escapados
+  // The private key from env vars can have escaped newlines.
   privateKey = privateKey.replace(/\\n/g, '\n');
 
   return { projectId, clientEmail, privateKey };

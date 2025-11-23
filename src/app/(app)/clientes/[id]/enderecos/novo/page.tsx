@@ -17,14 +17,23 @@ import type { Client } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
+export default function NewAddressPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const { id } = React.use(params);
+  return <NewAddressContent clientId={id} />
+}
+
 function NewAddressContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || !companyId || isUserLoading) return null;
-    return doc(firestore, 'companies', companyId, 'clients', clientId);
-  }, [firestore, companyId, isUserLoading, clientId]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'clients', clientId);
+  }, [firestore, clientId, isUserLoading]);
 
   const { data: client, isLoading } = useDoc<Client>(clientRef);
 
@@ -106,13 +115,4 @@ function NewAddressContent({ clientId }: { clientId: string }) {
       </Card>
     </div>
   );
-}
-
-export default function NewAddressPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { id } = React.use(params);
-  return <NewAddressContent clientId={id} />
 }

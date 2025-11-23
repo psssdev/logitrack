@@ -64,7 +64,7 @@ const brazilianStates = [
     { value: 'TO', label: 'Tocantins' },
 ];
 
-export function NewDestinoForm() {
+export function NewLocationForm({ locationType }: { locationType: 'origin' | 'destino' }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -83,6 +83,8 @@ export function NewDestinoForm() {
       cidade: '',
       estado: '',
       cep: '',
+      lat: undefined,
+      lng: undefined,
     },
   });
 
@@ -168,7 +170,7 @@ export function NewDestinoForm() {
   };
 
   async function onSubmit(data: NewLocation) {
-    if (!firestore || !companyId) {
+    if (!firestore) {
         toast({
             variant: 'destructive',
             title: 'Erro de conexão',
@@ -178,34 +180,43 @@ export function NewDestinoForm() {
     }
 
     try {
-        const destinosCollection = collection(firestore, 'companies', companyId, 'destinos');
-        const { logradouro, numero, bairro, cidade, estado, cep, name } = data;
+        const collectionName = locationType === 'origin' ? 'origins' : 'destinos';
+        const collectionRef = collection(firestore, collectionName);
+        const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 
-        await addDoc(destinosCollection, {
-            name,
+        await addDoc(collectionRef, {
+            name: data.name,
             address: fullAddress,
+            city: data.cidade,
+            lat: data.lat,
+            lng: data.lng,
+            active: true,
             createdAt: serverTimestamp(),
         });
         
-        await triggerRevalidation('/destinos');
+        const path = `/${collectionName}`;
+        await triggerRevalidation(path);
         await triggerRevalidation('/vender-passagem');
+
 
         toast({
             title: 'Sucesso!',
-            description: 'Novo destino cadastrado.',
+            description: `Novo ${locationType === 'origin' ? 'ponto de origem' : 'destino'} cadastrado.`,
         });
-        router.push('/destinos');
+        router.push(path);
 
     } catch (error: any) {
-        console.error("Error creating destination:", error);
+        console.error("Error creating location:", error);
         toast({
             variant: 'destructive',
-            title: 'Erro ao cadastrar destino.',
+            title: `Erro ao cadastrar ${locationType === 'origin' ? 'origem' : 'destino'}.`,
             description: error.message || 'Ocorreu um erro desconhecido.',
         });
     }
   }
+  
+  const title = locationType === 'origin' ? 'Origem' : 'Destino';
 
   return (
     <Form {...form}>
@@ -215,10 +226,10 @@ export function NewDestinoForm() {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nome do Destino *</FormLabel>
+              <FormLabel>Nome do Ponto de {title} *</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Ex: Rodoviária de Campinas"
+                  placeholder={`Ex: Garagem Principal, Agência Centro`}
                   {...field}
                 />
               </FormControl>
@@ -339,6 +350,35 @@ export function NewDestinoForm() {
                 )}
             />
         </div>
+        
+         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField
+                control={form.control}
+                name="lat"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Latitude</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="-19.0187" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="lng"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Longitude</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="-40.5363" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
 
         <div className="flex justify-end">
           <Button
@@ -346,7 +386,7 @@ export function NewDestinoForm() {
             size="lg"
             disabled={form.formState.isSubmitting}
           >
-            {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Destino'}
+            {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : `Salvar ${title}`}
           </Button>
         </div>
       </form>

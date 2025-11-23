@@ -28,12 +28,12 @@ export default function EditVehiclePage({
 
 function EditVehicleContent({ vehicleId }: { vehicleId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
-    return doc(firestore, 'companies', companyId, 'vehicles', vehicleId);
-  }, [firestore, isUserLoading, vehicleId, user, companyId]);
+    if (!firestore || isUserLoading || !user) return null;
+    return doc(firestore, 'vehicles', vehicleId);
+  }, [firestore, isUserLoading, vehicleId, user]);
 
   const { data: vehicle, isLoading } = useDoc<Vehicle>(vehicleRef);
 

@@ -28,12 +28,12 @@ export default function EditOriginPage({
 
 function EditOriginContent({ originId }: { originId: string }) {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const originRef = useMemoFirebase(() => {
-    if (!firestore || !companyId || isUserLoading) return null;
-    return doc(firestore, 'companies', companyId, 'origins', originId);
-  }, [firestore, isUserLoading, originId, companyId]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'origins', originId);
+  }, [firestore, isUserLoading, originId]);
 
   const { data: origin, isLoading } = useDoc<Origin>(originRef);
 

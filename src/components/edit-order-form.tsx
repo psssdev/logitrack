@@ -68,7 +68,7 @@ export function EditOrderForm({
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const form = useForm<EditOrderFormValues>({
     resolver: zodResolver(editOrderSchema),
@@ -95,31 +95,29 @@ export function EditOrderForm({
   );
 
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !order.clientId || isUserLoading || !user || !companyId) return null;
+    if (!firestore || !order.clientId || isUserLoading || !user) return null;
     return query(
       collection(
         firestore,
-        'companies',
-        companyId,
         'clients',
         order.clientId,
         'addresses'
       )
     );
-  }, [firestore, order.clientId, isUserLoading, user, companyId]);
+  }, [firestore, order.clientId, isUserLoading, user]);
 
   const { data: addresses, isLoading: loadingAddresses } =
     useCollection<Address>(addressesQuery);
     
     const { data: drivers, isLoading: loadingDrivers } = useCollection<Driver>(
         useMemoFirebase(() => {
-            if(!firestore || !user || isUserLoading || !companyId) return null;
-            return collection(firestore, 'companies', companyId, 'drivers');
-        }, [firestore, user, isUserLoading, companyId])
+            if(!firestore || !user || isUserLoading) return null;
+            return collection(firestore, 'drivers');
+        }, [firestore, user, isUserLoading])
     );
 
   async function onSubmit(data: EditOrderFormValues) {
-    if (!firestore || !companyId) {
+    if (!firestore) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -131,8 +129,6 @@ export function EditOrderForm({
     try {
       const orderRef = doc(
         firestore,
-        'companies',
-        companyId,
         'orders',
         order.id
       );

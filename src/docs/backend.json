@@ -1,9 +1,8 @@
-
 {
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Represents a user's profile information, linking them to a company and role.",
+      "description": "Represents a user's profile information.",
       "type": "object",
       "properties": {
         "displayName": {
@@ -15,84 +14,13 @@
           "format": "email",
           "description": "The user's email address."
         },
-        "companyId": {
-          "type": "string",
-          "description": "The ID of the company this user belongs to."
-        },
         "role": {
           "type": "string",
-          "description": "The user's role within the company (e.g., 'admin', 'member').",
+          "description": "The user's role (e.g., 'admin', 'member').",
           "enum": ["admin", "member"]
         }
       },
-      "required": ["displayName", "email", "companyId", "role"]
-    },
-    "Company": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Company",
-      "type": "object",
-      "description": "Represents a transport company using the system. Enables multi-tenant support.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the company."
-        },
-        "nomeFantasia": {
-          "type": "string",
-          "description": "The trade name of the company."
-        },
-        "cnpj": {
-          "type": "string",
-          "description": "The company's CNPJ (optional)."
-        },
-        "logoUrl": {
-          "type": "string",
-          "description": "URL of the company's logo image."
-        },
-        "cep": { "type": "string" },
-        "logradouro": { "type": "string" },
-        "numero": { "type": "string" },
-        "bairro": { "type": "string" },
-        "cidade": { "type": "string" },
-        "estado": { "type": "string" },
-        "msgRecebido": {
-          "type": "string",
-          "description": "Template for 'order received' message."
-        },
-        "msgEmRota": {
-          "type": "string",
-          "description": "Template for 'order in transit' message."
-        },
-        "msgEntregue": {
-          "type": "string",
-          "description": "Template for 'order delivered' message."
-        },
-        "msgChegueiCidade": {
-          "type": "string",
-          "description": "Template for 'we have arrived in the city' message."
-        },
-        "msgCobranca": {
-          "type": "string",
-          "description": "Template for 'pending payment reminder' message."
-        },
-        "codigoPrefixo": {
-          "type": "string",
-          "description": "Prefix for the tracking code (e.g., 'TR-')."
-        },
-        "linkBaseRastreio": {
-          "type": "string",
-          "description": "Base URL for tracking links. The tracking code will be appended to this URL.",
-          "format": "uri"
-        },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": [
-        "id",
-        "nomeFantasia",
-        "codigoPrefixo",
-        "linkBaseRastreio"
-      ]
+      "required": ["displayName", "email", "role"]
     },
     "Order": {
       "$schema": "http://json-schema.org/draft_07/schema#",
@@ -107,6 +35,10 @@
         "nomeCliente": {
           "type": "string",
           "description": "Name of the customer."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to the client who placed the order."
         },
         "telefone": {
           "type": "string",
@@ -212,6 +144,7 @@
       "required": [
         "codigoRastreio",
         "nomeCliente",
+        "clientId",
         "telefone",
         "origem",
         "destino",
@@ -235,10 +168,6 @@
           "type": "string",
           "description": "Unique identifier for the driver."
         },
-        "companyId": {
-          "type": "string",
-          "description": "Reference to Company. (Relationship: Company 1:N Driver)"
-        },
         "nome": {
           "type": "string",
           "description": "Driver's name."
@@ -247,6 +176,10 @@
           "type": "string",
           "description": "Driver's phone number."
         },
+        "photoUrl": {
+            "type": "string",
+            "description": "URL of the driver's photo."
+        },
         "ativo": {
           "type": "boolean",
           "description": "Indicates if the driver is active."
@@ -254,7 +187,6 @@
       },
       "required": [
         "id",
-        "companyId",
         "nome",
         "telefone",
         "ativo"
@@ -444,61 +376,55 @@
       "schema": {
         "$ref": "#/entities/UserProfile"
       },
-      "description": "Stores public information about a user, including their company affiliation."
+      "description": "Stores public information about a user."
     },
-    "/companies/{companyId}": {
-        "schema": {
-            "$ref": "#/entities/Company"
-        },
-        "description": "Stores the settings and branding for a company."
-    },
-    "/companies/{companyId}/clients/{clientId}": {
+    "/clients/{clientId}": {
       "schema": {
         "$ref": "#/entities/Client"
       },
-      "description": "Stores customer information for a specific company."
+      "description": "Stores customer information."
     },
-    "/companies/{companyId}/origins/{originId}": {
+    "/origins/{originId}": {
         "schema": {
             "$ref": "#/entities/Origin"
         },
-        "description": "Stores shipment origin points for a specific company."
+        "description": "Stores shipment origin points."
     },
-    "/companies/{companyId}/destinos/{destinoId}": {
+    "/destinos/{destinoId}": {
         "schema": {
             "$ref": "#/entities/Destino"
         },
-        "description": "Stores shipment destination points for a specific company."
+        "description": "Stores shipment destination points."
     },
-    "/companies/{companyId}/clients/{clientId}/addresses/{addressId}": {
+    "/clients/{clientId}/addresses/{addressId}": {
       "schema": {
         "$ref": "#/entities/Address"
       },
       "description": "Stores addresses for a specific client."
     },
-    "/companies/{companyId}/orders/{orderId}": {
+    "/orders/{orderId}": {
       "schema": {
         "$ref": "#/entities/Order"
       },
-      "description": "Stores all orders for a specific company."
+      "description": "Stores all orders."
     },
-     "/companies/{companyId}/drivers/{driverId}": {
+     "/drivers/{driverId}": {
       "schema": {
         "$ref": "#/entities/Driver"
       },
-      "description": "Stores driver information for a specific company."
+      "description": "Stores driver information."
     },
-    "/companies/{companyId}/vehicles/{vehicleId}": {
+    "/vehicles/{vehicleId}": {
       "schema": { "$ref": "#/entities/Vehicle" },
       "description": "Stores company vehicles."
     },
-    "/companies/{companyId}/financialCategories/{categoryId}": {
+    "/financialCategories/{categoryId}": {
       "schema": { "$ref": "#/entities/FinancialCategory" },
       "description": "Stores categories for financial entries."
     },
-    "/companies/{companyId}/financialEntries/{entryId}": {
+    "/financialEntries/{entryId}": {
       "schema": { "$ref": "#/entities/FinancialEntry" },
-      "description": "Stores all financial transactions for a company."
+      "description": "Stores all financial transactions."
     }
   }
 }

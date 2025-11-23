@@ -60,13 +60,13 @@ export function EditOriginForm({ origin }: { origin: Origin }) {
   });
 
   async function onSubmit(data: FormValues) {
-    if (!firestore || !companyId) {
+    if (!firestore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
-      const originRef = doc(firestore, 'companies', companyId, 'origins', origin.id);
+      const originRef = doc(firestore, 'origins', origin.id);
       const { logradouro, numero, bairro, cidade, estado, cep } = data;
       const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 

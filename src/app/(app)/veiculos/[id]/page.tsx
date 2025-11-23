@@ -55,7 +55,7 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
 
 function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -64,22 +64,22 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
 
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user || !companyId) return null;
-    return doc(firestore, 'companies', companyId, 'vehicles', vehicleId);
-  }, [firestore, isUserLoading, vehicleId, user, companyId]);
+    if (!firestore || isUserLoading || !user) return null;
+    return doc(firestore, 'vehicles', vehicleId);
+  }, [firestore, isUserLoading, vehicleId, user]);
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useDoc<Vehicle>(vehicleRef);
 
   const salesQuery = React.useMemo(() => {
-    if (!firestore || !vehicleId || !selectedDate || !companyId) return null;
+    if (!firestore || !vehicleId || !selectedDate) return null;
     const startOfSelectedDay = startOfDay(selectedDate);
 
     return query(
-        collection(firestore, 'companies', companyId, 'financialEntries'),
+        collection(firestore, 'financialEntries'),
         where('vehicleId', '==', vehicleId),
         where('travelDate', '>=', Timestamp.fromDate(startOfSelectedDay))
     );
-  }, [firestore, vehicleId, selectedDate, companyId]);
+  }, [firestore, vehicleId, selectedDate]);
 
   const { data: sales, isLoading: isLoadingSales } = useCollection<FinancialEntry>(salesQuery);
 
@@ -92,7 +92,7 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const isLoading = isLoadingVehicle || isLoadingSales || isUserLoading;
 
   const handleDelete = async () => {
-    if (!firestore || !vehicle || !vehicleRef || !companyId) return;
+    if (!firestore || !vehicle || !vehicleRef) return;
     try {
         await deleteDoc(vehicleRef);
         await triggerRevalidation('/veiculos');

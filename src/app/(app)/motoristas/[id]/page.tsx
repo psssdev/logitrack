@@ -32,21 +32,21 @@ export default function MotoristaDetailPage({
 
 function MotoristaDetailContent({ driverId }: { driverId: string }) {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const driverRef = useMemoFirebase(() => {
-    if (!firestore || !companyId || isUserLoading) return null;
-    return doc(firestore, 'companies', companyId, 'drivers', driverId);
-  }, [firestore, isUserLoading, driverId, companyId]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'drivers', driverId);
+  }, [firestore, isUserLoading, driverId]);
 
   const driverOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !companyId || isUserLoading) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
-      collection(firestore, 'companies', companyId, 'orders'),
+      collection(firestore, 'orders'),
       where('motoristaId', '==', driverId),
       orderBy('createdAt', 'desc')
     );
-  }, [firestore, isUserLoading, driverId, companyId]);
+  }, [firestore, isUserLoading, driverId]);
 
   const { data: driver, isLoading: isLoadingDriver } = useDoc<Driver>(driverRef);
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(driverOrdersQuery);

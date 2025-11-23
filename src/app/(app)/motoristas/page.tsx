@@ -18,15 +18,15 @@ import { collection, orderBy, query } from 'firebase/firestore';
 
 export default function MotoristasPage() {
     const firestore = useFirestore();
-    const { user, companyId, isUserLoading } = useUser();
+    const { user, isUserLoading } = useUser();
 
     const driversQuery = useMemoFirebase(() => {
-        if (!firestore || !companyId || isUserLoading) return null;
+        if (!firestore || isUserLoading) return null;
         return query(
-            collection(firestore, 'companies', companyId, 'drivers'),
+            collection(firestore, 'drivers'),
             orderBy('nome', 'asc')
         );
-    }, [firestore, companyId, isUserLoading]);
+    }, [firestore, isUserLoading]);
 
     const { data: drivers, isLoading } = useCollection<Driver>(driversQuery);
     const pageIsLoading = isLoading || isUserLoading;

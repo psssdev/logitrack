@@ -37,7 +37,7 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
+  const { user } = useUser();
 
   const form = useForm<EditVehicleFormValues>({
     resolver: zodResolver(vehicleSchema.omit({ id: true })),
@@ -55,7 +55,7 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
   const vehicleType = form.watch('tipo');
 
   async function onSubmit(data: EditVehicleFormValues) {
-    if (!firestore || !companyId) {
+    if (!firestore || !user) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -78,7 +78,7 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
     }
 
     try {
-      const vehicleRef = doc(firestore, 'companies', companyId, 'vehicles', vehicle.id);
+      const vehicleRef = doc(firestore, 'vehicles', vehicle.id);
       await updateDoc(vehicleRef, {
         ...processedData,
         placa: data.placa.toUpperCase(),

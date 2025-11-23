@@ -29,7 +29,7 @@ export function NewDriverForm() {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user, companyId } = useUser();
+  const { user } = useUser();
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
 
@@ -55,7 +55,7 @@ export function NewDriverForm() {
   };
 
   async function onSubmit(data: NewDriver) {
-    if (!firestore || !user || !companyId) {
+    if (!firestore || !user) {
       toast({
         variant: 'destructive',
         title: 'Erro de Autenticação',
@@ -68,23 +68,21 @@ export function NewDriverForm() {
       let uploadedPhotoUrl = '';
       if (photoFile) {
         toast({ description: 'Fazendo upload da foto...' });
+        // Path no longer needs companyId
         uploadedPhotoUrl = await uploadFile(
           photoFile,
-          `companies/${companyId}/driver_photos`
+          `driver_photos`
         );
       }
 
       const driversCollection = collection(
         firestore,
-        'companies',
-        companyId,
         'drivers'
       );
 
       await addDoc(driversCollection, {
         ...data,
         photoUrl: uploadedPhotoUrl,
-        companyId: companyId,
         ativo: true,
         createdAt: serverTimestamp(),
       });
