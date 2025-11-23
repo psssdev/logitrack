@@ -191,11 +191,14 @@ export const FirebaseProvider: React.FC<{
     storage,
     ...authState,
   }), [firebaseApp, firestore, auth, storage, authState]);
+  
+  // Render loading indicator until we have a definitive user state AND a companyId
+  const showLoading = authState.isUserLoading || (authState.user && !authState.companyId);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
       <FirebaseErrorListener />
-      {authState.isUserLoading ? (
+      {showLoading ? (
          <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
          </div>
