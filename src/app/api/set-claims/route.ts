@@ -1,19 +1,12 @@
 'use server';
 
 import {NextRequest, NextResponse} from 'next/server';
-import {initializeApp, applicationDefault, getApps, getApp} from 'firebase-admin/app';
-import {getAuth} from 'firebase-admin/auth';
-import {getFirestore} from 'firebase-admin/firestore';
+import { adminAuth, adminDb } from '@/lib/firebase-admin';
 
-// Initialize Firebase Admin SDK
-if (!getApps().length) {
-    initializeApp({
-        credential: applicationDefault(),
-    });
-}
+// Initialize Firebase Admin SDK using the new helper
+const auth = adminAuth();
+const db = adminDb();
 
-const db = getFirestore();
-const auth = getAuth();
 
 async function provisionUserProfile(uid: string, email: string | null | undefined, displayName: string | null | undefined): Promise<{ companyId: string, role: string }> {
     const userRef = db.collection('users').doc(uid);
