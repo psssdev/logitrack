@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { EditClientForm } from '@/components/edit-client-form';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Client, Origin } from '@/lib/types';
+import type { Client, Origin, Destino } from '@/lib/types';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -34,10 +34,20 @@ function EditClientContent({ clientId }: { clientId: string }) {
     );
   }, [firestore, isUserLoading]);
 
+  const destinosQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(
+        collection(firestore, 'destinos'),
+        orderBy('name', 'asc')
+    );
+  }, [firestore, isUserLoading]);
+
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
+  const { data: destinos, isLoading: isLoadingDestinos } = useCollection<Destino>(destinosQuery);
 
-  const pageIsLoading = isLoadingClient || isLoadingOrigins || isUserLoading;
+
+  const pageIsLoading = isLoadingClient || isLoadingOrigins || isLoadingDestinos || isUserLoading;
 
   if (pageIsLoading) {
     return (
@@ -106,7 +116,7 @@ function EditClientContent({ clientId }: { clientId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {origins && <EditClientForm client={client} origins={origins} />}
+          {origins && destinos && <EditClientForm client={client} origins={origins} destinos={destinos} />}
         </CardContent>
       </Card>
     </div>

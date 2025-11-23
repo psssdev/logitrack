@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editClientSchema } from '@/lib/schemas';
-import type { Client, Origin } from '@/lib/types';
+import type { Client, Origin, Destino } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 
 type EditClientFormValues = z.infer<typeof editClientSchema>;
 
-export function EditClientForm({ client, origins }: { client: Client, origins: Origin[] }) {
+export function EditClientForm({ client, origins, destinos }: { client: Client, origins: Origin[], destinos: Destino[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -35,7 +35,7 @@ export function EditClientForm({ client, origins }: { client: Client, origins: O
     defaultValues: {
       nome: client.nome,
       telefone: client.telefone,
-      defaultOriginId: client.defaultOriginId || '',
+      defaultDestinoId: client.defaultDestinoId || '',
     },
   });
 
@@ -57,7 +57,7 @@ export function EditClientForm({ client, origins }: { client: Client, origins: O
       );
       await updateDoc(clientRef, {
           ...data,
-          defaultOriginId: data.defaultOriginId || null,
+          defaultDestinoId: data.defaultDestinoId || null,
       });
 
       await triggerRevalidation('/clientes');
@@ -112,19 +112,19 @@ export function EditClientForm({ client, origins }: { client: Client, origins: O
         </div>
          <FormField
             control={form.control}
-            name="defaultOriginId"
+            name="defaultDestinoId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Origem Padrão</FormLabel>
+                <FormLabel>Destino Padrão</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                         <SelectTrigger>
-                            <SelectValue placeholder="Nenhuma" />
+                            <SelectValue placeholder="Nenhum" />
                         </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        {origins.map(origin => (
-                            <SelectItem key={origin.id} value={origin.id}>{origin.name}</SelectItem>
+                        {destinos.map(destino => (
+                            <SelectItem key={destino.id} value={destino.id}>{destino.name}</SelectItem>
                         ))}
                     </SelectContent>
                 </Select>

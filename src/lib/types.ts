@@ -38,7 +38,6 @@ export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 export type Client = Omit<z.infer<typeof clientSchema>, 'createdAt'> & {
     id: string;
     createdAt: Date | Timestamp;
-    defaultOriginId?: string;
     defaultDestinoId?: string;
     addresses?: Address[];
 };

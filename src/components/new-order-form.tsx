@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address, Origin, Driver, Destino } from '@/lib/types';
+import type { NewOrder, Client, Address, Origin, Driver } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -61,7 +61,7 @@ import {
   DialogClose,
 } from './ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { addDoc, collection, doc, query, serverTimestamp } from 'firebase/firestore';
 import {
   Table,
@@ -144,47 +144,26 @@ export function NewOrderForm({
     );
   }, [firestore, selectedClientId, isUserLoading, user]);
 
-  const destinosQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return query(collection(firestore, 'destinos'));
-  }, [firestore, isUserLoading, user]);
-
-
   const { data: addresses, isLoading: loadingAddresses } =
     useCollection<Address>(addressesQuery);
-
-  const { data: destinos, isLoading: loadingDestinos } =
-    useCollection<Destino>(destinosQuery);
 
   const { data: drivers, isLoading: loadingDrivers } = useCollection<Driver>(useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
     return collection(firestore, 'drivers');
   }, [firestore, isUserLoading, user]));
 
-  const destinationOptions = React.useMemo(() => {
-    if (addresses && addresses.length > 0) {
-      return addresses.map(addr => ({
-        label: `${addr.label} - ${addr.fullAddress}`,
-        value: addr.fullAddress,
-      }));
-    }
-    if (destinos) {
-      return destinos.map(dest => ({
-        label: `${dest.name} - ${dest.address}`,
-        value: dest.address,
-      }));
-    }
-    return [];
-  }, [addresses, destinos]);
-
-
+  // Auto-select destination based on client's addresses
   React.useEffect(() => {
-    if (destinationOptions.length > 0 && !form.getValues('destino')) {
-      form.setValue('destino', destinationOptions[0].value);
-    } else if (destinationOptions.length === 0) {
-      form.setValue('destino', '');
+    if (addresses && addresses.length > 0) {
+      // Prioritize the main address, otherwise take the first one
+      const mainAddress = addresses.find(a => a.principal) || addresses[0];
+      if (mainAddress) {
+        form.setValue('destino', mainAddress.fullAddress);
+      }
+    } else {
+        form.setValue('destino', '');
     }
-  }, [destinationOptions, form]);
+  }, [addresses, form, selectedClientId]);
 
 
   const handleOpenScanner = async () => {
@@ -391,11 +370,11 @@ export function NewOrderForm({
             name="origem"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Endereço de Origem *</FormLabel>
+                <FormLabel>Ponto de Origem da Encomenda *</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um endereço de origem" />
+                      <SelectValue placeholder="Selecione um ponto de origem" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -415,11 +394,11 @@ export function NewOrderForm({
             name="destino"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Endereço de Destino *</FormLabel>
+                <FormLabel>Destino da Encomenda (Endereço do Cliente) *</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   value={field.value}
-                  disabled={!selectedClientId || loadingAddresses || loadingDestinos}
+                  disabled={!selectedClientId || loadingAddresses}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -427,26 +406,26 @@ export function NewOrderForm({
                         placeholder={
                           !selectedClientId
                             ? 'Selecione um cliente primeiro'
-                            : (loadingAddresses || loadingDestinos)
-                            ? 'Carregando...'
-                            : 'Selecione um endereço'
+                            : loadingAddresses
+                            ? 'Carregando endereços...'
+                            : 'Selecione um endereço do cliente'
                         }
                       />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {destinationOptions.length > 0 ? (
-                      destinationOptions.map((opt) => (
+                    {addresses && addresses.length > 0 ? (
+                      addresses.map((address) => (
                         <SelectItem
-                          key={opt.value}
-                          value={opt.value}
+                          key={address.id}
+                          value={address.fullAddress}
                         >
-                          {opt.label}
+                          {address.label} - {address.fullAddress}
                         </SelectItem>
                       ))
                     ) : (
                       <SelectItem value="no-address" disabled>
-                        {(loadingAddresses || loadingDestinos)
+                        {loadingAddresses
                           ? 'Carregando...'
                           : 'Nenhum endereço cadastrado'}
                       </SelectItem>
@@ -464,7 +443,7 @@ export function NewOrderForm({
                       <Link
                         href={`/clientes/${selectedClientId}/enderecos/novo`}
                       >
-                        Cadastrar novo endereço para o cliente
+                        Cadastrar novo endereço para este cliente
                       </Link>
                     </Button>
                   )}

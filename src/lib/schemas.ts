@@ -103,7 +103,6 @@ export const clientSchema = z.object({
     nome: z.string().min(1, "Nome é obrigatório"),
     telefone: z.string().min(10, "Telefone inválido"),
     createdAt: z.any(), // Allow Date or Firestore Timestamp
-    defaultOriginId: z.string().optional(),
     defaultDestinoId: z.string().optional(),
 });
 
