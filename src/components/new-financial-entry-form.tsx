@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry, PaymentMethod, Destino, Address, NewLocation } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod, Destino, Address, NewLocation, Origin } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -77,7 +77,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 };
 
 
-export function NewFinancialEntryForm({ vehicles, clients, origins, destinations: initialDestinations }: { vehicles: Vehicle[], clients: Client[], origins: OriginPick[], destinations: Destino[] }) {
+export function NewFinancialEntryForm({ vehicles, clients, origins: initialOrigins, destinations: initialDestinations }: { vehicles: Vehicle[], clients: Client[], origins: Origin[], destinations: Destino[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -87,6 +87,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   const [passagemValue, setPassagemValue] = React.useState<number>(0);
   const [suggestMeta, setSuggestMeta] = React.useState<{ km: number; label: string } | null>(null);
 
+  const [liveOrigins, setLiveOrigins] = React.useState(initialOrigins);
   const [liveDestinations, setLiveDestinations] = React.useState(initialDestinations);
 
   const form = useForm<NewFinancialEntryFormValues>({
@@ -99,8 +100,8 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
       selectedSeats: [],
       travelDate: new Date(),
       formaPagamento: 'pix',
-      origin: origins?.[0]?.id || '',
-      destination: initialDestinations?.[0]?.address || '',
+      origin: initialOrigins?.[0]?.id || '',
+      destination: initialDestinations?.[0]?.id || '',
     },
   });
 
@@ -136,7 +137,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
 
   React.useEffect(() => {
     async function fetchClientAddressesAndSuggestOrigin() {
-        if (!selectedClientId || origins.length === 0 || !firestore) {
+        if (!selectedClientId || liveOrigins.length === 0 || !firestore) {
             setSuggestMeta(null);
             return;
         };
@@ -160,12 +161,12 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                 addresses: clientAddresses
             };
             
-            const res = pickNearestOrigin(clientForPicking, origins);
+            const res = pickNearestOrigin(clientForPicking, liveOrigins);
 
             if (!res) {
                 setSuggestMeta(null);
                 if (clientSnap.defaultOriginId) {
-                  const defaultOrigin = origins.find(o => o.id === clientSnap.defaultOriginId);
+                  const defaultOrigin = liveOrigins.find(o => o.id === clientSnap.defaultOriginId);
                   if (defaultOrigin) {
                     form.setValue('origin', defaultOrigin.id);
                   }
@@ -173,7 +174,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                 return;
             }
 
-            const chosen = origins.find(o => o.id === res.originId);
+            const chosen = liveOrigins.find(o => o.id === res.originId);
             if (chosen) {
                 form.setValue('origin', chosen.id); // auto-preenche
                 const label = clientSnap.defaultOriginId
@@ -192,7 +193,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
     
     fetchClientAddressesAndSuggestOrigin();
 
-  }, [selectedClientId, origins, firestore, form, clients]);
+  }, [selectedClientId, liveOrigins, firestore, form, clients]);
 
 
   // Auto-update description
@@ -227,9 +228,14 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
     form.setValue('selectedSeats', selectedSeats, { shouldValidate: true });
   }, [selectedSeats, form]);
   
-  const onLocationCreated = (newLocation: Destino) => {
+  const onDestinationCreated = (newLocation: Destino) => {
     setLiveDestinations(prev => [...prev, newLocation]);
-    form.setValue('destination', newLocation.address);
+    form.setValue('destination', newLocation.id);
+  };
+  
+  const onOriginCreated = (newLocation: Origin) => {
+    setLiveOrigins(prev => [...prev, newLocation]);
+    form.setValue('origin', newLocation.id);
   };
 
 
@@ -376,15 +382,15 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                                     )}
                                 </div>
                                 <div className="flex gap-2">
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                    {origins.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                {/* Quick Add Button for Origin could be added here */}
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                        {liveOrigins.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <AddLocationDialog locationType="origin" onLocationCreated={onOriginCreated} />
                                 </div>
                                 <FormMessage />
                             </FormItem>
@@ -402,10 +408,10 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                                         <SelectTrigger><SelectValue placeholder="Selecione o destino" /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                        {liveDestinations.map(d => <SelectItem key={d.id} value={d.address}>{d.name}</SelectItem>)}
+                                        {liveDestinations.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
-                                    <AddLocationDialog locationType="destino" onLocationCreated={onLocationCreated} />
+                                    <AddLocationDialog locationType="destino" onLocationCreated={onDestinationCreated} />
                                 </div>
                                 <FormMessage />
                             </FormItem>
@@ -622,7 +628,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
 }
 
 
-function AddLocationDialog({ locationType, onLocationCreated }: { locationType: 'origem' | 'destino', onLocationCreated: (newLocation: Destino) => void }) {
+function AddLocationDialog({ locationType, onLocationCreated, onOriginCreated }: { locationType: 'origem' | 'destino', onLocationCreated?: (newLocation: Destino) => void, onOriginCreated?: (newLocation: Origin) => void }) {
     const { toast } = useToast();
     const firestore = useFirestore();
     const [isOpen, setIsOpen] = React.useState(false);
@@ -649,14 +655,23 @@ function AddLocationDialog({ locationType, onLocationCreated }: { locationType: 
                 createdAt: serverTimestamp(),
             });
 
-            toast({ title: 'Sucesso!', description: `Novo ${locationType === 'destino' ? 'destino' : 'origem'} criado.` });
+            toast({ title: 'Sucesso!', description: `Novo ${locationType} criado.` });
             
-            onLocationCreated({
+            const newLocation = {
                 id: newDocRef.id,
                 name: data.name,
                 address: fullAddress,
-                createdAt: new Date()
-            });
+                createdAt: new Date(),
+                lat: data.lat ?? 0,
+                lng: data.lng ?? 0,
+                city: data.cidade ?? ''
+            };
+
+            if (locationType === 'destino' && onLocationCreated) {
+                onLocationCreated(newLocation as Destino);
+            } else if (locationType === 'origin' && onOriginCreated) {
+                onOriginCreated(newLocation as Origin);
+            }
 
             setIsOpen(false); // Close dialog
             form.reset(); // Reset form
@@ -703,4 +718,3 @@ function AddLocationDialog({ locationType, onLocationCreated }: { locationType: 
         </Dialog>
     );
 }
-
