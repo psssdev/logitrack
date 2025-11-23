@@ -125,16 +125,16 @@ export default function AvisamePage() {
 
   // Company (template de mensagem)
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user || isUserLoading) return null;
     return doc(firestore, 'companies', '1');
-  }, [firestore, isUserLoading]);
+  }, [firestore, user, isUserLoading]);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
   // Clients
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user || isUserLoading) return null;
     return collection(firestore, 'clients');
-  }, [firestore, isUserLoading]);
+  }, [firestore, user, isUserLoading]);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
   const [clientsWithAddresses, setClientsWithAddresses] = useState<ClientWithAddresses[]>([]);

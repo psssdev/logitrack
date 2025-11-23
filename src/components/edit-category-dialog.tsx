@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import type { FinancialCategory } from '@/lib/types';
@@ -34,7 +34,6 @@ export function EditCategoryDialog({
   category,
 }: EditCategoryDialogProps) {
   const firestore = useFirestore();
-  const { companyId } = useUser();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
 
@@ -49,7 +48,7 @@ export function EditCategoryDialog({
   }, [isOpen, category]);
 
   const handleSave = async () => {
-    if (!firestore || !companyId) {
+    if (!firestore) {
       toast({ variant: 'destructive', title: 'Erro de conexão.' });
       return;
     }
@@ -62,7 +61,7 @@ export function EditCategoryDialog({
 
     setIsSaving(true);
     try {
-      const categoryRef = doc(firestore, 'companies', companyId, 'financialCategories', category.id);
+      const categoryRef = doc(firestore, 'financialCategories', category.id);
       await updateDoc(categoryRef, {
         name: categoryName,
         type: categoryType,

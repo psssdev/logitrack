@@ -14,10 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
-import type { FinancialCategory } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
@@ -31,14 +30,13 @@ export function NewCategoryDialog({
   setIsOpen,
 }: NewCategoryDialogProps) {
   const firestore = useFirestore();
-  const { companyId } = useUser();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
   const [categoryName, setCategoryName] = React.useState('');
   const [categoryType, setCategoryType] = React.useState<'Entrada' | 'Saída'>('Entrada');
 
   const handleSave = async () => {
-    if (!firestore || !companyId) {
+    if (!firestore) {
       toast({ variant: 'destructive', title: 'Erro de conexão.' });
       return;
     }
@@ -49,7 +47,7 @@ export function NewCategoryDialog({
 
     setIsSaving(true);
     try {
-      const categoriesCollection = collection(firestore, 'companies', companyId, 'financialCategories');
+      const categoriesCollection = collection(firestore, 'financialCategories');
       await addDoc(categoriesCollection, {
         name: categoryName,
         type: categoryType,
