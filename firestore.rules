@@ -4,25 +4,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to get companyId from the user's custom claims
-    function getUserCompanyId() {
-      return request.auth.token.companyId;
-    }
-
     // Helper function to check if a user is authenticated
     function isUserAuthenticated() {
       return request.auth != null;
     }
 
     // Rule for the user's own profile document
+    // Allow a user to read and write their own profile document.
     match /users/{userId} {
-      // Allow a user to read their own profile.
-      allow get: if isUserAuthenticated() && request.auth.uid == userId;
-      // Creation/updates should happen on the server with admin privileges, not on the client.
-      allow write: if false; 
+      allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
     }
 
     // This single rule protects all subcollections within a company document
+    function getUserCompanyId() {
+      return request.auth.token.companyId;
+    }
+    
     match /companies/{companyId}/{document=**} {
       allow read, write: if isUserAuthenticated() && getUserCompanyId() == companyId;
     }
