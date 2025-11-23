@@ -34,7 +34,7 @@ export const orderSchema = z.object({
   nomeCliente: z.string().min(1, 'Nome do cliente é obrigatório'),
   telefone: z.string().min(10, 'Telefone inválido'),
   origem: z.string().min(1, 'Origem é obrigatória'),
-  destino: z.string().min(1, 'Destino é obrigatório'),
+  destino: z.string().min(1, 'Destino é obrigatória'),
   valorEntrega: z.coerce.number(), // Can be negative if there are payments
   items: z.array(orderItemSchema).min(1, 'A encomenda deve ter pelo menos um item.'),
   formaPagamento: paymentMethodSchema,
@@ -104,18 +104,14 @@ export const clientSchema = z.object({
     telefone: z.string().min(10, "Telefone inválido"),
     createdAt: z.any(), // Allow Date or Firestore Timestamp
     defaultOriginId: z.string().optional(),
+    defaultDestinoId: z.string().optional(),
 });
 
 export const newClientSchema = z.object({
     nome: z.string().min(1, "Nome é obrigatório"),
     telefone: z.string().min(10, "Telefone inválido"),
-    logradouro: z.string().optional(),
-    numero: z.string().optional(),
-    bairro: z.string().optional(),
-    cidade: z.string().optional(),
-    estado: z.string().optional(),
-    cep: z.string().optional(),
     defaultOriginId: z.string().optional(),
+    defaultDestinoId: z.string().optional(),
 });
 
 export const editClientSchema = z.object({

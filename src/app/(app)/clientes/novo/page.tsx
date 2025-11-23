@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { NewClientForm } from '@/components/new-client-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Origin } from '@/lib/types';
+import type { Destino, Origin } from '@/lib/types';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -28,9 +28,18 @@ export default function NewClientPage() {
     );
   }, [firestore, isUserLoading]);
 
-  const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
+  const destinosQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(
+      collection(firestore, 'destinos'),
+      orderBy('name', 'asc')
+    );
+  }, [firestore, isUserLoading]);
 
-  const isLoading = isLoadingOrigins || isUserLoading;
+  const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
+  const { data: destinos, isLoading: isLoadingDestinos } = useCollection<Destino>(destinosQuery);
+
+  const isLoading = isLoadingOrigins || isLoadingDestinos || isUserLoading;
 
   return (
     <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
@@ -54,7 +63,7 @@ export default function NewClientPage() {
         </CardHeader>
         <CardContent>
           {isLoading && <Skeleton className="h-64 w-full" />}
-          {origins && !isLoading && <NewClientForm origins={origins} />}
+          {origins && destinos && !isLoading && <NewClientForm origins={origins} destinos={destinos} />}
         </CardContent>
       </Card>
     </div>

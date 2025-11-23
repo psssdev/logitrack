@@ -17,10 +17,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newClientSchema } from '@/lib/schemas';
-import type { NewClientWithAddress, Origin } from '@/lib/types';
-import { useFirestore, useUser } from '@/firebase';
-import { collection, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
-import { Loader2, Search } from 'lucide-react';
+import type { NewClient, Origin, Destino } from '@/lib/types';
+import { useFirestore } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -29,147 +29,22 @@ import {
   SelectValue,
 } from './ui/select';
 
-type City = {
-  id: number;
-  nome: string;
-};
-
-const brazilianStates = [
-    { value: 'AC', label: 'Acre' },
-    { value: 'AL', label: 'Alagoas' },
-    { value: 'AP', label: 'Amapá' },
-    { value: 'AM', label: 'Amazonas' },
-    { value: 'BA', label: 'Bahia' },
-    { value: 'CE', label: 'Ceará' },
-    { value: 'DF', label: 'Distrito Federal' },
-    { value: 'ES', label: 'Espírito Santo' },
-    { value: 'GO', label: 'Goiás' },
-    { value: 'MA', label: 'Maranhão' },
-    { value: 'MT', label: 'Mato Grosso' },
-    { value: 'MS', label: 'Mato Grosso do Sul' },
-    { value: 'MG', label: 'Minas Gerais' },
-    { value: 'PA', label: 'Pará' },
-    { value: 'PB', label: 'Paraíba' },
-    { value: 'PR', label: 'Paraná' },
-    { value: 'PE', label: 'Pernambuco' },
-    { value: 'PI', label: 'Piauí' },
-    { value: 'RJ', label: 'Rio de Janeiro' },
-    { value: 'RN', label: 'Rio Grande do Norte' },
-    { value: 'RS', label: 'Rio Grande do Sul' },
-    { value: 'RO', label: 'Rondônia' },
-    { value: 'RR', label: 'Roraima' },
-    { value: 'SC', label: 'Santa Catarina' },
-    { value: 'SP', label: 'São Paulo' },
-    { value: 'SE', label: 'Sergipe' },
-    { value: 'TO', label: 'Tocantins' },
-];
-
-export function NewClientForm({ origins }: { origins: Origin[] }) {
+export function NewClientForm({ origins, destinos }: { origins: Origin[], destinos: Destino[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const [isFetchingCep, setIsFetchingCep] = React.useState(false);
-  const [cities, setCities] = React.useState<City[]>([]);
-  const [isFetchingCities, setIsFetchingCities] = React.useState(false);
 
-  const form = useForm<NewClientWithAddress>({
+  const form = useForm<NewClient>({
     resolver: zodResolver(newClientSchema),
     defaultValues: {
       nome: '',
       telefone: '',
-      logradouro: '',
-      numero: '',
-      bairro: '',
-      cidade: '',
-      estado: '',
-      cep: '',
       defaultOriginId: '',
+      defaultDestinoId: '',
     },
   });
 
-  const selectedState = form.watch('estado');
-
-  React.useEffect(() => {
-    const fetchCities = async () => {
-      if (!selectedState) {
-        setCities([]);
-        return;
-      }
-      setIsFetchingCities(true);
-      form.setValue('cidade', ''); // Reset city selection
-      try {
-        const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${selectedState}/municipios`);
-        const data: City[] = await response.json();
-        const sortedCities = data.sort((a, b) => a.nome.localeCompare(b.nome));
-        setCities(sortedCities);
-      } catch (error) {
-        toast({
-            variant: 'destructive',
-            title: 'Erro ao buscar cidades',
-            description: 'Não foi possível carregar la lista de cidades para o estado selecionado.'
-        })
-        setCities([]);
-      } finally {
-        setIsFetchingCities(false);
-      }
-    };
-
-    fetchCities();
-  }, [selectedState, form, toast]);
-
-
-  const handleCepSearch = async () => {
-    const cep = form.getValues('cep')?.replace(/\D/g, '');
-    if (!cep || cep.length !== 8) {
-      toast({
-        variant: 'destructive',
-        title: 'CEP inválido',
-        description: 'Por favor, digite um CEP com 8 dígitos.',
-      });
-      return;
-    }
-
-    setIsFetchingCep(true);
-    try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await response.json();
-
-      if (data.erro) {
-        toast({
-          variant: 'destructive',
-          title: 'CEP não encontrado',
-          description: 'Verifique o CEP digitado e tente novamente.',
-        });
-        form.setValue('logradouro', '');
-        form.setValue('bairro', '');
-        form.setValue('cidade', '');
-        form.setValue('estado', '');
-      } else {
-        form.setValue('estado', data.uf, { shouldValidate: true });
-        setTimeout(() => {
-            form.setValue('cidade', data.localidade, { shouldValidate: true });
-        }, 500); 
-        form.setValue('logradouro', data.logradouro, { shouldValidate: true });
-        form.setValue('bairro', data.bairro, { shouldValidate: true });
-        form.setFocus('numero'); 
-        toast({
-          title: 'Endereço encontrado!',
-          description: 'Por favor, preencha o número.',
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro na busca',
-        description: 'Não foi possível buscar o CEP. Tente novamente.',
-      });
-    } finally {
-      setIsFetchingCep(false);
-    }
-  };
-
-
-  async function onSubmit(data: NewClientWithAddress) {
+  async function onSubmit(data: NewClient) {
     if (!firestore) {
         toast({
             variant: 'destructive',
@@ -180,39 +55,15 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
     }
 
     try {
-        const batch = writeBatch(firestore);
-        
-        // 1. Create Client
-        const newClientRef = doc(collection(firestore, 'clients'));
-        batch.set(newClientRef, {
+        const newClientRef = collection(firestore, 'clients');
+        await addDoc(newClientRef, {
             nome: data.nome,
             telefone: data.telefone,
             defaultOriginId: data.defaultOriginId || null,
+            defaultDestinoId: data.defaultDestinoId || null,
             createdAt: serverTimestamp()
         });
-
-        // 2. Create Address if provided
-        const hasAddress = data.logradouro && data.cidade && data.estado && data.cep;
-        if(hasAddress) {
-            const addressCollection = collection(firestore, 'clients', newClientRef.id, 'addresses');
-            const newAddressRef = doc(addressCollection);
-            const { logradouro, numero, bairro, cidade, estado, cep } = data;
-            const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
-            
-            batch.set(newAddressRef, {
-                label: 'Principal', // Default label
-                logradouro,
-                numero,
-                bairro,
-                cidade,
-                estado,
-                cep,
-                fullAddress,
-                createdAt: serverTimestamp(),
-            });
-        }
         
-        await batch.commit();
         await triggerRevalidation('/clientes');
 
         toast({
@@ -262,143 +113,55 @@ export function NewClientForm({ origins }: { origins: Origin[] }) {
           />
         </div>
 
-        <FormField
-            control={form.control}
-            name="defaultOriginId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Origem Padrão</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Nenhuma" />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {origins.map(origin => (
-                            <SelectItem key={origin.id} value={origin.id}>{origin.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                 <FormMessage />
-              </FormItem>
-            )}
-          />
-        
-        <h3 className="text-lg font-medium border-t pt-6">Endereço Principal (Opcional)</h3>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-             <FormField
+        <div className="grid gap-4 md:grid-cols-2">
+            <FormField
                 control={form.control}
-                name="cep"
+                name="defaultOriginId"
                 render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                    <FormLabel>CEP</FormLabel>
-                    <div className="flex gap-2">
-                         <FormControl>
-                            <Input placeholder="00000-000" {...field} />
-                        </FormControl>
-                        <Button type="button" onClick={handleCepSearch} disabled={isFetchingCep} className="w-32">
-                            {isFetchingCep ? <Loader2 className="animate-spin" /> : <><Search className="mr-2" /> Buscar</>}
-                        </Button>
-                    </div>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
-          <FormField
-            control={form.control}
-            name="logradouro"
-            render={({ field }) => (
-              <FormItem className="md:col-span-4">
-                <FormLabel>Logradouro</FormLabel>
-                <FormControl>
-                  <Input placeholder="Rua, Avenida, etc." {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="numero"
-            render={({ field }) => (
-              <FormItem className="md:col-span-2">
-                <FormLabel>Número</FormLabel>
-                <FormControl>
-                  <Input placeholder="123" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <FormField
-            control={form.control}
-            name="bairro"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Bairro</FormLabel>
-                <FormControl>
-                  <Input placeholder="Centro" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           <FormField
-            control={form.control}
-            name="estado"
-            render={({ field }) => (
                 <FormItem>
-                <FormLabel>Estado (UF)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="UF" />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {brazilianStates.map(state => (
-                            <SelectItem key={state.value} value={state.value}>
-                                {state.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-             <FormField
-                control={form.control}
-                name="cidade"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Cidade</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState || isFetchingCities}>
+                    <FormLabel>Origem Padrão</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder={isFetchingCities ? 'Carregando...' : 'Selecione a cidade'} />
+                                <SelectValue placeholder="Nenhuma" />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            {cities.map(city => (
-                                <SelectItem key={city.id} value={city.nome}>
-                                    {city.nome}
-                                </SelectItem>
+                            <SelectItem value="">Nenhuma</SelectItem>
+                            {origins.map(origin => (
+                                <SelectItem key={origin.id} value={origin.id}>{origin.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                     <FormMessage />
-                    </FormItem>
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="defaultDestinoId"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Destino Padrão</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Nenhum" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="">Nenhum</SelectItem>
+                            {destinos.map(destino => (
+                                <SelectItem key={destino.id} value={destino.id}>{destino.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
                 )}
             />
         </div>
+        
 
         <div className="flex justify-end pt-4">
             <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
