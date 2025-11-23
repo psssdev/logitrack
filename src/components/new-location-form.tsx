@@ -189,8 +189,8 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
             name: data.name,
             address: fullAddress,
             city: data.cidade,
-            lat: data.lat,
-            lng: data.lng,
+            lat: data.lat ?? null,
+            lng: data.lng ?? null,
             active: true,
             createdAt: serverTimestamp(),
         });
