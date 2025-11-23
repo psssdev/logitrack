@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 type City = {
@@ -180,6 +180,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
 
     try {
         const collectionName = locationType === 'origin' ? 'origins' : 'destinos';
+        const redirectPath = `/${collectionName}`;
         const collectionRef = collection(firestore, collectionName);
         const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
@@ -194,16 +195,14 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
             createdAt: serverTimestamp(),
         });
         
-        const path = `/${collectionName}`;
-        await triggerRevalidation(path);
+        await triggerRevalidation(redirectPath);
         await triggerRevalidation('/vender-passagem');
-
 
         toast({
             title: 'Sucesso!',
             description: `Novo ${locationType === 'origin' ? 'ponto de origem' : 'destino'} cadastrado.`,
         });
-        router.push(path);
+        router.push(redirectPath);
 
     } catch (error: any) {
         console.error("Error creating location:", error);
