@@ -16,9 +16,9 @@ service cloud.firestore {
 
     // Rule for the user's own profile document
     match /users/{userId} {
-      allow read: if isUserAuthenticated() && request.auth.uid == userId;
-      // Creation and updates should only be done by the server-side provisioning logic
-      allow create, update, delete: if false;
+      // Allow a user to read and write to their own profile document.
+      // This is necessary for client-side user provisioning.
+      allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
     }
 
     // This single rule protects all subcollections within a company document
