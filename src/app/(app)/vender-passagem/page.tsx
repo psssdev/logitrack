@@ -13,38 +13,30 @@ import { Card, CardContent } from '@/components/ui/card';
 
 export default function VenderPassagemPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
 
   // Só consulta quando estiver tudo pronto e autenticado
-  const canQuery = !!firestore && !!user?.uid && !isUserLoading && !!companyId;
-
-  /**
-   * IMPORTANTE: índices recomendados (se o console pedir):
-   * - companies/{companyId}/vehicles  orderBy(modelo)
-   * - companies/{companyId}/clients   orderBy(nome)
-   * - companies/{companyId}/origins   orderBy(name)
-   * - companies/{companyId}/destinos  orderBy(name)
-   */
+  const canQuery = !!firestore && !!user?.uid && !isUserLoading;
 
   const vehiclesQuery = useMemoFirebase<Query | null>(() => {
     if (!canQuery) return null;
-    return query(collection(firestore!, 'companies', companyId!, 'vehicles'), orderBy('modelo', 'asc'));
-  }, [canQuery, firestore, companyId]);
+    return query(collection(firestore!, 'vehicles'), orderBy('modelo', 'asc'));
+  }, [canQuery, firestore]);
 
   const clientsQuery = useMemoFirebase<Query | null>(() => {
     if (!canQuery) return null;
-    return query(collection(firestore!, 'companies', companyId!, 'clients'), orderBy('nome', 'asc'));
-  }, [canQuery, firestore, companyId]);
+    return query(collection(firestore!, 'clients'), orderBy('nome', 'asc'));
+  }, [canQuery, firestore]);
 
   const originsQuery = useMemoFirebase<Query | null>(() => {
     if (!canQuery) return null;
-    return query(collection(firestore!, 'companies', companyId!, 'origins'), orderBy('name', 'asc'));
-  }, [canQuery, firestore, companyId]);
+    return query(collection(firestore!, 'origins'), orderBy('name', 'asc'));
+  }, [canQuery, firestore]);
 
   const destinosQuery = useMemoFirebase<Query | null>(() => {
     if (!canQuery) return null;
-    return query(collection(firestore!, 'companies', companyId!, 'destinos'), orderBy('name', 'asc'));
-  }, [canQuery, firestore, companyId]);
+    return query(collection(firestore!, 'destinos'), orderBy('name', 'asc'));
+  }, [canQuery, firestore]);
 
   const {
     data: vehiclesRaw,

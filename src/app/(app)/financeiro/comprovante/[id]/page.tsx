@@ -67,21 +67,21 @@ export default function VendaComprovantePage({
 
 function ComprovanteContent({ entryId }: { entryId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
   const entryRef = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading || !companyId) return null;
-    return doc(firestore, 'companies', companyId, 'financialEntries', entryId);
-  }, [firestore, user, isUserLoading, entryId, companyId]);
+    if (!firestore || !user || isUserLoading) return null;
+    return doc(firestore, 'financialEntries', entryId);
+  }, [firestore, user, isUserLoading, entryId]);
 
   const { data: entry, isLoading } = useDoc<FinancialEntry>(entryRef);
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || !entry?.vehicleId || !companyId) return null;
-    return doc(firestore, 'companies', companyId, 'vehicles', entry.vehicleId);
-  }, [firestore, entry?.vehicleId, companyId]);
+    if (!firestore || !entry?.vehicleId) return null;
+    return doc(firestore, 'vehicles', entry.vehicleId);
+  }, [firestore, entry?.vehicleId]);
 
   const { data: vehicle } = useDoc<Vehicle>(vehicleRef);
 

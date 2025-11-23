@@ -72,7 +72,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
+  const { user } = useUser();
   const [clientPopoverOpen, setClientPopoverOpen] = React.useState(false);
   const [selectedSeats, setSelectedSeats] = React.useState<string[]>([]);
   const [passagemValue, setPassagemValue] = React.useState<number>(0);
@@ -103,12 +103,12 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   
   // Fetch all sales for the selected vehicle
   const relevantSalesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedVehicleId || !companyId) return null;
+    if (!firestore || !selectedVehicleId) return null;
     return query(
-        collection(firestore, 'companies', companyId, 'financialEntries'),
+        collection(firestore, 'financialEntries'),
         where('vehicleId', '==', selectedVehicleId)
     );
-  }, [firestore, selectedVehicleId, companyId]);
+  }, [firestore, selectedVehicleId]);
 
   const { data: relevantSales } = useCollection<FinancialEntry>(relevantSalesQuery);
   
@@ -125,11 +125,11 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
 
   React.useEffect(() => {
     async function fetchClientAddressesAndSuggestOrigin() {
-        if (!selectedClientId || origins.length === 0 || !firestore || !companyId) {
+        if (!selectedClientId || origins.length === 0 || !firestore) {
             setSuggestMeta(null);
             return;
         };
-        const clientRef = doc(firestore, 'companies', companyId, 'clients', selectedClientId);
+        const clientRef = doc(firestore, 'clients', selectedClientId);
         const addressesRef = collection(clientRef, 'addresses');
         
         try {
@@ -181,7 +181,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
     
     fetchClientAddressesAndSuggestOrigin();
 
-  }, [selectedClientId, origins, firestore, form, clients, companyId]);
+  }, [selectedClientId, origins, firestore, form, clients]);
 
 
   // Auto-update description
@@ -217,7 +217,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   }, [selectedSeats, form]);
 
   async function onSubmit(data: NewFinancialEntryFormValues) {
-    if (!firestore || !companyId) {
+    if (!firestore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
@@ -234,7 +234,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
 
 
     try {
-      const entriesCollection = collection(firestore, 'companies', companyId, 'financialEntries');
+      const entriesCollection = collection(firestore, 'financialEntries');
       
       const client = data.clientId ? clients.find(c => c.id === data.clientId) : null;
       
