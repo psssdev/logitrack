@@ -8,13 +8,14 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Regra para a coleção de utilizadores: apenas o próprio utilizador pode aceder aos seus dados.
+    // Os utilizadores só podem ler e escrever no seu próprio perfil
     match /users/{userId} {
       allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
     }
 
-    // Regra genérica para TODAS as outras coleções e suas subcoleções.
-    // O {wildcard=**} garante que a regra se aplique a qualquer caminho de documento.
+    // Regra genérica para TODAS as outras coleções e documentos.
+    // O {path=**} garante que a regra se aplique a qualquer caminho,
+    // permitindo operações de 'list' nas coleções.
     match /{path=**} {
        allow read, write: if isUserAuthenticated();
     }
