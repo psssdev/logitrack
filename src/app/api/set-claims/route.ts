@@ -9,6 +9,8 @@ export const dynamic = 'force-dynamic';
 
 // Admin SDK init
 if (!getApps().length) {
+  // Use applicationDefault() to automatically use the environment's
+  // service account credentials, which is the correct approach for App Hosting.
   initializeApp({
     credential: applicationDefault(),
   });
@@ -17,9 +19,8 @@ if (!getApps().length) {
 const adminAuth = getAuth();
 const db = getFirestore();
 
-async function findUserAndCompany(uid: string, email: string) {
-  const usersCol = db.collection('users');
-  const userRef = usersCol.doc(uid);
+async function findUserAndCompany(uid: string) {
+  const userRef = db.collection('users').doc(uid);
   const userDoc = await userRef.get();
 
   if (userDoc.exists) {
@@ -28,34 +29,28 @@ async function findUserAndCompany(uid: string, email: string) {
       return { companyId: data.companyId, role: data.role, profileExists: true };
     }
   }
-
-  // Fallback for older data models: find by email
-  const userQueryByEmail = await usersCol.where('email', '==', email).limit(1).get();
-  if (!userQueryByEmail.empty) {
-    const oldUserDoc = userQueryByEmail.docs[0];
-    const data = oldUserDoc.data();
-    if (data.companyId && data.role) {
-      // Migrate old data to new UID-based doc
-      await userRef.set({
-        displayName: data.displayName || email,
-        email: email,
-        companyId: data.companyId,
-        role: data.role,
-        createdAt: data.createdAt || new Date(),
-      }, { merge: true });
-      return { companyId: data.companyId, role: data.role, profileExists: true };
-    }
-  }
-
-  // Special owner case
-  if (email === 'athosguariza@gmail.com') {
-    return { companyId: '1', role: 'admin', profileExists: false };
-  }
-
+  
+  // If the user doc exists but is malformed, we'll treat as if it doesn't exist to re-provision.
   return { companyId: null, role: null, profileExists: false };
 }
 
 async function provisionNewUserAndCompany(uid: string, email: string, name: string) {
+  // Special override for a specific user to ensure they are admin of company '1'
+  if (email === 'athosguariza@gmail.com') {
+      const userRef = db.collection('users').doc(uid);
+      await userRef.set({
+        displayName: name,
+        email,
+        companyId: '1',
+        role: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }, { merge: true });
+      return { companyId: '1', role: 'admin' };
+  }
+
+
+  // Standard flow for new users
   const companyRef = db.collection('companies').doc();
   const userRef = db.collection('users').doc(uid);
 
@@ -94,42 +89,29 @@ export async function POST(req: NextRequest) {
     const idToken = authHeader.split('Bearer ')[1];
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const { uid, email, name: displayName } = decodedToken;
-    const name = displayName || email || 'Usuário';
+    const name = displayName || email?.split('@')[0] || 'Novo Usuário';
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required for provisioning.' }, { status: 400 });
     }
 
-    let { companyId, role, profileExists } = await findUserAndCompany(uid, email);
+    let { companyId, role, profileExists } = await findUserAndCompany(uid);
 
-    if (!companyId || !role) {
+    if (!profileExists) {
       const provisioned = await provisionNewUserAndCompany(uid, email, name);
       companyId = provisioned.companyId;
       role = provisioned.role;
-      profileExists = true; 
-    } else if (!profileExists) {
-      // This handles the case where findUserAndCompany returns a companyId/role (e.g., for the owner) but the profile doesn't exist yet.
-      const userRef = db.collection('users').doc(uid);
-      await userRef.set({
-        displayName: name,
-        email,
-        companyId,
-        role,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }, { merge: true });
     }
-
-    // Set custom claims if they don't match
+    
+    // Set custom claims if they don't match what's expected.
     if (decodedToken.companyId !== companyId || decodedToken.role !== role) {
-      await adminAuth.setCustomUserClaims(uid, { companyId, role });
+       await adminAuth.setCustomUserClaims(uid, { companyId, role });
     }
 
     return NextResponse.json({ message: 'Claims set and user provisioned successfully.', companyId, role }, { status: 200 });
 
   } catch (error: any) {
     console.error('Error in set-claims:', error);
-    // Propagate a more specific error message if available
     const errorMessage = error.errorInfo?.message || error.message || 'Internal Server Error';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

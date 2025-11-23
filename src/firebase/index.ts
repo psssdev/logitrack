@@ -8,22 +8,18 @@ import { getStorage } from 'firebase/storage';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
-  if (getApps().length) {
-    return getSdks(getApp());
-  }
-  
+  // In a Google Cloud / Firebase hosting environment, the SDK can auto-initialize
+  // This is the preferred method as it's more secure and requires no client-side config
   try {
-    // This is the idiomatic way to initialize Firebase in a Gcloud/Firebase hosted environment
-    // It will automatically use the project's service account credentials
-    const firebaseApp = initializeApp();
-    return getSdks(firebaseApp);
+    const app = getApps().length ? getApp() : initializeApp();
+    return getSdks(app);
   } catch (e) {
-    console.warn(
+     console.warn(
         `Firebase automatic initialization failed: ${(e as Error).message}. Falling back to static config.`
     );
-    // Fallback for local development or other environments
-    const firebaseApp = initializeApp(firebaseConfig);
-    return getSdks(firebaseApp);
+    // Fallback for local development or other environments without injected config
+    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    return getSdks(app);
   }
 }
 
