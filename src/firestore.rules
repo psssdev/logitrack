@@ -13,10 +13,34 @@ service cloud.firestore {
       allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
     }
 
-    // Regra genérica para TODAS as outras coleções e documentos.
-    // O {path=**} garante que a regra se aplique a qualquer caminho,
-    // permitindo operações de 'list' nas coleções.
-    match /{path=**} {
+    // Regras explícitas para cada coleção principal
+    match /clients/{clientId} {
+       allow read, write: if isUserAuthenticated();
+    }
+     match /orders/{orderId} {
+       allow read, write: if isUserAuthenticated();
+    }
+     match /drivers/{driverId} {
+       allow read, write: if isUserAuthenticated();
+    }
+     match /vehicles/{vehicleId} {
+       allow read, write: if isUserAuthenticated();
+    }
+     match /origins/{originId} {
+       allow read, write: if isUserAuthenticated();
+    }
+     match /destinos/{destinoId} {
+       allow read, write: if isUserAuthenticated();
+    }
+     match /financialCategories/{categoryId} {
+       allow read, write: if isUserAuthenticated();
+    }
+     match /financialEntries/{entryId} {
+       allow read, write: if isUserAuthenticated();
+    }
+
+    // Regra para subcoleções (ex: endereços de clientes)
+    match /{collection}/{docId}/{subcollection}/{subdocId} {
        allow read, write: if isUserAuthenticated();
     }
   }
