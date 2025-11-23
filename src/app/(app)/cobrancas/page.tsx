@@ -179,22 +179,6 @@ export default function CobrancasPage() {
     openWhatsApp(order.telefone, message);
   };
   
-   const handleChargeAll = () => {
-    const pendingToCharge = filteredOrders.filter(o => !o.pago);
-    if (pendingToCharge.length === 0) {
-      toast({ description: 'Nenhuma cobrança pendente para notificar.' });
-      return;
-    }
-    
-    pendingToCharge.forEach((order, index) => {
-        setTimeout(() => handleCharge(order), index * 300);
-    });
-
-    toast({
-        title: `Notificando ${pendingToCharge.length} clientes...`,
-        description: 'Verifique as janelas do WhatsApp que serão abertas.'
-    });
-  };
 
   const handleRecordPayment = (order: Order) => {
     setSelectedOrder(order);
@@ -282,10 +266,6 @@ export default function CobrancasPage() {
                     </CardDescription>
                 </div>
                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Button variant="outline" onClick={handleChargeAll}>
-                        <Send className="mr-2 h-4 w-4" />
-                        Notificar Pendentes
-                    </Button>
                     <Button variant="outline" onClick={exportToCSV}>
                         <Download className="mr-2 h-4 w-4" />
                         Exportar CSV
@@ -419,5 +399,3 @@ export default function CobrancasPage() {
     </div>
   );
 }
-
-    

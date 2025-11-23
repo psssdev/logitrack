@@ -212,40 +212,6 @@ export default function AvisamePage() {
     return out;
   };
 
-  const handleNotifyAll = () => {
-    if (!selectedCity) {
-      toast({ variant: 'destructive', title: 'Selecione uma cidade', description: 'Escolha uma cidade para enviar os avisos.' });
-      return;
-    }
-    if (!company) {
-      toast({ variant: 'destructive', title: 'Configuração da empresa', description: 'Não foi possível carregar o template da mensagem.' });
-      return;
-    }
-    if (!filteredClients.length) {
-      toast({ title: 'Nenhum cliente', description: `Nenhum cliente encontrado em ${selectedCity}.` });
-      return;
-    }
-
-    const tpl = getTemplate();
-    let sent = 0;
-
-    filteredClients.forEach((client, idx) => {
-      const msg = renderTemplate(tpl, client, selectedCity);
-      // não tenta disparar para números ausentes/invalidos
-      if (!sanitizePhoneBR(client?.telefone || '')) return;
-
-      setTimeout(() => {
-        openWhatsAppSmart(client.telefone!, msg, sendMode);
-      }, idx * Math.max(200, intervalMs)); // intervalo mínimo de 200ms
-
-      sent++;
-    });
-
-    toast({
-      title: `Enviando para ${sent} cliente(s)`,
-      description: `Cidade: ${selectedCity}. Intervalo: ${Math.max(200, intervalMs)}ms entre envios.`,
-    });
-  };
 
   const handleNotifySingle = (client: ClientWithAddresses) => {
     if (!selectedCity) {
@@ -275,7 +241,7 @@ export default function AvisamePage() {
             Notificar Clientes por Cidade
           </CardTitle>
           <CardDescription>
-            Envie um aviso em massa para todos os clientes de uma cidade específica via WhatsApp Web/App.
+            Envie um aviso para os clientes de uma cidade específica via WhatsApp Web/App.
           </CardDescription>
         </CardHeader>
 
@@ -338,8 +304,9 @@ export default function AvisamePage() {
                 step={100}
                 value={intervalMs}
                 onChange={(e) => setIntervalMs(Math.max(200, Number(e.target.value) || 500))}
+                disabled={true}
               />
-              <p className="text-xs text-muted-foreground">Use ≥ 200ms para reduzir bloqueio de pop-ups.</p>
+              <p className="text-xs text-muted-foreground">Intervalo para envios em massa (desativado).</p>
             </div>
           </div>
 
@@ -353,10 +320,6 @@ export default function AvisamePage() {
                     {isLoading ? 'Carregando...' : `${filteredClients.length} cliente(s) encontrado(s).`}
                   </CardDescription>
                 </div>
-                <Button onClick={handleNotifyAll} disabled={isLoading || filteredClients.length === 0}>
-                  <Send className="mr-2 h-4 w-4" />
-                  Avisar Todos ({filteredClients.length})
-                </Button>
               </CardHeader>
 
               <CardContent>
