@@ -26,6 +26,7 @@ import { Input } from './ui/input';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { CompactUpdateStatusDropdown } from './compact-update-status-dropdown';
+import { Checkbox } from './ui/checkbox';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -36,7 +37,13 @@ const paymentMethodLabels: Record<string, string> = {
   haver: 'A Haver',
 };
 
-export function OrderTable({ orders }: { orders: Order[] }) {
+interface OrderTableProps {
+  orders: Order[];
+  selectedOrderIds: string[];
+  setSelectedOrderIds: React.Dispatch<React.SetStateAction<string[]>>;
+}
+
+export function OrderTable({ orders, selectedOrderIds, setSelectedOrderIds }: OrderTableProps) {
   const [filter, setFilter] = React.useState('');
   const { toast } = useToast();
 
@@ -46,13 +53,32 @@ export function OrderTable({ orders }: { orders: Order[] }) {
       order.codigoRastreio.toLowerCase().includes(filter.toLowerCase()) ||
       order.telefone.includes(filter)
   );
-  
+
   const formatDate = (date: Date | Timestamp) => {
     if (date instanceof Timestamp) {
       return date.toDate().toLocaleDateString('pt-BR');
     }
     return new Date(date).toLocaleDateString('pt-BR');
-  }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedOrderIds(filteredOrders.map(o => o.id));
+    } else {
+      setSelectedOrderIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedOrderIds((prev) => [...prev, id]);
+    } else {
+      setSelectedOrderIds((prev) => prev.filter(orderId => orderId !== id));
+    }
+  };
+  
+  const isAllSelected = filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length;
+
 
   const handleSendReceipt = (order: Order) => {
     const message = `WHATSAPP: Enviando comprovante de dívida no valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.valorEntrega)} para ${order.nomeCliente}.`;
@@ -86,6 +112,13 @@ export function OrderTable({ orders }: { orders: Order[] }) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Selecionar todos"
+                />
+              </TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead className="hidden lg:table-cell">Código</TableHead>
               <TableHead>Status</TableHead>
@@ -99,7 +132,17 @@ export function OrderTable({ orders }: { orders: Order[] }) {
           <TableBody>
             {filteredOrders.length > 0 ? (
               filteredOrders.map((order) => (
-                <TableRow key={order.id}>
+                <TableRow 
+                  key={order.id}
+                  data-state={selectedOrderIds.includes(order.id) && "selected"}
+                >
+                  <TableCell>
+                     <Checkbox
+                        checked={selectedOrderIds.includes(order.id)}
+                        onCheckedChange={(checked) => handleSelectRow(order.id, !!checked)}
+                        aria-label={`Selecionar encomenda ${order.codigoRastreio}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="font-medium">{order.nomeCliente}</div>
                     <div className="text-sm text-muted-foreground">{order.telefone}</div>
@@ -162,7 +205,7 @@ export function OrderTable({ orders }: { orders: Order[] }) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   Nenhuma encomenda encontrada.
                 </TableCell>
               </TableRow>
