@@ -88,7 +88,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
       selectedSeats: [],
       travelDate: new Date(),
       formaPagamento: 'pix',
-      origin: '',
+      origin: origins?.[0]?.id || '',
       destination: destinations?.[0]?.address || '',
     },
   });
@@ -116,7 +116,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
     if (!relevantSales || !travelDate) return [];
     
     const salesForDate = relevantSales.filter(sale => 
-        sale.travelDate && (isSameDay(sale.travelDate instanceof Timestamp ? sale.travelDate.toDate() : sale.travelDate, travelDate) || (sale.travelDate instanceof Timestamp ? sale.travelDate.toDate() : sale.travelDate) > travelDate)
+        sale.travelDate && isSameDay(sale.travelDate instanceof Timestamp ? sale.travelDate.toDate() : sale.travelDate, travelDate)
     );
 
     return salesForDate.flatMap(sale => sale.selectedSeats || []);

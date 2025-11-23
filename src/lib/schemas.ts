@@ -220,7 +220,24 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
 }, {
     message: "O ônibus é obrigatório para vender uma passagem.",
     path: ["vehicleId"],
+}).refine(data => {
+    if(data.categoryId === 'venda-passagem') {
+        return !!data.origin;
+    }
+    return true;
+}, {
+    message: "A origem é obrigatória para vender uma passagem.",
+    path: ["origin"],
+}).refine(data => {
+    if(data.categoryId === 'venda-passagem') {
+        return !!data.destination;
+    }
+    return true;
+}, {
+    message: "O destino é obrigatório para vender uma passagem.",
+    path: ["destination"],
 });
+
 
 export const editFinancialEntrySchema = baseFinancialEntrySchema;
 
