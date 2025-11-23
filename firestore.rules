@@ -8,17 +8,17 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Users can only read and write their own profile
+    // Os utilizadores só podem ler e escrever no seu próprio perfil
     match /users/{userId} {
       allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
     }
-    
-    // Any authenticated user can interact with the data collections.
-    // This simplifies the rules for a single-company setup.
+
+    // Regra que se aplica a qualquer coleção na raiz
     match /{collection}/{docId} {
        allow read, write: if isUserAuthenticated();
     }
 
+    // Regra que se aplica a qualquer subcoleção
      match /{collection}/{docId}/{subcollection}/{subdocId} {
        allow read, write: if isUserAuthenticated();
     }
