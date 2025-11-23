@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   Card,
   CardContent,
@@ -18,9 +18,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Order, Company } from '@/lib/types';
-import { collection, query, where, doc } from 'firebase/firestore';
-import { Megaphone, MessageCircle, Send, Settings2 } from 'lucide-react';
+import type { Order } from '@/lib/types';
+import { collection, query, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { Megaphone, MessageCircle, Send, Settings2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { triggerRevalidation } from '@/lib/actions';
 
 
 // --------- Utils
@@ -110,14 +111,10 @@ export default function AvisamePage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
+  const [isUpdating, startTransition] = useTransition();
+
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
-
-  const companyRef = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
-    return doc(firestore, 'companies', '1');
-  }, [firestore, user, isUserLoading]);
-  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
   // Fetch only open orders
   const openOrdersQuery = useMemoFirebase(() => {
@@ -130,7 +127,7 @@ export default function AvisamePage() {
 
   const { data: openOrders, isLoading: isLoadingOrders } = useCollection<Order>(openOrdersQuery);
 
-  const isLoading = isLoadingOrders || isLoadingCompany || isUserLoading;
+  const isLoading = isLoadingOrders || isUserLoading;
 
   const { cities, filteredOrders } = useMemo(() => {
     if (!openOrders?.length) return { cities: [] as string[], filteredOrders: [] as Order[] };
@@ -156,9 +153,7 @@ export default function AvisamePage() {
     return { cities: sortedCities, filteredOrders: filtered };
   }, [openOrders, selectedCity]);
 
-  const getTemplate = () =>
-    company?.msgChegueiCidade ||
-    'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!';
+  const getTemplate = () => 'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!';
 
   const renderTemplate = (tpl: string, order: Order, cidade: string) => {
     let out = buildMessage(tpl, { cidade, nome: order.nomeCliente || '', codigo: order.codigoRastreio });
@@ -171,14 +166,43 @@ export default function AvisamePage() {
       toast({ variant: 'destructive', title: 'Selecione uma cidade', description: 'Escolha uma cidade para montar a mensagem.' });
       return;
     }
-    const tpl = getTemplate();
-    const msg = renderTemplate(tpl, order, selectedCity);
     const phoneOk = sanitizePhoneBR(order?.telefone || '');
     if (!phoneOk) {
       toast({ variant: 'destructive', title: 'Telefone inválido', description: `Cliente ${order?.nomeCliente || ''} sem telefone válido.` });
       return;
     }
-    openWhatsAppSmart(order.telefone!, msg);
+
+    startTransition(async () => {
+        if (order.status === 'PENDENTE' && firestore && user) {
+            try {
+                const orderRef = doc(firestore, 'orders', order.id);
+                await updateDoc(orderRef, {
+                    status: 'EM_ROTA',
+                    timeline: arrayUnion({
+                        status: 'EM_ROTA',
+                        at: new Date(),
+                        userId: user.uid,
+                    }),
+                });
+                await triggerRevalidation('/encomendas');
+                await triggerRevalidation(`/encomendas/${order.id}`);
+                await triggerRevalidation('/inicio');
+                toast({
+                    description: `Status da encomenda ${order.codigoRastreio} atualizado para "Em Rota".`,
+                });
+            } catch (error: any) {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Erro ao atualizar status',
+                    description: error.message,
+                });
+            }
+        }
+        
+        const tpl = getTemplate();
+        const msg = renderTemplate(tpl, order, selectedCity);
+        openWhatsAppSmart(order.telefone!, msg);
+    });
   };
 
   return (
@@ -245,6 +269,7 @@ export default function AvisamePage() {
                         <TableRow>
                           <TableHead>Cliente</TableHead>
                           <TableHead>Código</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead>Telefone</TableHead>
                           <TableHead className="text-right">Ação</TableHead>
                         </TableRow>
@@ -256,6 +281,7 @@ export default function AvisamePage() {
                             <TableRow key={order.id}>
                               <TableCell className="font-medium">{order?.nomeCliente || '-'}</TableCell>
                                <TableCell><Badge variant="outline">{order.codigoRastreio}</Badge></TableCell>
+                              <TableCell><Badge variant={order.status === 'PENDENTE' ? 'destructive' : 'secondary'}>{order.status}</Badge></TableCell>
                               <TableCell className={!phoneOk ? 'text-red-600' : ''}>
                                 {order?.telefone || '—'}
                                 {!phoneOk && <span className="ml-2 text-xs text-red-600">(inválido)</span>}
@@ -265,10 +291,10 @@ export default function AvisamePage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleNotifySingle(order)}
-                                  disabled={!phoneOk}
+                                  disabled={!phoneOk || isUpdating}
                                   title={!phoneOk ? 'Telefone inválido' : 'Enviar aviso individual'}
                                 >
-                                  <MessageCircle className="mr-2 h-4 w-4" />
+                                  {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
                                   Avisar
                                 </Button>
                               </TableCell>
