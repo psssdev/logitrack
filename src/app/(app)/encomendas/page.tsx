@@ -37,7 +37,7 @@ const openWhatsApp = (phone: string, message: string) => {
 
 export default function EncomendasPage() {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
@@ -47,13 +47,14 @@ export default function EncomendasPage() {
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    return query(collection(firestore, 'companies', companyId!, 'orders'), orderBy('createdAt', 'desc'));
-  }, [firestore, isUserLoading, user, companyId]);
+    return query(collection(firestore, 'orders'), orderBy('createdAt', 'desc'));
+  }, [firestore, isUserLoading, user]);
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !companyId) return null;
-    return doc(firestore, 'companies', companyId);
-  }, [firestore, isUserLoading, companyId]);
+    if (!firestore || isUserLoading) return null;
+    // Assuming a single company setup, hardcoding company ID '1'
+    return doc(firestore, 'companies', '1');
+  }, [firestore, isUserLoading]);
   
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
@@ -80,7 +81,7 @@ export default function EncomendasPage() {
   const allStatuses = ['TODAS', ...statuses] as const;
 
   const handleSetTodaysPendingToInTransit = async () => {
-    if (!firestore || !user || !orders || !companyId) return;
+    if (!firestore || !user || !orders) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -99,7 +100,7 @@ export default function EncomendasPage() {
     try {
         const batch = writeBatch(firestore);
         pendingToday.forEach(order => {
-            const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
+            const orderRef = doc(firestore, 'orders', order.id);
             batch.update(orderRef, {
                 status: 'EM_ROTA',
                 timeline: arrayUnion({ status: 'EM_ROTA', at: new Date(), userId: user.uid }),
@@ -124,7 +125,7 @@ export default function EncomendasPage() {
   }
 
   const handleNotifyInTransitToday = async () => {
-      if (!orders || !company || !firestore || !companyId) {
+      if (!orders || !company || !firestore) {
           toast({ variant: "destructive", title: "Erro", description: "Dados das encomendas ou da empresa não carregados."});
           return;
       }
@@ -170,7 +171,7 @@ export default function EncomendasPage() {
         }, index * 500); // Interval to avoid browser blocking popups
         
         // Log that the notification was sent
-        const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
+        const orderRef = doc(firestore, 'orders', order.id);
         const logMessage = `Notificação de 'Em Rota' enviada em ${new Date().toLocaleString('pt-BR')}`;
         batch.update(orderRef, {
             messages: arrayUnion(logMessage)

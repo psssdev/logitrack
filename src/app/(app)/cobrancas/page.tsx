@@ -55,7 +55,7 @@ const openWhatsApp = (phone: string, message: string) => {
 
 export default function CobrancasPage() {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -72,17 +72,17 @@ export default function CobrancasPage() {
 
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !companyId) return null;
+    if (!firestore || !user) return null;
     return query(
-      collection(firestore, 'companies', companyId, 'orders'),
+      collection(firestore, 'orders'),
       orderBy('createdAt', 'desc')
     );
-  }, [firestore, user, companyId]);
+  }, [firestore, user]);
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || !user || !companyId) return null;
-    return doc(firestore, 'companies', companyId);
-  }, [firestore, user, companyId]);
+    if (!firestore || !user) return null;
+    return doc(firestore, 'companies', '1');
+  }, [firestore, user]);
 
   const { data: allOrders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);

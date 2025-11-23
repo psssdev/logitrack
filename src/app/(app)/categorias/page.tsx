@@ -51,7 +51,7 @@ const defaultExpenseCategories = [
 
 export default function CategoriasPage() {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
   const [isNewCategoryOpen, setIsNewCategoryOpen] = React.useState(false);
@@ -61,11 +61,11 @@ export default function CategoriasPage() {
   const [isCreatingDefaults, setIsCreatingDefaults] = React.useState(false);
 
   const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !companyId) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
-      collection(firestore, 'companies', companyId, 'financialCategories')
+      collection(firestore, 'financialCategories')
     );
-  }, [firestore, companyId, isUserLoading]);
+  }, [firestore, isUserLoading]);
 
   const { data: categories, isLoading } = useCollection<FinancialCategory>(categoriesQuery);
   const pageIsLoading = isLoading || isUserLoading;
@@ -86,9 +86,9 @@ export default function CategoriasPage() {
   };
   
   const confirmDelete = async () => {
-    if (!firestore || !deletingCategory || !companyId) return;
+    if (!firestore || !deletingCategory) return;
     try {
-      await deleteDoc(doc(firestore, 'companies', companyId, 'financialCategories', deletingCategory.id));
+      await deleteDoc(doc(firestore, 'financialCategories', deletingCategory.id));
       await triggerRevalidation('/categorias');
       await triggerRevalidation('/financeiro/novo');
       toast({
@@ -108,13 +108,13 @@ export default function CategoriasPage() {
   }
 
   const handleCreateDefaultCategories = async () => {
-    if (!firestore || !companyId) {
+    if (!firestore) {
         toast({ variant: "destructive", title: "Erro de conexão" });
         return;
     }
     setIsCreatingDefaults(true);
     try {
-        const categoriesCollection = collection(firestore, 'companies', companyId, 'financialCategories');
+        const categoriesCollection = collection(firestore, 'financialCategories');
         const existingCategoryNames = new Set(categories?.map(c => c.name.toLowerCase()));
         
         const batch = writeBatch(firestore);

@@ -30,7 +30,7 @@ import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import type { Order, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, updateDoc, serverTimestamp, Timestamp, arrayUnion } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -59,7 +59,6 @@ export function RecordPaymentDialog({
   onPaymentRecorded,
 }: RecordPaymentDialogProps) {
   const firestore = useFirestore();
-  const { companyId } = useUser();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -86,7 +85,7 @@ export function RecordPaymentDialog({
 
 
   const handleSave = async () => {
-    if (!firestore || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0 || !companyId) {
+    if (!firestore || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0) {
       toast({
         variant: 'destructive',
         title: 'Erro',
@@ -96,7 +95,7 @@ export function RecordPaymentDialog({
     }
     setIsSaving(true);
 
-    const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
+    const orderRef = doc(firestore, 'orders', order.id);
 
     try {
       const totalPaid = alreadyPaid + paymentAmount;

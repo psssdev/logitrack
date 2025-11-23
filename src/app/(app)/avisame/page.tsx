@@ -115,7 +115,7 @@ const openWhatsAppSmart = (phoneRaw: string, message: string, mode: SendMode) =>
 
 export default function AvisamePage() {
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
   // UI/controle
@@ -125,16 +125,16 @@ export default function AvisamePage() {
 
   // Company (template de mensagem)
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !companyId) return null;
-    return doc(firestore, 'companies', companyId);
-  }, [firestore, companyId, isUserLoading]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'companies', '1');
+  }, [firestore, isUserLoading]);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
   // Clients
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !companyId) return null;
-    return collection(firestore, 'companies', companyId, 'clients');
-  }, [firestore, companyId, isUserLoading]);
+    if (!firestore || isUserLoading) return null;
+    return collection(firestore, 'clients');
+  }, [firestore, isUserLoading]);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
   const [clientsWithAddresses, setClientsWithAddresses] = useState<ClientWithAddresses[]>([]);
@@ -142,7 +142,7 @@ export default function AvisamePage() {
 
   // Busca addresses de todos os clientes
   useEffect(() => {
-    if (!clients || !firestore || !companyId) return;
+    if (!clients || !firestore) return;
 
     const fetchAllAddresses = async () => {
       setIsLoadingAddresses(true);
@@ -151,8 +151,6 @@ export default function AvisamePage() {
           clients.map(async (client) => {
             const addressesCollection = collection(
               firestore,
-              'companies',
-              companyId,
               'clients',
               client.id,
               'addresses'
@@ -176,7 +174,7 @@ export default function AvisamePage() {
     };
 
     fetchAllAddresses();
-  }, [clients, firestore, toast, companyId]);
+  }, [clients, firestore, toast]);
 
   const isLoading = isLoadingClients || isLoadingCompany || isLoadingAddresses || isUserLoading;
 

@@ -48,13 +48,13 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const firestore = useFirestore();
-  const { user, companyId, isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const handleUpdateStatus = (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
 
     startTransition(async () => {
-      if (!firestore || !user || !companyId) {
+      if (!firestore || !user) {
         toast({
           variant: 'destructive',
           title: 'Erro',
@@ -63,7 +63,7 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
         return;
       }
 
-      const orderRef = doc(firestore, 'companies', companyId, 'orders', order.id);
+      const orderRef = doc(firestore, 'orders', order.id);
 
       try {
         await updateDoc(orderRef, {
@@ -144,5 +144,3 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
     </DropdownMenu>
   );
 }
-
-    
