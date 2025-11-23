@@ -45,5 +45,8 @@ service cloud.firestore {
     match /financialEntries/{entryId} {
         allow read, write: if isUserAuthenticated();
     }
+     match /financialEntries/{path=**} {
+        allow list: if isUserAuthenticated();
+    }
   }
 }
