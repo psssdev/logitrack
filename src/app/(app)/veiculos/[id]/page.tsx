@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import { BusSeatLayout } from '@/components/bus-seat-layout';
 import { Bus, Car, Truck } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
-import { startOfDay } from 'date-fns';
+import { isSameDay, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
 
@@ -71,22 +71,27 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const { data: vehicle, isLoading: isLoadingVehicle } = useDoc<Vehicle>(vehicleRef);
 
   const salesQuery = useMemoFirebase(() => {
-    if (!firestore || !vehicleId || !selectedDate) return null;
-    const startOfSelectedDay = startOfDay(selectedDate);
-
+    if (!firestore || !vehicleId) return null;
+    
     return query(
         collection(firestore, 'financialEntries'),
-        where('vehicleId', '==', vehicleId),
-        where('travelDate', '>=', Timestamp.fromDate(startOfSelectedDay))
+        where('vehicleId', '==', vehicleId)
     );
-  }, [firestore, vehicleId, selectedDate]);
+  }, [firestore, vehicleId]);
 
   const { data: sales, isLoading: isLoadingSales } = useCollection<FinancialEntry>(salesQuery);
 
   const occupiedSeatsForDate = React.useMemo(() => {
-    if (!sales) return [];
-    return sales.flatMap(sale => sale.selectedSeats || []);
-  }, [sales]);
+    if (!sales || !selectedDate) return [];
+    
+    const salesForDate = sales.filter(sale => {
+      if (!sale.travelDate) return false;
+      const travelDate = sale.travelDate instanceof Timestamp ? sale.travelDate.toDate() : sale.travelDate;
+      return isSameDay(travelDate, selectedDate);
+    });
+
+    return salesForDate.flatMap(sale => sale.selectedSeats || []);
+  }, [sales, selectedDate]);
 
 
   const isLoading = isLoadingVehicle || isLoadingSales || isUserLoading;
