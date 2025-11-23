@@ -302,6 +302,34 @@ function AddLocationDialog({
                 )}
               />
             </div>
+             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField
+                    control={form.control}
+                    name="lat"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Latitude</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="-19.0187" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="lng"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Longitude</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="-40.5363" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -327,7 +355,6 @@ export function NewClientForm({
   const router = useRouter();
   const firestore = useFirestore();
 
-  const [liveOrigins, setLiveOrigins] = React.useState(initialOrigins);
   const [liveDestinos, setLiveDestinos] = React.useState(initialDestinos);
 
   const form = useForm<NewClient>({
@@ -335,15 +362,9 @@ export function NewClientForm({
     defaultValues: {
       nome: '',
       telefone: '',
-      defaultOriginId: '',
       defaultDestinoId: '',
     },
   });
-
-  const onOriginCreated = (newLocation: Origin | Destino) => {
-    setLiveOrigins((prev) => [...prev, newLocation as Origin]);
-    form.setValue('defaultOriginId', newLocation.id);
-  };
 
   const onDestinoCreated = (newLocation: Origin | Destino) => {
     setLiveDestinos((prev) => [...prev, newLocation as Destino]);
@@ -365,7 +386,6 @@ export function NewClientForm({
       await addDoc(newClientRef, {
         nome: data.nome,
         telefone: data.telefone,
-        defaultOriginId: data.defaultOriginId || null,
         defaultDestinoId: data.defaultDestinoId || null,
         createdAt: serverTimestamp(),
       });
@@ -420,36 +440,6 @@ export function NewClientForm({
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="defaultOriginId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Origem Padrão</FormLabel>
-                <div className="flex gap-2">
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Nenhuma" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {liveOrigins.map((origin) => (
-                        <SelectItem key={origin.id} value={origin.id}>
-                          {origin.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <AddLocationDialog
-                    locationType="origem"
-                    onLocationCreated={onOriginCreated}
-                  />
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           <FormField
             control={form.control}
             name="defaultDestinoId"

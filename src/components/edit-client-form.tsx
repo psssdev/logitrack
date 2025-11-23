@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editClientSchema } from '@/lib/schemas';
-import type { Client, Origin, Destino } from '@/lib/types';
+import type { Client, Destino } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 
 type EditClientFormValues = z.infer<typeof editClientSchema>;
 
-export function EditClientForm({ client, origins, destinos }: { client: Client, origins: Origin[], destinos: Destino[] }) {
+export function EditClientForm({ client, destinos }: { client: Client, destinos: Destino[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();

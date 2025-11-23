@@ -109,14 +109,13 @@ export const clientSchema = z.object({
 export const newClientSchema = z.object({
     nome: z.string().min(1, "Nome é obrigatório"),
     telefone: z.string().min(10, "Telefone inválido"),
-    defaultOriginId: z.string().optional(),
-    defaultDestinoId: z.string().optional(),
+    defaultDestinoId: z.string().optional().nullable(),
 });
 
 export const editClientSchema = z.object({
     nome: z.string().min(1, "Nome é obrigatório"),
     telefone: z.string().min(10, "Telefone inválido"),
-    defaultOriginId: z.string().optional(),
+    defaultDestinoId: z.string().optional().nullable(),
 });
 
 
