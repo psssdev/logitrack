@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3, ChevronLeft, Home, Menu, Package, Users, Truck,
-  MapPin, Megaphone, CircleDollarSign, Landmark, Bus, Ticket, ArrowDownCircle,
+  MapPin, Megaphone, CircleDollarSign, Bus, Ticket,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -24,8 +24,7 @@ const navItems = [
   { href: '/vender-passagem', icon: Ticket, label: 'Vender Passagem' },
   { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/cobrancas', icon: CircleDollarSign, label: 'Cobranças' },
-  { href: '/financeiro', icon: Landmark, label: 'Financeiro' },
-  { href: '/financeiro/despesa/nova', icon: ArrowDownCircle, label: 'Despesas' },
+  { href: '/financeiro', icon: CircleDollarSign, label: 'Financeiro' },
   { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
   { href: '/veiculos', icon: Bus, label: 'Veículos' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
@@ -36,6 +35,7 @@ const navItems = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
 
   // Persiste preferência do usuário
   React.useEffect(() => {
@@ -67,7 +67,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-                    <NavLinks />
+                    <NavLinks onLinkClick={() => {}} />
                   </nav>
                 </div>
               </div>
@@ -88,7 +88,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 />
               </Button>
 
-              <Sheet>
+              <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="icon" className="shrink-0 md:hidden" aria-label="Abrir menu">
                     <Menu className="h-5 w-5" />
@@ -100,12 +100,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </SheetHeader>
                   <nav className="grid gap-2 text-lg font-medium">
                     <div className="mb-4 flex items-center gap-2 text-lg font-semibold">
-                       <Link href="/inicio" className="flex items-center gap-2 font-semibold">
+                       <Link href="/inicio" className="flex items-center gap-2 font-semibold" onClick={() => setIsMobileSheetOpen(false)}>
                          <Logo className="h-6 w-6" />
                          <span>LogiTrack</span>
                        </Link>
                     </div>
-                    <NavLinks />
+                    <NavLinks onLinkClick={() => setIsMobileSheetOpen(false)} />
                   </nav>
                 </SheetContent>
               </Sheet>
@@ -126,10 +126,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-const NavLinks = () => {
+const NavLinks = ({ onLinkClick }: { onLinkClick: () => void }) => {
   const pathname = usePathname();
   const isActive = (href: string) =>
-    pathname === href || (href !== '/inicio' && pathname.startsWith(href + '/')) || pathname === href;
+    pathname === href || (href !== '/inicio' && pathname.startsWith(href + '/'));
 
   return (
     <>
@@ -144,6 +144,7 @@ const NavLinks = () => {
               active ? 'bg-muted text-primary' : 'text-muted-foreground hover:text-primary'
             )}
             aria-current={active ? 'page' : undefined}
+            onClick={onLinkClick}
           >
             <item.icon className="h-4 w-4" />
             {item.label}

@@ -62,21 +62,26 @@ export async function POST(request: NextRequest) {
         }
         
         const auth = adminAuth();
-        const decodedToken = await auth.verifyIdToken(token);
+        const decodedToken = await auth.verifyIdToken(token, true); // true to check if revoked
         const { uid, email, name } = decodedToken;
 
-        // Ensure user profile and claims are set
+        // Ensure user profile exists before setting claims
         const { companyId, role } = await provisionUserProfile(uid, email, name);
         
         // Check if claims are already set to avoid unnecessary updates
         if (decodedToken.companyId !== companyId || decodedToken.role !== role) {
              await auth.setCustomUserClaims(uid, { companyId, role });
+             // After setting claims, the ID token is stale. The client needs to refresh it.
         }
         
         return NextResponse.json({ success: true, companyId, role });
 
     } catch (error: any) {
         console.error('Error in set-claims route:', error);
+        // Distinguish between different types of auth errors if needed
+        if (error.code === 'auth/id-token-revoked') {
+             return NextResponse.json({ error: 'Token has been revoked. Please re-authenticate.', needsRefresh: true }, { status: 401 });
+        }
         return NextResponse.json({ error: error.message || 'An unknown error occurred.' }, { status: 500 });
     }
 }

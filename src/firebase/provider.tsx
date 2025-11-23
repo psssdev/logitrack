@@ -2,12 +2,11 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Firestore } from 'firebase/firestore';
 import { Auth, User, onIdTokenChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { Loader2 } from 'lucide-react';
-import { FirestorePermissionError } from './errors';
 
 // Combined state for the Firebase context
 export interface FirebaseContextState {
@@ -63,12 +62,24 @@ export const FirebaseProvider: React.FC<{
 
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        setAuthState({
-          user: firebaseUser,
-          isUserLoading: false,
-          userError: null,
-          role: 'admin',
-        });
+        try {
+          // Force refresh the token to get the latest custom claims
+          const idTokenResult = await firebaseUser.getIdTokenResult(true);
+          const claims = idTokenResult.claims;
+          
+          setAuthState({
+            user: firebaseUser,
+            isUserLoading: false,
+            userError: null,
+            role: (claims.role as string) || 'member', // Default to 'member' if no role
+          });
+
+        } catch (error) {
+            console.error("Error fetching user token with claims:", error);
+             // If fetching claims fails, sign the user out to be safe
+            await auth.signOut();
+            setAuthState({ user: null, isUserLoading: false, userError: error as Error, role: null });
+        }
       } else {
         // User is signed out
         setAuthState({ user: null, isUserLoading: false, userError: null, role: null });
