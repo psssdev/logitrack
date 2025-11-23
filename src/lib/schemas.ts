@@ -156,10 +156,18 @@ export const locationSchema = z.object({
   lng: z.coerce.number().optional(),
 });
 
-export const newLocationSchema = locationSchema.omit({
-  id: true,
-  address: true,
-  createdAt: true,
+export const newLocationSchema = z.object({
+  name: z.string().min(1, "O nome do local é obrigatório."),
+  // Apenas o nome é obrigatório para a criação rápida.
+  // O resto é opcional para não bloquear o fluxo do usuário.
+  logradouro: z.string().optional(),
+  numero: z.string().optional(),
+  bairro: z.string().optional(),
+  cidade: z.string().optional(),
+  estado: z.string().optional(),
+  cep: z.string().optional(),
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
 });
 
 

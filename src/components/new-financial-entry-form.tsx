@@ -16,10 +16,10 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
-import { newFinancialEntrySchema } from '@/lib/schemas';
+import { newFinancialEntrySchema, newLocationSchema } from '@/lib/schemas';
 import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs, doc } from 'firebase/firestore';
-import { CalendarIcon, Loader2, ChevronsUpDown, Check, Ticket, Wallet } from 'lucide-react';
+import { CalendarIcon, Loader2, ChevronsUpDown, Check, Ticket, Wallet, PlusCircle } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import type { Vehicle, Client, FinancialEntry, PaymentMethod, Destino, Address } from '@/lib/types';
+import type { Vehicle, Client, FinancialEntry, PaymentMethod, Destino, Address, NewLocation } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -49,6 +49,15 @@ import { Label } from './ui/label';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { pickNearestOrigin, type Origin as OriginPick, type ClientLite } from '@/lib/nearest-origin';
 import { Badge } from './ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 type NewFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date' | 'travelDate'> & { date?: Date, travelDate?: Date };
 
@@ -68,7 +77,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 };
 
 
-export function NewFinancialEntryForm({ vehicles, clients, origins, destinations }: { vehicles: Vehicle[], clients: Client[], origins: OriginPick[], destinations: Destino[] }) {
+export function NewFinancialEntryForm({ vehicles, clients, origins, destinations: initialDestinations }: { vehicles: Vehicle[], clients: Client[], origins: OriginPick[], destinations: Destino[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
@@ -77,6 +86,8 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   const [selectedSeats, setSelectedSeats] = React.useState<string[]>([]);
   const [passagemValue, setPassagemValue] = React.useState<number>(0);
   const [suggestMeta, setSuggestMeta] = React.useState<{ km: number; label: string } | null>(null);
+
+  const [liveDestinations, setLiveDestinations] = React.useState(initialDestinations);
 
   const form = useForm<NewFinancialEntryFormValues>({
     resolver: zodResolver(newFinancialEntrySchema),
@@ -89,7 +100,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
       travelDate: new Date(),
       formaPagamento: 'pix',
       origin: origins?.[0]?.id || '',
-      destination: destinations?.[0]?.address || '',
+      destination: initialDestinations?.[0]?.address || '',
     },
   });
 
@@ -215,6 +226,12 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
   React.useEffect(() => {
     form.setValue('selectedSeats', selectedSeats, { shouldValidate: true });
   }, [selectedSeats, form]);
+  
+  const onLocationCreated = (newLocation: Destino) => {
+    setLiveDestinations(prev => [...prev, newLocation]);
+    form.setValue('destination', newLocation.address);
+  };
+
 
   async function onSubmit(data: NewFinancialEntryFormValues) {
     if (!firestore) {
@@ -358,6 +375,7 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                                         <Badge variant="secondary" className="text-xs">{suggestMeta.label}</Badge>
                                     )}
                                 </div>
+                                <div className="flex gap-2">
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
                                     <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
@@ -366,6 +384,8 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                                     {origins.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                                {/* Quick Add Button for Origin could be added here */}
+                                </div>
                                 <FormMessage />
                             </FormItem>
                             )}
@@ -376,14 +396,17 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Destino *</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="Selecione o destino" /></SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                    {destinations.map(d => <SelectItem key={d.id} value={d.address}>{d.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                                <div className="flex gap-2">
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger><SelectValue placeholder="Selecione o destino" /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                        {liveDestinations.map(d => <SelectItem key={d.id} value={d.address}>{d.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <AddLocationDialog locationType="destino" onLocationCreated={onLocationCreated} />
+                                </div>
                                 <FormMessage />
                             </FormItem>
                             )}
@@ -593,8 +616,91 @@ export function NewFinancialEntryForm({ vehicles, clients, origins, destinations
                 </CardFooter>
            </Card>
         </div>
-
       </form>
     </Form>
   );
 }
+
+
+function AddLocationDialog({ locationType, onLocationCreated }: { locationType: 'origem' | 'destino', onLocationCreated: (newLocation: Destino) => void }) {
+    const { toast } = useToast();
+    const firestore = useFirestore();
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    const form = useForm<NewLocation>({
+        resolver: zodResolver(newLocationSchema),
+        defaultValues: { name: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '', cep: '' },
+    });
+    
+    async function onSubmit(data: NewLocation) {
+        if (!firestore) return;
+
+        try {
+            const collectionName = locationType === 'destino' ? 'destinos' : 'origins';
+            const collectionRef = collection(firestore, collectionName);
+            const { logradouro, numero, bairro, cidade, estado, cep } = data;
+            const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
+
+            const newDocRef = await addDoc(collectionRef, {
+                name: data.name,
+                address: fullAddress,
+                city: data.cidade,
+                active: true,
+                createdAt: serverTimestamp(),
+            });
+
+            toast({ title: 'Sucesso!', description: `Novo ${locationType === 'destino' ? 'destino' : 'origem'} criado.` });
+            
+            onLocationCreated({
+                id: newDocRef.id,
+                name: data.name,
+                address: fullAddress,
+                createdAt: new Date()
+            });
+
+            setIsOpen(false); // Close dialog
+            form.reset(); // Reset form
+            await triggerRevalidation('/vender-passagem');
+
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Erro ao criar", description: error.message });
+        }
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="icon"><PlusCircle /></Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Novo {locationType === 'destino' ? 'Destino' : 'Origem'}</DialogTitle>
+                    <DialogDescription>Crie um novo ponto de {locationType} rapidamente.</DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Nome do Local</FormLabel>
+                                    <FormControl><Input placeholder="Ex: Rodoviária de SP" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        {/* A simplified form is enough for the dialog */}
+                        <DialogFooter>
+                            <Button type="submit" disabled={form.formState.isSubmitting}>
+                                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Salvar
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
