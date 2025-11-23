@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address, Origin, Driver } from '@/lib/types';
+import type { NewOrder, Client, Address, Origin, Driver, Destino } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -94,12 +94,16 @@ const openWhatsApp = (phone: string, message: string) => {
     window.open(url, '_blank');
 }
 
+const itemDescriptionOptions = ['Pacote', 'Fardo', 'Caixa'];
+
 export function NewOrderForm({
   clients,
   origins,
+  destinos,
 }: {
   clients: Client[];
   origins: Origin[];
+  destinos: Destino[];
 }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -115,8 +119,8 @@ export function NewOrderForm({
     defaultValues: {
       origem: origins.length > 0 ? origins[0].address : '',
       destino: '',
-      items: [{ description: '', quantity: 1, value: 0 }],
-      formaPagamento: 'pix',
+      items: [{ description: 'Pacote', quantity: 1, value: 0 }],
+      formaPagamento: 'haver',
       observacao: '',
       numeroNota: '',
       motoristaId: undefined,
@@ -334,7 +338,7 @@ export function NewOrderForm({
                             key={client.id}
                             onSelect={() => {
                               form.setValue('clientId', client.id);
-                              form.setValue('destino', ''); // Reset destination
+                              form.setValue('destino', client.defaultDestinoId ? destinos.find(d => d.id === client.defaultDestinoId)?.address || '' : ''); 
                               setPopoverOpen(false);
                             }}
                           >
@@ -395,7 +399,7 @@ export function NewOrderForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Destino da Encomenda (Endereço do Cliente) *</FormLabel>
-                <Select
+                 <Select
                   onValueChange={field.onChange}
                   value={field.value}
                   disabled={!selectedClientId || loadingAddresses}
@@ -407,29 +411,24 @@ export function NewOrderForm({
                           !selectedClientId
                             ? 'Selecione um cliente primeiro'
                             : loadingAddresses
-                            ? 'Carregando endereços...'
-                            : 'Selecione um endereço do cliente'
+                            ? 'Carregando...'
+                            : 'Selecione um endereço'
                         }
                       />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {addresses && addresses.length > 0 ? (
-                      addresses.map((address) => (
-                        <SelectItem
-                          key={address.id}
-                          value={address.fullAddress}
-                        >
-                          {address.label} - {address.fullAddress}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-address" disabled>
-                        {loadingAddresses
-                          ? 'Carregando...'
-                          : 'Nenhum endereço cadastrado'}
+                    {(addresses && addresses.length > 0 ? addresses : destinos).map((loc) => (
+                      <SelectItem
+                        key={loc.id}
+                        value={loc.address || (loc as Address).fullAddress}
+                      >
+                        {(loc as Address).label || loc.name} - {loc.address || (loc as Address).fullAddress}
                       </SelectItem>
-                    )}
+                    ))}
+                     {selectedClientId && !loadingAddresses && (!addresses || addresses.length === 0) && (!destinos || destinos.length === 0) && (
+                         <SelectItem value="no-location" disabled>Nenhum endereço ou destino</SelectItem>
+                     )}
                   </SelectContent>
                 </Select>
                 {selectedClientId &&
@@ -456,7 +455,7 @@ export function NewOrderForm({
         <div className="grid gap-4">
             <div className="flex justify-between items-center">
                 <FormLabel>Itens da Encomenda</FormLabel>
-                <Button type="button" size="sm" variant="outline" onClick={() => append({ description: '', quantity: 1, value: 0 })}>
+                <Button type="button" size="sm" variant="outline" onClick={() => append({ description: 'Pacote', quantity: 1, value: 0 })}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Adicionar Item
                 </Button>
@@ -485,10 +484,19 @@ export function NewOrderForm({
                                         name={`items.${index}.description`}
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormControl>
-                                                    <Input {...field} placeholder="Descrição do item"/>
-                                                </FormControl>
-                                                 <FormMessage />
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecione o tipo"/>
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {itemDescriptionOptions.map(option => (
+                                                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
                                             </FormItem>
                                         )}
                                     />
