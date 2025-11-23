@@ -18,9 +18,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Client, Address, Company } from '@/lib/types';
-import { collection, doc, getDocs } from 'firebase/firestore';
-import { MessageCircle, Megaphone, Send, Settings2 } from 'lucide-react';
+import type { Order, Company } from '@/lib/types';
+import { collection, query, where, doc } from 'firebase/firestore';
+import { Megaphone, MessageCircle, Send, Settings2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -30,12 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 
-
-type ClientWithAddresses = Client & { addresses: Address[] };
 
 // --------- Utils
 const isMobileLike = () => {
@@ -64,20 +61,17 @@ const sanitizePhoneBR = (raw?: string) => {
   return digits;
 };
 
-const buildMessage = (tpl: string, ctx: { cidade?: string; nome?: string }) =>
+const buildMessage = (tpl: string, ctx: { cidade?: string; nome?: string, codigo?: string }) =>
   (tpl || '')
     .replaceAll('{cidade}', ctx.cidade || '')
-    .replaceAll('{nome}', ctx.nome || '');
+    .replaceAll('{nome}', ctx.nome || '')
+    .replaceAll('{codigo}', ctx.codigo || '');
 
-type SendMode = 'auto' | 'force-app' | 'force-web';
 
 /**
  * Abre WhatsApp de forma resiliente.
- * - auto: tenta app no mobile e web no desktop.
- * - force-app: tenta whatsapp:// (app); se bloquear, faz fallback para wa.me
- * - force-web: usa wa.me / web
  */
-const openWhatsAppSmart = (phoneRaw: string, message: string, mode: SendMode) => {
+const openWhatsAppSmart = (phoneRaw: string, message: string) => {
   const phone = sanitizePhoneBR(phoneRaw);
   if (!phone) return;
 
@@ -87,21 +81,6 @@ const openWhatsAppSmart = (phoneRaw: string, message: string, mode: SendMode) =>
 
   const onDesktop = !isMobileLike();
 
-  if (mode === 'force-web') {
-    window.open(waMeUrl, '_blank');
-    return;
-  }
-
-  if (mode === 'force-app') {
-    const win = window.open(deepUrl);
-    // Se o navegador bloquear esquemas customizados, faz fallback
-    setTimeout(() => {
-      if (!win || win.closed) window.open(waMeUrl, '_blank');
-    }, 600);
-    return;
-  }
-
-  // auto
   if (onDesktop) {
     window.open(waMeUrl, '_blank');
   } else {
@@ -113,119 +92,93 @@ const openWhatsAppSmart = (phoneRaw: string, message: string, mode: SendMode) =>
   }
 };
 
+const extractCityFromAddress = (address: string): string => {
+    if (!address) return '';
+    const parts = address.split(',').map(p => p.trim());
+    // Heuristic: City is usually the second to last part, before the state.
+    if (parts.length >= 2) {
+      const cityCandidate = parts[parts.length - 2];
+      if (cityCandidate && cityCandidate.length > 2) { // Avoid state abbreviations
+        return titleCase(cityCandidate);
+      }
+    }
+    return titleCase(parts[parts.length - 1] || ''); // Fallback
+}
+
+
 export default function AvisamePage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
-  // UI/controle
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [sendMode, setSendMode] = useState<SendMode>('auto');
-  const [intervalMs, setIntervalMs] = useState<number>(500); // intervalo entre disparos em massa
 
-  // Company (template de mensagem)
   const companyRef = useMemoFirebase(() => {
     if (!firestore || !user || isUserLoading) return null;
     return doc(firestore, 'companies', '1');
   }, [firestore, user, isUserLoading]);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
-  // Clients
-  const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
-    return collection(firestore, 'clients');
-  }, [firestore, user, isUserLoading]);
-  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  // Fetch only open orders
+  const openOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading) return null;
+    return query(
+        collection(firestore, 'orders'),
+        where('status', 'in', ['PENDENTE', 'EM_ROTA'])
+    );
+  }, [firestore, isUserLoading]);
 
-  const [clientsWithAddresses, setClientsWithAddresses] = useState<ClientWithAddresses[]>([]);
-  const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
+  const { data: openOrders, isLoading: isLoadingOrders } = useCollection<Order>(openOrdersQuery);
 
-  // Busca addresses de todos os clientes
-  useEffect(() => {
-    if (!clients || !firestore) return;
+  const isLoading = isLoadingOrders || isLoadingCompany || isUserLoading;
 
-    const fetchAllAddresses = async () => {
-      setIsLoadingAddresses(true);
-      try {
-        const list = await Promise.all(
-          clients.map(async (client) => {
-            const addressesCollection = collection(
-              firestore,
-              'clients',
-              client.id,
-              'addresses'
-            );
-            const snap = await getDocs(addressesCollection);
-            const addresses = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Address) }));
-            return { ...client, addresses } as ClientWithAddresses;
-          })
-        );
-        setClientsWithAddresses(list);
-      } catch (error) {
-        console.error('Error fetching addresses: ', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao carregar endereços',
-          description: 'Não foi possível buscar os endereços dos clientes.',
-        });
-      } finally {
-        setIsLoadingAddresses(false);
-      }
-    };
-
-    fetchAllAddresses();
-  }, [clients, firestore, toast]);
-
-  const isLoading = isLoadingClients || isLoadingCompany || isLoadingAddresses || isUserLoading;
-
-  const { cities, filteredClients } = useMemo(() => {
-    if (!clientsWithAddresses?.length) return { cities: [] as string[], filteredClients: [] as ClientWithAddresses[] };
+  const { cities, filteredOrders } = useMemo(() => {
+    if (!openOrders?.length) return { cities: [] as string[], filteredOrders: [] as Order[] };
 
     const citySet = new Set<string>();
-    for (const c of clientsWithAddresses) {
-      for (const a of c.addresses || []) {
-        if (a?.cidade) citySet.add(titleCase(String(a.cidade)));
-      }
+    for (const order of openOrders) {
+        if(order.destino) {
+            const city = extractCityFromAddress(order.destino);
+            if(city) citySet.add(city);
+        }
     }
 
     const sortedCities = Array.from(citySet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
     const filtered =
       selectedCity
-        ? clientsWithAddresses.filter((c) =>
-            (c.addresses || []).some((a) => titleCase(String(a.cidade)) === selectedCity)
-          )
+        ? openOrders.filter((order) => {
+            const orderCity = extractCityFromAddress(order.destino);
+            return orderCity === selectedCity;
+        })
         : [];
 
-    return { cities: sortedCities, filteredClients: filtered };
-  }, [clientsWithAddresses, selectedCity]);
+    return { cities: sortedCities, filteredOrders: filtered };
+  }, [openOrders, selectedCity]);
 
   const getTemplate = () =>
     company?.msgChegueiCidade ||
-    'Olá{nome?, }estamos na sua cidade ({cidade}) para realizar entregas hoje. Fique atento!';
+    'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!';
 
-  const renderTemplate = (tpl: string, c: ClientWithAddresses, cidade: string) => {
-    // Suporta {cidade} e {nome}. Também permite remover vírgula se {nome} não existir via "truque" simples.
-    let out = buildMessage(tpl, { cidade, nome: c?.nome || '' });
-    // Se template tiver "Olá{nome?, }" — remove marcador opcional quando nome vazio
-    out = out.replaceAll('{nome?, }', c?.nome ? `${c.nome}, ` : '');
+  const renderTemplate = (tpl: string, order: Order, cidade: string) => {
+    let out = buildMessage(tpl, { cidade, nome: order.nomeCliente || '', codigo: order.codigoRastreio });
     return out;
   };
 
 
-  const handleNotifySingle = (client: ClientWithAddresses) => {
+  const handleNotifySingle = (order: Order) => {
     if (!selectedCity) {
       toast({ variant: 'destructive', title: 'Selecione uma cidade', description: 'Escolha uma cidade para montar a mensagem.' });
       return;
     }
     const tpl = getTemplate();
-    const msg = renderTemplate(tpl, client, selectedCity);
-    const phoneOk = sanitizePhoneBR(client?.telefone || '');
+    const msg = renderTemplate(tpl, order, selectedCity);
+    const phoneOk = sanitizePhoneBR(order?.telefone || '');
     if (!phoneOk) {
-      toast({ variant: 'destructive', title: 'Telefone inválido', description: `Cliente ${client?.nome || ''} sem telefone válido.` });
+      toast({ variant: 'destructive', title: 'Telefone inválido', description: `Cliente ${order?.nomeCliente || ''} sem telefone válido.` });
       return;
     }
-    openWhatsAppSmart(client.telefone!, msg, sendMode);
+    openWhatsAppSmart(order.telefone!, msg);
   };
 
   return (
@@ -238,15 +191,14 @@ export default function AvisamePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Megaphone className="h-6 w-6" />
-            Notificar Clientes por Cidade
+            Notificar Clientes
           </CardTitle>
           <CardDescription>
-            Envie um aviso para os clientes de uma cidade específica via WhatsApp Web/App.
+            Envie um aviso de entrega para clientes com encomendas pendentes numa cidade específica.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Controles de envio */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="city-select">Selecione uma Cidade</Label>
@@ -258,7 +210,7 @@ export default function AvisamePage() {
                   disabled={cities.length === 0}
                 >
                   <SelectTrigger id="city-select">
-                    <SelectValue placeholder={cities.length > 0 ? 'Escolha uma cidade...' : 'Nenhum cliente com endereço'} />
+                    <SelectValue placeholder={cities.length > 0 ? 'Escolha uma cidade...' : 'Nenhuma encomenda pendente'} />
                   </SelectTrigger>
                   <SelectContent>
                     {cities.map((city) => (
@@ -270,54 +222,15 @@ export default function AvisamePage() {
                 </Select>
               )}
             </div>
-
-            <div className="space-y-2">
-              <Label>Modo de envio</Label>
-              <div className="flex items-center gap-3 rounded-md border p-3">
-                <Settings2 className="h-4 w-4" />
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="force-app"
-                      checked={sendMode === 'force-app'}
-                      onCheckedChange={(checked) => setSendMode(checked ? 'force-app' : 'auto')}
-                    />
-                    <Label htmlFor="force-app" className="text-sm">Forçar app</Label>
-                  </div>
-                  <Button
-                    variant={sendMode === 'force-web' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSendMode(sendMode === 'force-web' ? 'auto' : 'force-web')}
-                  >
-                    {sendMode === 'force-web' ? 'Forçando Web' : 'Forçar Web'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="interval">Intervalo entre envios (ms)</Label>
-              <Input
-                id="interval"
-                type="number"
-                min={200}
-                step={100}
-                value={intervalMs}
-                onChange={(e) => setIntervalMs(Math.max(200, Number(e.target.value) || 500))}
-                disabled={true}
-              />
-              <p className="text-xs text-muted-foreground">Intervalo para envios em massa (desativado).</p>
-            </div>
           </div>
 
-          {/* Lista e ações */}
           {selectedCity && (
             <Card className="border-dashed">
               <CardHeader>
                 <div>
-                  <CardTitle>Clientes em {selectedCity}</CardTitle>
+                  <CardTitle>Encomendas para {selectedCity}</CardTitle>
                   <CardDescription>
-                    {isLoading ? 'Carregando...' : `${filteredClients.length} cliente(s) encontrado(s).`}
+                    {isLoading ? 'Carregando...' : `${filteredOrders.length} encomenda(s) encontrada(s).`}
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -325,31 +238,33 @@ export default function AvisamePage() {
               <CardContent>
                 {isLoading ? (
                   <Skeleton className="h-48 w-full" />
-                ) : filteredClients.length > 0 ? (
+                ) : filteredOrders.length > 0 ? (
                   <div className="rounded-md border">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Nome</TableHead>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Código</TableHead>
                           <TableHead>Telefone</TableHead>
                           <TableHead className="text-right">Ação</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredClients.map((client) => {
-                          const phoneOk = sanitizePhoneBR(client?.telefone || '');
+                        {filteredOrders.map((order) => {
+                          const phoneOk = sanitizePhoneBR(order?.telefone || '');
                           return (
-                            <TableRow key={client.id}>
-                              <TableCell className="font-medium">{client?.nome || '-'}</TableCell>
+                            <TableRow key={order.id}>
+                              <TableCell className="font-medium">{order?.nomeCliente || '-'}</TableCell>
+                               <TableCell><Badge variant="outline">{order.codigoRastreio}</Badge></TableCell>
                               <TableCell className={!phoneOk ? 'text-red-600' : ''}>
-                                {client?.telefone || '—'}
+                                {order?.telefone || '—'}
                                 {!phoneOk && <span className="ml-2 text-xs text-red-600">(inválido)</span>}
                               </TableCell>
                               <TableCell className="text-right">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleNotifySingle(client)}
+                                  onClick={() => handleNotifySingle(order)}
                                   disabled={!phoneOk}
                                   title={!phoneOk ? 'Telefone inválido' : 'Enviar aviso individual'}
                                 >
@@ -365,7 +280,7 @@ export default function AvisamePage() {
                   </div>
                 ) : (
                   <div className="flex h-24 items-center justify-center rounded-md border-2 border-dashed text-center">
-                    <p className="text-muted-foreground">Nenhum cliente encontrado para esta cidade.</p>
+                    <p className="text-muted-foreground">Nenhuma encomenda encontrada para esta cidade.</p>
                   </div>
                 )}
               </CardContent>
