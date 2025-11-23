@@ -43,10 +43,7 @@ service cloud.firestore {
         allow read, write: if isUserAuthenticated();
     }
     match /financialEntries/{entryId} {
-        allow read, write: if isUserAuthenticated();
-    }
-     match /financialEntries/{path=**} {
-        allow list: if isUserAuthenticated();
+        allow read, write, list: if isUserAuthenticated();
     }
   }
 }
