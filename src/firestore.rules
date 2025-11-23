@@ -4,16 +4,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isUserAuthenticated() {
+      return request.auth != null;
+    }
+    
     // Regra para a coleção de utilizadores: apenas o próprio utilizador pode aceder aos seus dados.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
     }
 
-    // Regra genérica para todas as outras coleções.
-    // Permite que qualquer utilizador autenticado leia e escreva em qualquer documento.
-    // Isto é apropriado para uma aplicação de empresa única (single-tenant).
+    // Regra genérica para TODAS as outras coleções e suas subcoleções.
+    // O {wildcard=**} garante que a regra se aplique a qualquer caminho de documento.
     match /{path=**} {
-      allow read, write: if request.auth != null;
+       allow read, write: if isUserAuthenticated();
     }
   }
 }
