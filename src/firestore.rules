@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -7,23 +8,18 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Users can only read and write their own profile
     match /users/{userId} {
       allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
-    }
-    
-    // Clients can be read by any authenticated user, but only created/updated by them.
-    // This allows for things like searching clients in forms.
-    match /clients/{clientId} {
-      allow read, write: if isUserAuthenticated();
     }
     
     match /clients/{clientId}/{document=**} {
        allow read, write: if isUserAuthenticated();
     }
+
+    match /clients/{clientId} {
+      allow read, write: if isUserAuthenticated();
+    }
     
-    // All other collections are only accessible by authenticated users.
-    // More specific rules can be added per collection if needed.
     match /orders/{orderId} {
         allow read, write: if isUserAuthenticated();
     }
@@ -43,7 +39,7 @@ service cloud.firestore {
         allow read, write: if isUserAuthenticated();
     }
     match /financialEntries/{entryId} {
-        allow read, write, list: if isUserAuthenticated();
+        allow read, write: if isUserAuthenticated();
     }
   }
 }
