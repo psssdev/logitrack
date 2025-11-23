@@ -47,8 +47,6 @@ import Link from 'next/link';
 
 type EditFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date' | 'travelDate'> & { date?: Date, travelDate?: Date };
 
-const COMPANY_ID = '1';
-
 const paymentMethodLabels: Record<PaymentMethod, string> = {
   pix: 'PIX',
   dinheiro: 'Dinheiro',
@@ -84,7 +82,7 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
     }
 
     try {
-      const entryRef = doc(firestore, 'companies', COMPANY_ID, 'financialEntries', entry.id);
+      const entryRef = doc(firestore, 'financialEntries', entry.id);
       
       const client = data.clientId ? clients.find(c => c.id === data.clientId) : null;
       const driver = data.driverId ? drivers.find(d => d.id === data.driverId) : null;

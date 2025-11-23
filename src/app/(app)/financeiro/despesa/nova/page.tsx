@@ -20,31 +20,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function NewExpensePage() {
   const firestore = useFirestore();
-  const { user, isUserLoading, companyId } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading || !companyId) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
-      collection(firestore, 'companies', companyId, 'financialCategories'),
+      collection(firestore, 'financialCategories'),
       where('type', '==', 'Saída')
     );
-  }, [firestore, isUserLoading, user, companyId]);
+  }, [firestore, isUserLoading]);
 
   const vehiclesQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading || !companyId) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
-      collection(firestore, 'companies', companyId, 'vehicles'),
+      collection(firestore, 'vehicles'),
       orderBy('modelo', 'asc')
     );
-  }, [firestore, isUserLoading, user, companyId]);
+  }, [firestore, isUserLoading]);
 
   const driversQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading || !companyId) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
-        collection(firestore, 'companies', companyId, 'drivers'),
+        collection(firestore, 'drivers'),
         orderBy('nome', 'asc')
     );
-  }, [firestore, isUserLoading, user, companyId]);
+  }, [firestore, isUserLoading]);
 
   const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
@@ -83,5 +83,3 @@ export default function NewExpensePage() {
     </div>
   );
 }
-
-    

@@ -43,7 +43,6 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
 
   const form = useForm<NewExpenseFormValues>({
     resolver: zodResolver(baseFinancialEntrySchema),
@@ -252,5 +251,3 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
     </Form>
   );
 }
-
-    
