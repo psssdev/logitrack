@@ -180,7 +180,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
 
     try {
         const collectionName = locationType === 'origin' ? 'origins' : 'destinos';
-        const redirectPath = `/${collectionName}`;
+        const redirectPath = locationType === 'origin' ? '/origens' : '/destinos';
         const collectionRef = collection(firestore, collectionName);
         const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
