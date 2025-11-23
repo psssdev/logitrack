@@ -1,8 +1,12 @@
+'use client';
+
+// This file is populated by the UpdateFirebaseProjectTool.
+// It is not intended to be edited manually.
 export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: "monospace-15.firebaseapp.com",
-  projectId: "monospace-15",
-  storageBucket: "monospace-15.appspot.com",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCih_tqoX0pzh-rp5wgmrQDOJEPgpm0GgM",
+  authDomain: "studio-7651274200-eb2ae.firebaseapp.com",
+  projectId: "studio-7651274200-eb2ae",
+  storageBucket: "studio-7651274200-eb2ae.appspot.com",
+  messagingSenderId: "356667822231",
+  appId: "1:356667822231:web:b3525c38ab75a7555099d2"
 };
