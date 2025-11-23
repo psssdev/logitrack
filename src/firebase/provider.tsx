@@ -9,17 +9,18 @@ import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { Loader2 } from 'lucide-react';
 
 
-async function provisionUser(idToken: string) {
-  const response = await fetch('/api/provision-user', {
+async function setClaimsAndProvisionProfileOnServer(idToken: string) {
+  const response = await fetch('/api/set-claims', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ token: idToken }),
   });
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to provision user.');
+    throw new Error(errorData.error || 'Failed to set custom claims.');
   }
 }
 
@@ -90,7 +91,7 @@ export const FirebaseProvider: React.FC<{
 
             // If claims are not present, call the server to set them
             if (!claims.companyId || !claims.role) {
-                 await provisionUser(idTokenResult.token);
+                 await setClaimsAndProvisionProfileOnServer(idTokenResult.token);
                  // Force a token refresh to get the new claims on the client.
                  // This will re-trigger this onIdTokenChanged listener with the new token.
                  await firebaseUser.getIdToken(true);

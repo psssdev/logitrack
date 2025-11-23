@@ -4,30 +4,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is authenticated
     function isUserAuthenticated() {
       return request.auth != null;
     }
 
-    // Rule for the user's own profile document
-    // Allow a user to read and write their own profile document.
+    // Allow a user to read and write ONLY their own profile document.
     match /users/{userId} {
       allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
     }
 
-    // This single rule protects all subcollections within a company document
+    // Helper function to get the companyId from the user's auth token
     function getUserCompanyId() {
       return request.auth.token.companyId;
     }
     
+    // This single rule protects all subcollections within a company document
     match /companies/{companyId}/{document=**} {
       allow read, write: if isUserAuthenticated() && getUserCompanyId() == companyId;
-    }
-
-    // Explicitly deny writes to the top-level company document from the client
-    match /companies/{companyId} {
-       allow read: if isUserAuthenticated() && getUserCompanyId() == companyId;
-       allow create, update, delete: if false;
     }
   }
 }
