@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 type City = {
@@ -68,7 +68,6 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
@@ -170,7 +169,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
   };
 
   async function onSubmit(data: NewLocation) {
-    if (!firestore || !companyId) {
+    if (!firestore) {
         toast({
             variant: 'destructive',
             title: 'Erro de conexão',
@@ -181,7 +180,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
 
     try {
         const collectionName = locationType === 'origin' ? 'origins' : 'destinos';
-        const collectionRef = collection(firestore, 'companies', companyId, collectionName);
+        const collectionRef = collection(firestore, collectionName);
         const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 
