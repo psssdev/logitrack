@@ -201,12 +201,8 @@ export default function EncomendasPage() {
   };
 
   const startBulkUpdate = (newStatus: OrderStatus) => {
-    if (newStatus === 'EM_ROTA') {
-      setPendingBulkStatus(newStatus);
-      setShowNotifyAlert(true);
-    } else {
-      handleBulkStatusUpdate(newStatus);
-    }
+    // Directly update the status without showing the notification alert.
+    handleBulkStatusUpdate(newStatus);
   };
 
   const exportToCSV = () => {
