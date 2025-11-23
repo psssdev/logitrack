@@ -127,7 +127,6 @@ export function NewClientForm({ origins, destinos }: { origins: Origin[], destin
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            <SelectItem value="">Nenhuma</SelectItem>
                             {origins.map(origin => (
                                 <SelectItem key={origin.id} value={origin.id}>{origin.name}</SelectItem>
                             ))}
@@ -150,7 +149,6 @@ export function NewClientForm({ origins, destinos }: { origins: Origin[], destin
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            <SelectItem value="">Nenhum</SelectItem>
                             {destinos.map(destino => (
                                 <SelectItem key={destino.id} value={destino.id}>{destino.name}</SelectItem>
                             ))}
