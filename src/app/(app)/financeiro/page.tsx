@@ -173,15 +173,17 @@ export default function FinanceiroPage() {
            {pageIsLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold text-destructive">{formatCurrency(summary.saidas)}</div>}
           </CardContent>
         </Card>
-         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contas a Receber</CardTitle>
-             <FileWarning className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            {pageIsLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold text-yellow-600">{formatCurrency(summary.aReceber)}</div>}
-          </CardContent>
-        </Card>
+        <Link href="/cobrancas">
+            <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Contas a Receber</CardTitle>
+                <FileWarning className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+                {pageIsLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold text-yellow-600">{formatCurrency(summary.aReceber)}</div>}
+            </CardContent>
+            </Card>
+        </Link>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Saldo Atual</CardTitle>
