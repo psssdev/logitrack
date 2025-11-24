@@ -4,15 +4,46 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Função para verificar se o utilizador está autenticado
     function isUserAuthenticated() {
       return request.auth != null;
     }
+
+    // Função para verificar se o ID da empresa no documento corresponde ao do utilizador
+    function isFromCompany(resource) {
+      return resource.data.companyId == request.auth.token.companyId;
+    }
     
-    // Acesso geral para qualquer utilizador autenticado a todos os documentos.
-    // Esta regra é permissiva e adequada para um ambiente de empresa única onde
-    // todos os utilizadores autenticados devem ter acesso total.
-    match /{path=**} {
-      allow read, write: if isUserAuthenticated();
+    // Função para verificar se os dados que chegam têm o ID da empresa correto
+    function isIncomingDataFromCompany() {
+      return request.resource.data.companyId == request.auth.token.companyId;
+    }
+
+    // Regra para a coleção 'users'
+    match /users/{userId} {
+      // O utilizador pode ler/escrever o seu próprio perfil
+      allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Regra para a coleção 'companies'
+    match /companies/{companyId} {
+        // O utilizador só pode ler os dados da sua própria empresa
+        allow read: if isUserAuthenticated() && companyId == request.auth.token.companyId;
+        // A escrita pode ser mais restrita (ex: apenas admin da empresa)
+        allow write: if isUserAuthenticated() && companyId == request.auth.token.companyId;
+    }
+    
+    // Regras para coleções que pertencem a uma empresa
+    match /{collection}/{docId} {
+      // Aplica a todas as coleções exceto 'users' e 'companies'
+      allow read: if isUserAuthenticated() && isFromCompany(get(/databases/$(database)/documents/$(collection)/$(docId)));
+      allow create: if isUserAuthenticated() && isIncomingDataFromCompany();
+      allow update, delete: if isUserAuthenticated() && isFromCompany(get(/databases/$(database)/documents/$(collection)/$(docId))) && isIncomingDataFromCompany();
+    }
+    
+     // Regras para subcoleções (como 'addresses' dentro de 'clients')
+    match /clients/{clientId}/addresses/{addressId} {
+        allow read, write: if isUserAuthenticated() && get(/databases/$(database)/documents/clients/$(clientId)).data.companyId == request.auth.token.companyId;
     }
   }
 }
