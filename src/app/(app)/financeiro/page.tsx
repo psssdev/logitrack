@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { PlusCircle, MoreHorizontal, ArrowUpCircle, ArrowDownCircle, CircleDollarSign, Edit, Trash, Settings } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ArrowUpCircle, ArrowDownCircle, CircleDollarSign, Edit, Trash, Settings, FileWarning } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -28,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { FinancialEntry } from '@/lib/types';
+import type { FinancialEntry, Order } from '@/lib/types';
 import { collection, query, orderBy, Timestamp, doc, deleteDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -63,22 +63,47 @@ export default function FinanceiroPage() {
       orderBy('date', 'desc')
     );
   }, [firestore, isUserLoading, user]);
+  
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return query(
+      collection(firestore, 'orders')
+    );
+  }, [firestore, isUserLoading, user]);
 
-  const { data: entries, isLoading } = useCollection<FinancialEntry>(entriesQuery);
-  const pageIsLoading = isLoading || isUserLoading;
+  const { data: entries, isLoading: isLoadingEntries } = useCollection<FinancialEntry>(entriesQuery);
+  const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+
+  const pageIsLoading = isLoadingEntries || isLoadingOrders || isUserLoading;
 
   const summary = React.useMemo(() => {
-    if (!entries) return { entradas: 0, saidas: 0, saldo: 0 };
-    return entries.reduce((acc, entry) => {
+    const initialSummary = { entradas: 0, saidas: 0, saldo: 0, aReceber: 0 };
+    if (!entries || !orders) return initialSummary;
+
+    const financialSummary = entries.reduce((acc, entry) => {
         if(entry.type === 'Entrada') {
             acc.entradas += entry.amount;
         } else {
             acc.saidas += entry.amount;
         }
-        acc.saldo = acc.entradas - acc.saidas;
         return acc;
-    }, { entradas: 0, saidas: 0, saldo: 0 });
-  }, [entries]);
+    }, { entradas: 0, saidas: 0 });
+
+    const receivableSummary = orders.reduce((acc, order) => {
+        if(!order.pago) {
+            const paidAmount = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+            acc += (order.valorEntrega - paidAmount);
+        }
+        return acc;
+    }, 0);
+
+    return {
+        entradas: financialSummary.entradas,
+        saidas: financialSummary.saidas,
+        saldo: financialSummary.entradas - financialSummary.saidas,
+        aReceber: receivableSummary,
+    };
+  }, [entries, orders]);
   
   const handleDelete = (entry: FinancialEntry) => {
     setDeletingEntry(entry);
@@ -129,7 +154,7 @@ export default function FinanceiroPage() {
         </div>
       </div>
 
-       <div className="grid gap-4 md:grid-cols-3">
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Entradas</CardTitle>
@@ -146,6 +171,15 @@ export default function FinanceiroPage() {
           </CardHeader>
           <CardContent>
            {pageIsLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold text-destructive">{formatCurrency(summary.saidas)}</div>}
+          </CardContent>
+        </Card>
+         <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Contas a Receber</CardTitle>
+             <FileWarning className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            {pageIsLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold text-yellow-600">{formatCurrency(summary.aReceber)}</div>}
           </CardContent>
         </Card>
         <Card>
