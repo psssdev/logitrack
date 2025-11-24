@@ -98,6 +98,7 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
         description: finalDescription,
         clientName: client ? client.nome : undefined,
         driverName: driver ? driver.nome : undefined,
+        driverId: data.driverId === 'null' ? null : data.driverId,
         date: data.date ? Timestamp.fromDate(data.date) : serverTimestamp(),
         travelDate: data.travelDate ? Timestamp.fromDate(data.travelDate) : undefined,
         amount: Math.abs(data.amount),
@@ -255,12 +256,12 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Motorista (Opcional)</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <Select onValueChange={field.onChange} value={field.value || 'null'}>
                             <FormControl>
                             <SelectTrigger><SelectValue placeholder="Selecione um motorista" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="">Nenhum</SelectItem>
+                                <SelectItem value="null">Nenhum</SelectItem>
                                 {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
                             </SelectContent>
                         </Select>

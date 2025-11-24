@@ -135,7 +135,7 @@ export function EditOrderForm({
 
       const updatedData = {
         ...data,
-        motoristaId: data.motoristaId || null,
+        motoristaId: data.motoristaId === 'null' ? null : data.motoristaId,
         valorEntrega: totalValue,
       };
 
@@ -416,14 +416,14 @@ export function EditOrderForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Motorista</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={loadingDrivers}>
+                <Select onValueChange={field.onChange} value={field.value || 'null'} disabled={loadingDrivers}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={loadingDrivers ? "Carregando..." : "Atribuir motorista..."} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="null">Nenhum</SelectItem>
                     {drivers?.map((driver) => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.nome}

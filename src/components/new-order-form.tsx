@@ -238,7 +238,7 @@ export function NewOrderForm({
       );
       const newOrderData = {
         ...data,
-        motoristaId: data.motoristaId || null,
+        motoristaId: data.motoristaId === 'null' ? null : data.motoristaId,
         valorEntrega: totalValue,
         nomeCliente: client.nome,
         telefone: client.telefone,
@@ -679,7 +679,7 @@ export function NewOrderForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="null">Nenhum</SelectItem>
                     {drivers?.map((driver) => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.nome}
