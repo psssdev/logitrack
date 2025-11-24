@@ -123,7 +123,7 @@ export function NewOrderForm({
       formaPagamento: 'haver',
       observacao: '',
       numeroNota: '',
-      motoristaId: undefined,
+      motoristaId: '',
     },
   });
 
@@ -158,16 +158,25 @@ export function NewOrderForm({
 
   // Auto-select destination based on client's addresses
   React.useEffect(() => {
-    if (addresses && addresses.length > 0) {
-      // Prioritize the main address, otherwise take the first one
-      const mainAddress = addresses.find(a => a.principal) || addresses[0];
-      if (mainAddress) {
-        form.setValue('destino', mainAddress.fullAddress);
+    if (selectedClientId) {
+      const selectedClient = clients.find(c => c.id === selectedClientId);
+      if (selectedClient?.defaultDestinoId) {
+        const defaultDestino = addresses?.find(a => a.id === selectedClient.defaultDestinoId) || destinos.find(d => d.id === selectedClient.defaultDestinoId);
+        if (defaultDestino) {
+          form.setValue('destino', defaultDestino.address || (defaultDestino as Address).fullAddress);
+          return;
+        }
       }
-    } else {
+      if (addresses && addresses.length > 0) {
+        const mainAddress = addresses.find(a => a.principal) || addresses[0];
+        if (mainAddress) {
+          form.setValue('destino', mainAddress.fullAddress);
+        }
+      } else {
         form.setValue('destino', '');
+      }
     }
-  }, [addresses, form, selectedClientId]);
+  }, [addresses, form, selectedClientId, clients, destinos]);
 
 
   const handleOpenScanner = async () => {
@@ -229,6 +238,7 @@ export function NewOrderForm({
       );
       const newOrderData = {
         ...data,
+        motoristaId: data.motoristaId || null,
         valorEntrega: totalValue,
         nomeCliente: client.nome,
         telefone: client.telefone,
@@ -338,7 +348,6 @@ export function NewOrderForm({
                             key={client.id}
                             onSelect={() => {
                               form.setValue('clientId', client.id);
-                              form.setValue('destino', client.defaultDestinoId ? destinos.find(d => d.id === client.defaultDestinoId)?.address || '' : ''); 
                               setPopoverOpen(false);
                             }}
                           >
@@ -418,14 +427,25 @@ export function NewOrderForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {(addresses && addresses.length > 0 ? addresses : destinos).map((loc) => (
-                      <SelectItem
-                        key={loc.id}
-                        value={loc.address || (loc as Address).fullAddress}
-                      >
-                        {(loc as Address).label || loc.name} - {loc.address || (loc as Address).fullAddress}
-                      </SelectItem>
-                    ))}
+                    {addresses && addresses.length > 0 ? (
+                      addresses.map((loc) => (
+                        <SelectItem
+                          key={loc.id}
+                          value={(loc as Address).fullAddress}
+                        >
+                          {(loc as Address).label} - {(loc as Address).fullAddress}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      destinos.map((loc) => (
+                         <SelectItem
+                          key={loc.id}
+                          value={loc.address}
+                        >
+                          {loc.name} - {loc.address}
+                        </SelectItem>
+                      ))
+                    )}
                      {selectedClientId && !loadingAddresses && (!addresses || addresses.length === 0) && (!destinos || destinos.length === 0) && (
                          <SelectItem value="no-location" disabled>Nenhum endereço ou destino</SelectItem>
                      )}
@@ -652,13 +672,14 @@ export function NewOrderForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Motorista</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loadingDrivers}>
+                <Select onValueChange={field.onChange} value={field.value} disabled={loadingDrivers}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={loadingDrivers ? "Carregando..." : "Atribuir motorista..."} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                    <SelectItem value="">Nenhum</SelectItem>
                     {drivers?.map((driver) => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.nome}

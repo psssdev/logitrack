@@ -79,7 +79,7 @@ export function EditOrderForm({
       formaPagamento: order.formaPagamento,
       observacao: order.observacao,
       numeroNota: order.numeroNota,
-      motoristaId: order.motoristaId,
+      motoristaId: order.motoristaId || '',
     },
   });
 
@@ -135,6 +135,7 @@ export function EditOrderForm({
 
       const updatedData = {
         ...data,
+        motoristaId: data.motoristaId || null,
         valorEntrega: totalValue,
       };
 
@@ -422,6 +423,7 @@ export function EditOrderForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                    <SelectItem value="">Nenhum</SelectItem>
                     {drivers?.map((driver) => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.nome}
