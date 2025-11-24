@@ -101,7 +101,7 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
       } catch (error) {
         toast({
             variant: 'destructive',
-            title: 'Erro ao buscar cidades',
+            title: 'Erro ao Buscar Cidades',
             description: 'Não foi possível carregar a lista de cidades para o estado selecionado.'
         })
         setCities([]);
@@ -119,8 +119,8 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
     if (cep.length !== 8) {
       toast({
         variant: 'destructive',
-        title: 'CEP inválido',
-        description: 'Por favor, digite um CEP com 8 dígitos.',
+        title: 'CEP Inválido',
+        description: 'Por favor, digite um CEP válido com 8 dígitos.',
       });
       return;
     }
@@ -133,7 +133,7 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
       if (data.erro) {
         toast({
           variant: 'destructive',
-          title: 'CEP não encontrado',
+          title: 'CEP Não Encontrado',
           description: 'Verifique o CEP digitado e tente novamente.',
         });
         form.setValue('logradouro', '');
@@ -151,15 +151,15 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
         form.setValue('bairro', data.bairro, { shouldValidate: true });
         form.setFocus('numero'); 
         toast({
-          title: 'Endereço encontrado!',
-          description: 'Por favor, preencha o número.',
+          title: 'Endereço Encontrado!',
+          description: 'Por favor, confirme os dados e preencha o número.',
         });
       }
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Erro na busca',
-        description: 'Não foi possível buscar o CEP. Tente novamente.',
+        title: 'Erro na Busca por CEP',
+        description: 'Não foi possível buscar as informações do CEP. Por favor, tente novamente.',
       });
     } finally {
       setIsFetchingCep(false);
@@ -168,7 +168,7 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
 
   async function onSubmit(data: NewAddress) {
       if (!firestore) {
-        toast({ variant: 'destructive', title: 'Erro de conexão', description: 'Não foi possível conectar ao banco de dados.' });
+        toast({ variant: 'destructive', title: 'Erro de Conexão', description: 'Não foi possível ligar à base de dados. Tente novamente.' });
         return;
     }
 
@@ -189,16 +189,16 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
 
         toast({
             title: 'Sucesso!',
-            description: 'Novo endereço cadastrado.',
+            description: 'Novo endereço cadastrado com sucesso.',
         });
         router.push(`/clientes/${data.clientId}`);
 
     } catch (error: any) {
-        console.error("Error creating address:", error);
+        console.error("Erro ao criar endereço:", error);
         toast({
             variant: 'destructive',
-            title: 'Erro ao cadastrar endereço.',
-            description: error.message || 'Ocorreu um erro desconhecido.',
+            title: 'Erro ao Cadastrar Endereço',
+            description: 'Não foi possível guardar o endereço. Por favor, verifique os dados e tente novamente.',
         });
     }
   }
@@ -319,7 +319,7 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
                     <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState || isFetchingCities}>
                         <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder={isFetchingCities ? 'Carregando...' : 'Selecione a cidade'} />
+                                <SelectValue placeholder={isFetchingCities ? 'A carregar...' : 'Selecione a cidade'} />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>

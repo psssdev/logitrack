@@ -61,7 +61,8 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
     if (!firestore) {
       toast({
         variant: 'destructive',
-        title: 'Erro de conexão',
+        title: 'Erro de Conexão',
+        description: 'Não foi possível ligar à base de dados. Por favor, tente novamente.',
       });
       return;
     }
@@ -70,7 +71,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
       let uploadedPhotoUrl = data.photoUrl;
 
       if (photoFile) {
-        toast({ description: 'Atualizando foto...' });
+        toast({ description: 'A atualizar a foto...' });
         uploadedPhotoUrl = await uploadFile(
           photoFile,
           `driver_photos`
@@ -93,15 +94,15 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
 
       toast({
         title: 'Sucesso!',
-        description: 'Dados do motorista atualizados.',
+        description: 'Os dados do motorista foram atualizados.',
       });
       router.push(`/motoristas`);
     } catch (error: any) {
-      console.error('Error updating driver:', error);
+      console.error('Erro ao atualizar motorista:', error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao atualizar motorista.',
-        description: error.message || 'Ocorreu um erro desconhecido.',
+        title: 'Erro ao Atualizar Motorista',
+        description: 'Não foi possível guardar as alterações. Verifique os dados e tente novamente.',
       });
     }
   }

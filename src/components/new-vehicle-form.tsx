@@ -78,8 +78,8 @@ export function NewVehicleForm() {
     if (!firestore || !user) {
       toast({
         variant: 'destructive',
-        title: 'Erro de conexão',
-        description: 'Não foi possível conectar ao banco de dados.',
+        title: 'Erro de Conexão',
+        description: 'Não foi possível ligar à base de dados. Por favor, tente novamente.',
       });
       return;
     }
@@ -91,7 +91,7 @@ export function NewVehicleForm() {
         const layout = JSON.parse(data.seatLayout || '{}');
         processedData.seatLayout = layout;
       } catch (error) {
-        form.setError('seatLayout', { type: 'manual', message: 'Formato do JSON do mapa de assentos é inválido.'});
+        form.setError('seatLayout', { type: 'manual', message: 'O formato do JSON do mapa de assentos é inválido.'});
         return;
       }
     } else {
@@ -114,11 +114,11 @@ export function NewVehicleForm() {
       });
       router.push('/veiculos');
     } catch (error: any) {
-      console.error('Error creating vehicle:', error);
+      console.error('Erro ao criar veículo:', error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao cadastrar veículo.',
-        description: error.message || 'Ocorreu um erro desconhecido.',
+        title: 'Erro ao Cadastrar Veículo',
+        description: 'Não foi possível registar o veículo. Verifique os dados e tente novamente.',
       });
     }
   }

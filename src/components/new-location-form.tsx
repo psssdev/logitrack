@@ -105,7 +105,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
       } catch (error) {
         toast({
             variant: 'destructive',
-            title: 'Erro ao buscar cidades',
+            title: 'Erro ao Buscar Cidades',
             description: 'Não foi possível carregar a lista de cidades para o estado selecionado.'
         })
         setCities([]);
@@ -123,8 +123,8 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
     if (cep.length !== 8) {
       toast({
         variant: 'destructive',
-        title: 'CEP inválido',
-        description: 'Por favor, digite um CEP com 8 dígitos.',
+        title: 'CEP Inválido',
+        description: 'Por favor, digite um CEP válido com 8 dígitos.',
       });
       return;
     }
@@ -137,7 +137,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
       if (data.erro) {
         toast({
           variant: 'destructive',
-          title: 'CEP não encontrado',
+          title: 'CEP Não Encontrado',
           description: 'Verifique o CEP digitado e tente novamente.',
         });
         form.setValue('logradouro', '');
@@ -153,15 +153,15 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
         form.setValue('bairro', data.bairro, { shouldValidate: true });
         form.setFocus('numero'); 
         toast({
-          title: 'Endereço encontrado!',
-          description: 'Por favor, preencha o número.',
+          title: 'Endereço Encontrado!',
+          description: 'Por favor, confirme os dados e preencha o número.',
         });
       }
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Erro na busca',
-        description: 'Não foi possível buscar o CEP. Tente novamente.',
+        title: 'Erro na Busca por CEP',
+        description: 'Não foi possível buscar as informações do CEP. Por favor, tente novamente.',
       });
     } finally {
       setIsFetchingCep(false);
@@ -172,8 +172,8 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
     if (!firestore) {
         toast({
             variant: 'destructive',
-            title: 'Erro de conexão',
-            description: 'Não foi possível conectar ao banco de dados.'
+            title: 'Erro de Conexão',
+            description: 'Não foi possível ligar à base de dados. Tente novamente.'
         });
         return;
     }
@@ -205,11 +205,11 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
         router.push(redirectPath);
 
     } catch (error: any) {
-        console.error("Error creating location:", error);
+        console.error("Erro ao criar local:", error);
         toast({
             variant: 'destructive',
-            title: `Erro ao cadastrar ${locationType === 'origin' ? 'origem' : 'destino'}.`,
-            description: error.message || 'Ocorreu um erro desconhecido.',
+            title: `Erro ao Cadastrar ${locationType === 'origin' ? 'Origem' : 'Destino'}`,
+            description: 'Não foi possível registar o local. Por favor, verifique os dados e tente novamente.',
         });
     }
   }
@@ -332,7 +332,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
                     <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState || isFetchingCities}>
                         <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder={isFetchingCities ? 'Carregando...' : 'Selecione a cidade'} />
+                                <SelectValue placeholder={isFetchingCities ? 'A carregar...' : 'Selecione a cidade'} />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>

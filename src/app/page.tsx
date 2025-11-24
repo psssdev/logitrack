@@ -21,24 +21,46 @@ import {
 } from 'firebase/auth';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-function LoginPageContent() {
+function getFriendlyAuthErrorMessage(errorCode: string): string {
+  switch (errorCode) {
+    case 'auth/invalid-credential':
+      return 'Email ou senha inválidos. Por favor, verifique e tente novamente.';
+    case 'auth/user-not-found':
+      return 'Nenhuma conta encontrada com este email.';
+    case 'auth/wrong-password':
+      return 'Senha incorreta. Por favor, tente novamente.';
+    case 'auth/email-already-in-use':
+      return 'Este endereço de email já está em uso por outra conta.';
+    case 'auth/weak-password':
+      return 'A senha é muito fraca. Use pelo menos 6 caracteres.';
+    case 'auth/invalid-email':
+      return 'O formato do email é inválido.';
+    default:
+      return 'Ocorreu um erro inesperado. Por favor, tente novamente mais tarde.';
+  }
+}
+
+
+function AuthForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('login');
   const router = useRouter();
   const auth = useAuth();
   const { toast } = useToast();
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAuthAction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!auth) {
       toast({
         variant: 'destructive',
         title: 'Erro de Configuração',
-        description: 'Serviço de autenticação não disponível.',
+        description: 'O serviço de autenticação não está disponível no momento.',
       });
       return;
     }
@@ -46,32 +68,21 @@ function LoginPageContent() {
     setIsLoading(true);
 
     try {
-      // 1) tentar login
-      await signInWithEmailAndPassword(auth, email, password);
+      if (activeTab === 'login') {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      // Se a autenticação for bem-sucedida, o AuthGuard/provider fará o redirecionamento.
+      // Apenas navegamos para o início como um fallback.
       router.push('/inicio');
     } catch (error: any) {
-      // 2) se não existir, cria e entra
-      if (
-        error.code === 'auth/user-not-found' ||
-        error.code === 'auth/invalid-credential'
-      ) {
-        try {
-          await createUserWithEmailAndPassword(auth, email, password);
-          router.push('/inicio');
-        } catch (signupError: any) {
-          toast({
-            variant: 'destructive',
-            title: 'Erro no Cadastro',
-            description: signupError.message,
-          });
-        }
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Erro no Login',
-          description: error.message,
-        });
-      }
+      const friendlyMessage = getFriendlyAuthErrorMessage(error.code);
+      toast({
+        variant: 'destructive',
+        title: activeTab === 'login' ? 'Erro no Login' : 'Erro no Cadastro',
+        description: friendlyMessage,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -86,63 +97,49 @@ function LoginPageContent() {
           </div>
           <CardTitle className="text-2xl">LogiTrack</CardTitle>
           <CardDescription>
-            Entre com seu email para acessar o painel
+            Acesse sua conta ou cadastre-se para começar.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Senha</Label>
-              </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Entrar</TabsTrigger>
+              <TabsTrigger value="register">Cadastrar</TabsTrigger>
+            </TabsList>
+            <TabsContent value="login">
+              <form onSubmit={handleAuthAction} className="grid gap-4 pt-4">
+                <AuthFields
+                  email={email}
+                  setEmail={setEmail}
+                  password={password}
+                  setPassword={setPassword}
+                  showPassword={showPassword}
+                  setShowPassword={setShowPassword}
+                  isLoading={isLoading}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                  <span className="sr-only">
-                    {showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                  </span>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="animate-spin" /> : 'Entrar'}
                 </Button>
-              </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                'Entrar ou Cadastrar'
-              )}
-            </Button>
-          </form>
-          <div className="mt-4 text-center text-sm">
+              </form>
+            </TabsContent>
+            <TabsContent value="register">
+               <form onSubmit={handleAuthAction} className="grid gap-4 pt-4">
+                <AuthFields
+                  email={email}
+                  setEmail={setEmail}
+                  password={password}
+                  setPassword={setPassword}
+                  showPassword={showPassword}
+                  setShowPassword={setShowPassword}
+                  isLoading={isLoading}
+                />
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="animate-spin" /> : 'Cadastrar'}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+           <div className="mt-4 text-center text-sm">
             <Link
               href="/rastreio"
               className="underline text-muted-foreground hover:text-primary"
@@ -156,10 +153,74 @@ function LoginPageContent() {
   );
 }
 
+const AuthFields = ({
+  email,
+  setEmail,
+  password,
+  setPassword,
+  showPassword,
+  setShowPassword,
+  isLoading,
+}: {
+  email: string;
+  setEmail: (v: string) => void;
+  password: string;
+  setPassword: (v: string) => void;
+  showPassword: boolean;
+  setShowPassword: (v: boolean) => void;
+  isLoading: boolean;
+}) => (
+  <>
+    <div className="grid gap-2">
+      <Label htmlFor="email">Email</Label>
+      <Input
+        id="email"
+        type="email"
+        placeholder="seu@email.com"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        disabled={isLoading}
+      />
+    </div>
+    <div className="grid gap-2">
+      <Label htmlFor="password">Senha</Label>
+      <div className="relative">
+        <Input
+          id="password"
+          type={showPassword ? 'text' : 'password'}
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={isLoading}
+          minLength={6}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+          onClick={() => setShowPassword((prev) => !prev)}
+        >
+          {showPassword ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+          <span className="sr-only">
+            {showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+          </span>
+        </Button>
+      </div>
+    </div>
+  </>
+);
+
+
 export default function LoginPage() {
   return (
     <FirebaseClientProvider>
-      <LoginPageContent />
+      <AuthForm />
     </FirebaseClientProvider>
   );
 }

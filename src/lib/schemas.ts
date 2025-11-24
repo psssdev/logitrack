@@ -16,13 +16,13 @@ export const paymentMethodSchema = z.enum([
 ]);
 
 export const orderItemSchema = z.object({
-    description: z.string().min(1, 'Descrição é obrigatória'),
-    quantity: z.coerce.number().int().min(1, 'Mínimo 1'),
-    value: z.coerce.number().min(0, 'Valor deve ser positivo'),
+    description: z.string().min(1, 'A descrição do item é obrigatória.'),
+    quantity: z.coerce.number().int().min(1, 'A quantidade mínima é 1.'),
+    value: z.coerce.number().min(0, 'O valor não pode ser negativo.'),
 });
 
 const paymentSchema = z.object({
-    amount: z.number(),
+    amount: z.number().positive('O valor do pagamento deve ser positivo.'),
     method: paymentMethodSchema,
     date: z.any(),
     notes: z.string().optional(),
@@ -30,13 +30,13 @@ const paymentSchema = z.object({
 
 export const orderSchema = z.object({
   id: z.string(),
-  codigoRastreio: z.string().min(1, 'Código de Rastreio é obrigatório'),
-  nomeCliente: z.string().min(1, 'Nome do cliente é obrigatório'),
-  telefone: z.string().min(10, 'Telefone inválido'),
-  origem: z.string().min(1, 'Origem é obrigatória'),
-  destino: z.string().min(1, 'Destino é obrigatória'),
-  valorEntrega: z.coerce.number(), // Can be negative if there are payments
-  items: z.array(orderItemSchema).min(1, 'A encomenda deve ter pelo menos um item.'),
+  codigoRastreio: z.string().min(1, 'O código de rastreio é obrigatório.'),
+  nomeCliente: z.string().min(1, 'O nome do cliente é obrigatório.'),
+  telefone: z.string().min(10, 'O número de telefone parece inválido.'),
+  origem: z.string().min(1, 'O ponto de origem é obrigatório.'),
+  destino: z.string().min(1, 'O ponto de destino é obrigatório.'),
+  valorEntrega: z.coerce.number(),
+  items: z.array(orderItemSchema).min(1, 'A encomenda precisa ter pelo menos um item.'),
   formaPagamento: paymentMethodSchema,
   pago: z.boolean().default(false),
   status: orderStatusSchema.default('PENDENTE'),
@@ -53,9 +53,9 @@ export const orderSchema = z.object({
     )
     .default([]),
   messages: z.array(z.string()).optional(),
-  createdAt: z.any(), // Allow Date, string, or Firestore Timestamp
+  createdAt: z.any(),
   createdBy: z.string(),
-  clientId: z.string(),
+  clientId: z.string().min(1, 'É necessário associar a encomenda a um cliente.'),
   dataPagamento: z.any().optional(),
   notasPagamento: z.string().optional(),
   payments: z.array(paymentSchema).optional(),
@@ -69,9 +69,9 @@ export const newOrderSchema = orderSchema.omit({
   createdBy: true,
   pago: true,
   status: true,
-  nomeCliente: true, // Will be derived from clientId
-  telefone: true, // Will be derived from clientId
-  valorEntrega: true, // Will be calculated from items
+  nomeCliente: true,
+  telefone: true,
+  valorEntrega: true,
   dataPagamento: true,
   notasPagamento: true,
   payments: true,
@@ -79,19 +79,19 @@ export const newOrderSchema = orderSchema.omit({
 });
 
 export const editOrderSchema = newOrderSchema.omit({
-    clientId: true, // Client cannot be changed when editing
+    clientId: true,
 });
 
 export const driverSchema = z.object({
   id: z.string(),
-  nome: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres'),
-  telefone: z.string().min(10, 'Telefone inválido'),
-  photoUrl: z.string().url('URL da foto inválida').optional().nullable(),
+  nome: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres.'),
+  telefone: z.string().min(10, 'O número de telefone parece inválido.'),
+  photoUrl: z.string().url('A URL da foto parece inválida.').optional().nullable(),
   ativo: z.boolean(),
 });
 
 export const newDriverSchema = driverSchema.omit({ id: true, ativo: true }).extend({
-    photoUrl: z.string().optional().nullable(), // Making photo optional on creation too
+    photoUrl: z.string().optional().nullable(),
 });
 export const editDriverSchema = newDriverSchema.extend({
     photoUrl: z.string().optional().nullable(),
@@ -100,21 +100,21 @@ export const editDriverSchema = newDriverSchema.extend({
 
 export const clientSchema = z.object({
     id: z.string(),
-    nome: z.string().min(1, "Nome é obrigatório"),
-    telefone: z.string().min(10, "Telefone inválido"),
-    createdAt: z.any(), // Allow Date or Firestore Timestamp
+    nome: z.string().min(1, "O nome do cliente é obrigatório."),
+    telefone: z.string().min(10, "O número de telefone parece inválido."),
+    createdAt: z.any(),
     defaultDestinoId: z.string().optional(),
 });
 
 export const newClientSchema = z.object({
-    nome: z.string().min(1, "Nome é obrigatório"),
-    telefone: z.string().min(10, "Telefone inválido"),
+    nome: z.string().min(1, "O nome do cliente é obrigatório."),
+    telefone: z.string().min(10, "O número de telefone parece inválido."),
     defaultDestinoId: z.string().optional().nullable(),
 });
 
 export const editClientSchema = z.object({
-    nome: z.string().min(1, "Nome é obrigatório"),
-    telefone: z.string().min(10, "Telefone inválido"),
+    nome: z.string().min(1, "O nome do cliente é obrigatório."),
+    telefone: z.string().min(10, "O número de telefone parece inválido."),
     defaultDestinoId: z.string().optional().nullable(),
 });
 
@@ -122,13 +122,13 @@ export const editClientSchema = z.object({
 export const addressSchema = z.object({
   id: z.string(),
   clientId: z.string(),
-  label: z.string().min(1, 'O rótulo é obrigatório'),
-  logradouro: z.string().min(1, 'O logradouro é obrigatório'),
-  numero: z.string().min(1, 'O número é obrigatório'),
-  bairro: z.string().min(1, 'O bairro é obrigatório'),
-  cidade: z.string().min(1, 'A cidade é obrigatória'),
-  estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
-  cep: z.string().min(8, 'O CEP é obrigatório'),
+  label: z.string().min(1, 'O rótulo do endereço é obrigatório (ex: Casa, Trabalho).'),
+  logradouro: z.string().min(1, 'O logradouro é obrigatório.'),
+  numero: z.string().min(1, 'O número é obrigatório.'),
+  bairro: z.string().min(1, 'O bairro é obrigatório.'),
+  cidade: z.string().min(1, 'A cidade é obrigatória.'),
+  estado: z.string().length(2, 'O estado (UF) deve ter 2 letras.'),
+  cep: z.string().min(8, 'O CEP deve ter pelo menos 8 dígitos.'),
   fullAddress: z.string(),
   lat: z.coerce.number().optional(),
   lng: z.coerce.number().optional(),
@@ -141,29 +141,27 @@ export const newAddressFormSchema = addressSchema.omit({
 
 export const locationSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, 'O nome é obrigatório'),
-  logradouro: z.string().min(1, 'O logradouro é obrigatório'),
-  numero: z.string().min(1, 'O número é obrigatório'),
-  bairro: z.string().min(1, 'O bairro é obrigatório'),
-  cidade: z.string().min(1, 'A cidade é obrigatória'),
-  estado: z.string().min(2, 'O estado é obrigatório').max(2, 'UF inválida'),
-  cep: z.string().min(8, 'O CEP é obrigatório'),
-  address: z.string().optional(), // This will be the concatenated full address
-  createdAt: z.any().optional(), // Allow Date or Firestore Timestamp
+  name: z.string().min(1, 'O nome do local é obrigatório.'),
+  logradouro: z.string().min(1, 'O logradouro é obrigatório.'),
+  numero: z.string().min(1, 'O número é obrigatório.'),
+  bairro: z.string().min(1, 'O bairro é obrigatório.'),
+  cidade: z.string().min(1, 'A cidade é obrigatória.'),
+  estado: z.string().length(2, 'O estado (UF) deve ter 2 letras.'),
+  cep: z.string().min(8, 'O CEP deve ter pelo menos 8 dígitos.'),
+  address: z.string().optional(),
+  createdAt: z.any().optional(),
   lat: z.coerce.number().optional(),
   lng: z.coerce.number().optional(),
 });
 
 export const newLocationSchema = z.object({
   name: z.string().min(1, "O nome do local é obrigatório."),
-  // Apenas o nome é obrigatório para a criação rápida.
-  // O resto é opcional para não bloquear o fluxo do usuário.
-  logradouro: z.string().optional(),
-  numero: z.string().optional(),
-  bairro: z.string().optional(),
-  cidade: z.string().optional(),
-  estado: z.string().optional(),
-  cep: z.string().optional(),
+  logradouro: z.string().min(1, "O logradouro é obrigatório."),
+  numero: z.string().min(1, "O número é obrigatório."),
+  bairro: z.string().min(1, "O bairro é obrigatório."),
+  cidade: z.string().min(1, "A cidade é obrigatória."),
+  estado: z.string().length(2, 'O estado (UF) deve ter 2 letras.'),
+  cep: z.string().min(8, 'O CEP deve ter pelo menos 8 dígitos.'),
   lat: z.coerce.number().optional(),
   lng: z.coerce.number().optional(),
 });
@@ -171,12 +169,12 @@ export const newLocationSchema = z.object({
 
 export const vehicleSchema = z.object({
   id: z.string(),
-  placa: z.string().min(7, 'Placa inválida'),
-  modelo: z.string().min(1, 'Modelo é obrigatório'),
-  ano: z.coerce.number().int().min(1900, 'Ano inválido').max(new Date().getFullYear() + 1),
+  placa: z.string().min(7, 'A placa deve ter 7 caracteres.'),
+  modelo: z.string().min(1, 'O modelo é obrigatório.'),
+  ano: z.coerce.number().int().min(1900, 'O ano de fabricação é inválido.').max(new Date().getFullYear() + 1, 'O ano de fabricação não pode ser no futuro.'),
   tipo: z.enum(["Ônibus", "Van", "Carro", "Caminhão"]),
   status: z.enum(["Ativo", "Inativo", "Em Manutenção"]),
-  seatLayout: z.string().optional(), // JSON string for layout
+  seatLayout: z.string().optional(),
   occupiedSeats: z.array(z.string()).optional(),
 });
 
@@ -190,8 +188,8 @@ export const baseFinancialEntrySchema = z.object({
   description: z.string().optional(),
   amount: z.coerce.number().positive('O valor deve ser maior que zero.'),
   type: z.enum(["Entrada", "Saída"]),
-  date: z.date().optional(),
-  categoryId: z.string().min(1, 'Categoria é obrigatória'),
+  date: z.date({ required_error: "A data da transação é obrigatória."}).optional(),
+  categoryId: z.string().min(1, 'A categoria é obrigatória.'),
   otherCategoryDescription: z.string().optional(),
   vehicleId: z.string().optional(),
   clientId: z.string().optional(),
@@ -212,7 +210,7 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
     }
     return true;
 }, {
-    message: "O cliente é obrigatório para vender uma passagem.",
+    message: "É necessário selecionar um cliente para vender uma passagem.",
     path: ["clientId"],
 }).refine(data => {
     if(data.categoryId === 'venda-passagem') {
@@ -220,7 +218,7 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
     }
     return true;
 }, {
-    message: "O ônibus é obrigatório para vender uma passagem.",
+    message: "É necessário selecionar um ônibus para vender uma passagem.",
     path: ["vehicleId"],
 }).refine(data => {
     if(data.categoryId === 'venda-passagem') {
@@ -228,7 +226,7 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
     }
     return true;
 }, {
-    message: "A origem é obrigatória para vender uma passagem.",
+    message: "É necessário selecionar um ponto de origem.",
     path: ["origin"],
 });
 

@@ -58,7 +58,8 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
     if (!firestore || !user) {
       toast({
         variant: 'destructive',
-        title: 'Erro de conexão',
+        title: 'Erro de Conexão',
+        description: 'Não foi possível ligar à base de dados. Por favor, tente novamente.',
       });
       return;
     }
@@ -70,7 +71,7 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
         const layout = JSON.parse(data.seatLayout || '{}');
         processedData.seatLayout = layout;
       } catch (error) {
-        form.setError('seatLayout', { type: 'manual', message: 'Formato do JSON do mapa de assentos é inválido.' });
+        form.setError('seatLayout', { type: 'manual', message: 'O formato do JSON do mapa de assentos é inválido.' });
         return;
       }
     } else {
@@ -89,15 +90,15 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
 
       toast({
         title: 'Sucesso!',
-        description: 'Dados do veículo atualizados.',
+        description: 'Os dados do veículo foram atualizados.',
       });
       router.push(`/veiculos/${vehicle.id}`);
     } catch (error: any) {
-      console.error('Error updating vehicle:', error);
+      console.error('Erro ao atualizar veículo:', error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao atualizar veículo.',
-        description: error.message || 'Ocorreu um erro desconhecido.',
+        title: 'Erro ao Atualizar Veículo',
+        description: 'Não foi possível guardar as alterações. Verifique os dados e tente novamente.',
       });
     }
   }

@@ -108,7 +108,7 @@ function AddLocationDialog({
         const data: City[] = await response.json();
         setCities(data.sort((a, b) => a.nome.localeCompare(b.nome)));
       } catch (error) {
-        toast({ variant: 'destructive', title: 'Erro ao buscar cidades' });
+        toast({ variant: 'destructive', title: 'Erro ao Buscar Cidades', description: 'Não foi possível carregar a lista de cidades.' });
         setCities([]);
       } finally {
         setIsFetchingCities(false);
@@ -120,7 +120,7 @@ function AddLocationDialog({
   const handleCepSearch = async () => {
     const cep = form.getValues('cep')?.replace(/\D/g, '');
     if (cep?.length !== 8) {
-      toast({ variant: 'destructive', title: 'CEP inválido' });
+      toast({ variant: 'destructive', title: 'CEP Inválido', description: 'O CEP deve conter 8 dígitos.' });
       return;
     }
     setIsFetchingCep(true);
@@ -128,24 +128,27 @@ function AddLocationDialog({
       const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await response.json();
       if (data.erro) {
-        toast({ variant: 'destructive', title: 'CEP não encontrado' });
+        toast({ variant: 'destructive', title: 'CEP não Encontrado', description: 'Verifique o CEP e tente novamente.' });
       } else {
         form.setValue('estado', data.uf, { shouldValidate: true });
         setTimeout(() => form.setValue('cidade', data.localidade, { shouldValidate: true }), 500);
         form.setValue('logradouro', data.logradouro, { shouldValidate: true });
         form.setValue('bairro', data.bairro, { shouldValidate: true });
         form.setFocus('numero');
-        toast({ title: 'Endereço encontrado!' });
+        toast({ title: 'Endereço Encontrado!', description: 'Preencha o número e os detalhes restantes.' });
       }
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Erro na busca' });
+      toast({ variant: 'destructive', title: 'Erro na Busca por CEP', description: 'Não foi possível contactar o serviço de CEP.' });
     } finally {
       setIsFetchingCep(false);
     }
   };
 
   async function onSubmit(data: NewLocation) {
-    if (!firestore) return;
+    if (!firestore) {
+        toast({ variant: 'destructive', title: 'Erro de Conexão', description: 'A ligação com a base de dados falhou.' });
+        return;
+    }
 
     try {
       const collectionName = locationType === 'destino' ? 'destinos' : 'origins';
@@ -163,7 +166,7 @@ function AddLocationDialog({
         createdAt: serverTimestamp(),
       });
 
-      toast({ title: 'Sucesso!', description: `Novo ${locationType} criado.` });
+      toast({ title: 'Sucesso!', description: `Novo ${locationType} criado com sucesso.` });
 
       const newLocation = {
         id: newDocRef.id,
@@ -183,7 +186,7 @@ function AddLocationDialog({
       await triggerRevalidation('/vender-passagem');
       await triggerRevalidation('/clientes/novo');
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro ao criar', description: error.message });
+      toast({ variant: 'destructive', title: 'Erro ao Criar Local', description: 'Não foi possível criar o novo local. Tente novamente.' });
     }
   }
 
@@ -292,7 +295,7 @@ function AddLocationDialog({
                   <FormItem>
                     <FormLabel>Cidade *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState || isFetchingCities}>
-                      <FormControl><SelectTrigger><SelectValue placeholder={isFetchingCities ? 'Carregando...' : 'Selecione'} /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger><SelectValue placeholder={isFetchingCities ? 'A carregar...' : 'Selecione'} /></SelectTrigger></FormControl>
                       <SelectContent>
                         {cities.map(c => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}
                       </SelectContent>
@@ -375,8 +378,8 @@ export function NewClientForm({
     if (!firestore) {
       toast({
         variant: 'destructive',
-        title: 'Erro de conexão',
-        description: 'Não foi possível conectar ao banco de dados.',
+        title: 'Erro de Conexão',
+        description: 'Não foi possível ligar à base de dados. Por favor, tente novamente.',
       });
       return;
     }
@@ -394,15 +397,15 @@ export function NewClientForm({
 
       toast({
         title: 'Sucesso!',
-        description: 'Novo cliente cadastrado.',
+        description: 'Novo cliente cadastrado com sucesso.',
       });
       router.push('/clientes');
     } catch (error: any) {
-      console.error('Error creating client:', error);
+      console.error('Erro ao criar cliente:', error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao cadastrar cliente.',
-        description: error.message || 'Ocorreu um erro desconhecido.',
+        title: 'Erro ao Cadastrar Cliente',
+        description: 'Não foi possível criar o cliente. Por favor, verifique os dados e tente novamente.',
       });
     }
   }

@@ -43,8 +43,8 @@ export function EditClientForm({ client, destinos }: { client: Client, destinos:
     if (!firestore) {
       toast({
         variant: 'destructive',
-        title: 'Erro de conexão',
-        description: 'Não foi possível conectar ao banco de dados.',
+        title: 'Erro de Conexão',
+        description: 'Não foi possível ligar à base de dados. Por favor, tente novamente.',
       });
       return;
     }
@@ -66,15 +66,15 @@ export function EditClientForm({ client, destinos }: { client: Client, destinos:
 
       toast({
         title: 'Sucesso!',
-        description: 'Dados do cliente atualizados.',
+        description: 'Os dados do cliente foram atualizados.',
       });
       router.push(`/clientes/${client.id}`);
     } catch (error: any) {
-      console.error('Error updating client:', error);
+      console.error('Erro ao atualizar cliente:', error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao atualizar cliente.',
-        description: error.message || 'Ocorreu um erro desconhecido.',
+        title: 'Erro ao Atualizar Cliente',
+        description: 'Não foi possível guardar as alterações. Por favor, verifique os dados e tente novamente.',
       });
     }
   }

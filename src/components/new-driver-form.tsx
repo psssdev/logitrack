@@ -57,8 +57,8 @@ export function NewDriverForm() {
     if (!firestore) {
       toast({
         variant: 'destructive',
-        title: 'Erro de conexão',
-        description: 'Não foi possível conectar ao banco de dados.',
+        title: 'Erro de Conexão',
+        description: 'Não foi possível ligar à base de dados. Por favor, tente novamente.',
       });
       return;
     }
@@ -66,7 +66,7 @@ export function NewDriverForm() {
     try {
       let uploadedPhotoUrl = '';
       if (photoFile) {
-        toast({ description: 'Fazendo upload da foto...' });
+        toast({ description: 'A carregar a foto...' });
         uploadedPhotoUrl = await uploadFile(
           photoFile,
           `driver_photos`
@@ -91,11 +91,11 @@ export function NewDriverForm() {
       });
       router.push('/motoristas');
     } catch (error: any) {
-      console.error('Error creating driver:', error);
+      console.error('Erro ao criar motorista:', error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao cadastrar motorista.',
-        description: error.message || 'Ocorreu um erro desconhecido.',
+        title: 'Erro ao Cadastrar Motorista',
+        description: 'Não foi possível registar o motorista. Verifique os dados e tente novamente.',
       });
     }
   }

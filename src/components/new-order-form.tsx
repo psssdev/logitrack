@@ -188,13 +188,13 @@ export function NewOrderForm({
         videoRef.current.srcObject = stream;
       }
     } catch (error) {
-      console.error('Error accessing camera:', error);
+      console.error('Erro ao aceder à câmera:', error);
       setHasCameraPermission(false);
       toast({
         variant: 'destructive',
         title: 'Acesso à Câmera Negado',
         description:
-          'Por favor, habilite a permissão de câmera no seu navegador.',
+          'Por favor, habilite a permissão de câmera nas configurações do seu navegador para usar esta funcionalidade.',
       });
     }
   };
@@ -209,8 +209,8 @@ export function NewOrderForm({
     if (!firestore || !user) {
       toast({
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Usuário não autenticado ou falha na conexão.',
+        title: 'Erro de Conexão',
+        description: 'Não foi possível conectar à base de dados. Por favor, tente novamente.',
       });
       return;
     }
@@ -218,10 +218,11 @@ export function NewOrderForm({
     try {
       const client = clients.find((c) => c.id === data.clientId);
       if (!client) {
+        form.setError('clientId', { type: 'manual', message: 'Cliente não encontrado. Por favor, selecione um cliente válido.' });
         toast({
           variant: 'destructive',
-          title: 'Erro',
-          description: 'Cliente não encontrado.',
+          title: 'Cliente Inválido',
+          description: 'O cliente selecionado não foi encontrado.',
         });
         return;
       }
@@ -275,26 +276,26 @@ export function NewOrderForm({
         openWhatsApp(client.telefone, message);
 
         toast({
-            title: 'Sucesso!',
-            description: 'Encomenda criada e notificação enviada.',
+            title: 'Encomenda Criada e Notificação Enviada!',
+            description: 'A encomenda foi registada e a notificação está pronta para ser enviada via WhatsApp.',
         });
 
         router.push(`/encomendas`);
       } else {
         toast({
-            title: 'Sucesso!',
-            description: 'Encomenda criada. Agora, revise e envie o comprovante.',
+            title: 'Encomenda Criada com Sucesso!',
+            description: 'Agora pode rever os detalhes e enviar o comprovativo ao cliente.',
         });
         router.push(`/encomendas/comprovante/${newDocRef.id}`);
       }
 
 
     } catch (error: any) {
-      console.error('Error creating order:', error);
+      console.error('Erro ao criar encomenda:', error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao criar encomenda.',
-        description: error.message || 'Ocorreu um erro desconhecido.',
+        title: 'Erro ao Criar Encomenda',
+        description: 'Não foi possível registar a encomenda. Por favor, verifique os dados e tente novamente.',
       });
     }
   }
@@ -420,7 +421,7 @@ export function NewOrderForm({
                           !selectedClientId
                             ? 'Selecione um cliente primeiro'
                             : loadingAddresses
-                            ? 'Carregando...'
+                            ? 'A carregar...'
                             : 'Selecione um endereço'
                         }
                       />
@@ -447,7 +448,7 @@ export function NewOrderForm({
                       ))
                     )}
                      {selectedClientId && !loadingAddresses && (!addresses || addresses.length === 0) && (!destinos || destinos.length === 0) && (
-                         <SelectItem value="no-location" disabled>Nenhum endereço ou destino</SelectItem>
+                         <SelectItem value="no-location" disabled>Nenhum endereço ou destino encontrado</SelectItem>
                      )}
                   </SelectContent>
                 </Select>
@@ -579,7 +580,7 @@ export function NewOrderForm({
                 <div className="flex gap-2">
                   <FormControl>
                     <Input
-                      placeholder="Nº da nota fiscal"
+                      placeholder="Nº da nota fiscal (opcional)"
                       {...field}
                       value={field.value ?? ''}
                     />
@@ -597,10 +598,10 @@ export function NewOrderForm({
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Ler Código de Acesso</DialogTitle>
+                        <DialogTitle>Ler Código de Acesso da Nota Fiscal</DialogTitle>
                         <DialogDescription>
                           Aponte a câmera para o código de barras ou QR code da
-                          nota fiscal.
+                          nota fiscal. A leitura ainda não está implementada.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="my-4">
@@ -675,7 +676,7 @@ export function NewOrderForm({
                 <Select onValueChange={field.onChange} value={field.value} disabled={loadingDrivers}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={loadingDrivers ? "Carregando..." : "Atribuir motorista..."} />
+                      <SelectValue placeholder={loadingDrivers ? "A carregar..." : "Atribuir a um motorista..."} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -701,7 +702,7 @@ export function NewOrderForm({
               <FormLabel>Observação</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Ex: Entregar na portaria, pacote frágil, etc."
+                  placeholder="Ex: Entregar na portaria, pacote frágil, etc. (opcional)"
                   className="resize-none"
                   {...field}
                   value={field.value ?? ''}
