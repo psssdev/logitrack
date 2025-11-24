@@ -89,7 +89,7 @@ function EditDriverContent({ driverId }: { driverId: string }) {
     <div className="mx-auto grid w-full max-w-xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href={`/motoristas/${driverId}`}>
+          <Link href={`/motoristas`}>
             <ChevronLeft className="h-4 w-4" />
             <span className="sr-only">Voltar</span>
           </Link>

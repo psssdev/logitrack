@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editDriverSchema } from '@/lib/schemas';
 import type { Driver } from '@/lib/types';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2, UploadCloud, X } from 'lucide-react';
 import Link from 'next/link';
@@ -31,7 +31,6 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user } = useUser();
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(
     driver.photoUrl
   );
@@ -59,7 +58,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   };
 
   async function onSubmit(data: EditDriverFormValues) {
-    if (!firestore || !user) {
+    if (!firestore) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -72,7 +71,6 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
 
       if (photoFile) {
         toast({ description: 'Atualizando foto...' });
-        // Path no longer needs companyId
         uploadedPhotoUrl = await uploadFile(
           photoFile,
           `driver_photos`
@@ -97,7 +95,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
         title: 'Sucesso!',
         description: 'Dados do motorista atualizados.',
       });
-      router.push(`/motoristas/${driver.id}`);
+      router.push(`/motoristas`);
     } catch (error: any) {
       console.error('Error updating driver:', error);
       toast({
@@ -195,7 +193,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
 
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="ghost" asChild>
-            <Link href={`/motoristas/${driver.id}`}>Cancelar</Link>
+            <Link href={`/motoristas`}>Cancelar</Link>
           </Button>
           <Button
             type="submit"
