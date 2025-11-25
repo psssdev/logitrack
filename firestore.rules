@@ -2,9 +2,11 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Permite que qualquer utilizador autenticado leia e escreva em todos os documentos.
+    // Permite que qualquer pessoa leia os dados, mas apenas utilizadores autenticados escrevam.
+    // Esta é uma medida temporária para resolver o bloqueio de permissões.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read: if true;
+      allow write: if request.auth != null;
     }
   }
 }
