@@ -1,24 +1,10 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isUserAuthenticated() {
-      return request.auth != null;
-    }
-
-    // A regra mais específica para /users vem primeiro para ter prioridade.
-    // Apenas o proprietário do perfil pode ler ou escrever no seu próprio documento.
-    match /users/{userId} {
-      allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
-    }
-
-    // Regra geral para todos os outros caminhos.
-    // Permite que qualquer utilizador autenticado leia e escreva em qualquer outro documento.
-    // O padrão {document=**} corresponde a qualquer documento em qualquer coleção ou subcoleção.
+    // Permite que qualquer utilizador autenticado leia e escreva em todos os documentos.
     match /{document=**} {
-      allow read, write: if isUserAuthenticated();
+      allow read, write: if request.auth != null;
     }
   }
 }
