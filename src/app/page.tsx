@@ -17,11 +17,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth, FirebaseClientProvider } from '@/firebase';
 import {
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 function getFriendlyAuthErrorMessage(errorCode: string): string {
   switch (errorCode) {
@@ -31,10 +29,6 @@ function getFriendlyAuthErrorMessage(errorCode: string): string {
       return 'Nenhuma conta encontrada com este email.';
     case 'auth/wrong-password':
       return 'Senha incorreta. Por favor, tente novamente.';
-    case 'auth/email-already-in-use':
-      return 'Este endereço de email já está em uso por outra conta.';
-    case 'auth/weak-password':
-      return 'A senha é muito fraca. Use pelo menos 6 caracteres.';
     case 'auth/invalid-email':
       return 'O formato do email é inválido.';
     default:
@@ -48,12 +42,11 @@ function AuthForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('login');
   const router = useRouter();
   const auth = useAuth();
   const { toast } = useToast();
 
-  const handleAuthAction = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!auth) {
@@ -68,19 +61,13 @@ function AuthForm() {
     setIsLoading(true);
 
     try {
-      if (activeTab === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-      }
-      // Se a autenticação for bem-sucedida, o AuthGuard/provider fará o redirecionamento.
-      // Apenas navegamos para o início como um fallback.
+      await signInWithEmailAndPassword(auth, email, password);
       router.push('/inicio');
     } catch (error: any) {
       const friendlyMessage = getFriendlyAuthErrorMessage(error.code);
       toast({
         variant: 'destructive',
-        title: activeTab === 'login' ? 'Erro no Login' : 'Erro no Cadastro',
+        title: 'Erro no Login',
         description: friendlyMessage,
       });
     } finally {
@@ -97,48 +84,24 @@ function AuthForm() {
           </div>
           <CardTitle className="text-2xl">LogiTrack</CardTitle>
           <CardDescription>
-            Acesse sua conta ou cadastre-se para começar.
+            Acesse sua conta para gerenciar as operações.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Entrar</TabsTrigger>
-              <TabsTrigger value="register">Cadastrar</TabsTrigger>
-            </TabsList>
-            <TabsContent value="login">
-              <form onSubmit={handleAuthAction} className="grid gap-4 pt-4">
-                <AuthFields
-                  email={email}
-                  setEmail={setEmail}
-                  password={password}
-                  setPassword={setPassword}
-                  showPassword={showPassword}
-                  setShowPassword={setShowPassword}
-                  isLoading={isLoading}
-                />
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : 'Entrar'}
-                </Button>
-              </form>
-            </TabsContent>
-            <TabsContent value="register">
-               <form onSubmit={handleAuthAction} className="grid gap-4 pt-4">
-                <AuthFields
-                  email={email}
-                  setEmail={setEmail}
-                  password={password}
-                  setPassword={setPassword}
-                  showPassword={showPassword}
-                  setShowPassword={setShowPassword}
-                  isLoading={isLoading}
-                />
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : 'Cadastrar'}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+          <form onSubmit={handleLogin} className="grid gap-4 pt-4">
+            <AuthFields
+              email={email}
+              setEmail={setEmail}
+              password={password}
+              setPassword={setPassword}
+              showPassword={showPassword}
+              setShowPassword={setShowPassword}
+              isLoading={isLoading}
+            />
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="animate-spin" /> : 'Entrar'}
+            </Button>
+          </form>
            <div className="mt-4 text-center text-sm">
             <Link
               href="/rastreio"
