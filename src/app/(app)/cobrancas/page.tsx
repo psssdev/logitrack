@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Company, Client } from '@/lib/types';
-import { collection, query, where, doc, orderBy } from 'firebase/firestore';
+import { collection, query, where, doc } from 'firebase/firestore';
 import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MessageCircle, DollarSign, AlertCircle, Download, Send, ArrowRight } from 'lucide-react';
@@ -81,8 +81,7 @@ export default function CobrancasPage() {
     if (!firestore || !user) return null;
     return query(
       collection(firestore, 'orders'),
-      where('pago', '==', false),
-      orderBy('createdAt', 'desc')
+      where('pago', '==', false)
     );
   }, [firestore, user]);
 
