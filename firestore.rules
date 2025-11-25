@@ -4,27 +4,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Função para verificar se o utilizador está autenticado
     function isUserAuthenticated() {
       return request.auth != null;
     }
 
     // Regra para a coleção 'users'
     // Apenas o proprietário do perfil pode ler ou escrever no seu próprio documento.
+    // Esta regra deve vir primeiro para ter prioridade sobre a regra mais geral abaixo.
     match /users/{userId} {
       allow read, write: if isUserAuthenticated() && request.auth.uid == userId;
     }
 
-    // Regras para todas as outras coleções
-    // Permite leitura e escrita a qualquer utilizador autenticado.
-    match /{collection}/{docId} {
+    // Regra geral para todos os outros documentos, incluindo subcoleções.
+    // O padrão {document=**} corresponde a qualquer documento em qualquer coleção ou subcoleção.
+    match /{document=**} {
       allow read, write: if isUserAuthenticated();
-    }
-    
-    // Regras para subcoleções (como 'addresses' dentro de 'clients')
-    // Herda a permissão da coleção pai.
-    match /clients/{clientId}/addresses/{addressId} {
-        allow read, write: if isUserAuthenticated();
     }
   }
 }
