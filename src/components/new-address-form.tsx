@@ -179,6 +179,8 @@ export function NewAddressForm({ clientId }: { clientId: string }) {
 
         await addDoc(addressCollection, {
             ...data,
+            lat: data.lat ?? null,
+            lng: data.lng ?? null,
             fullAddress,
             createdAt: serverTimestamp(),
         });
