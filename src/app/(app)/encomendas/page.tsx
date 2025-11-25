@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   PlusCircle,
   File,
@@ -56,7 +57,7 @@ import {
   arrayUnion,
 } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useState, useTransition, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
@@ -84,7 +85,12 @@ export default function EncomendasPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isUpdating, startTransition] = useTransition();
-  const [activeTab, setActiveTab] = useState<string>('TODAS');
+  const searchParams = useSearchParams();
+  
+  const initialTab = (searchParams.get('status') as OrderStatus) || 'TODAS';
+  const clientFilter = searchParams.get('cliente');
+
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [showNotifyAlert, setShowNotifyAlert] = useState(false);
   const [pendingBulkStatus, setPendingBulkStatus] =
@@ -106,18 +112,42 @@ export default function EncomendasPage() {
     useCollection<Order>(ordersQuery);
 
   const pageIsLoading = isLoadingOrders || isUserLoading;
+  
+  // Set tab if it comes from URL
+  useEffect(() => {
+      const statusFromUrl = searchParams.get('status');
+      if (statusFromUrl && statusFromUrl !== activeTab) {
+          setActiveTab(statusFromUrl);
+      }
+  }, [searchParams, activeTab]);
+
 
   const filteredOrdersForTab = useMemo(() => {
     if (!orders) return [];
-    if (activeTab === 'TODAS') return orders;
-    return orders.filter((order) => order.status === activeTab);
-  }, [orders, activeTab]);
+    
+    let filtered = orders;
+    
+    if (activeTab !== 'TODAS') {
+        filtered = filtered.filter((order) => order.status === activeTab);
+    }
+    
+    if (clientFilter) {
+        filtered = filtered.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()));
+    }
+    
+    return filtered;
+  }, [orders, activeTab, clientFilter]);
 
   const statusCounts = useMemo(() => {
     if (!orders)
       return { TODAS: 0, PENDENTE: 0, EM_ROTA: 0, ENTREGUE: 0, CANCELADA: 0 };
+      
+    // If there's a client filter, counts should be based on that subset
+    const ordersToCount = clientFilter 
+        ? orders.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()))
+        : orders;
 
-    const counts = orders.reduce(
+    const counts = ordersToCount.reduce(
       (acc, order) => {
         acc[order.status] = (acc[order.status] || 0) + 1;
         return acc;
@@ -126,13 +156,13 @@ export default function EncomendasPage() {
     );
 
     return {
-      TODAS: orders.length,
+      TODAS: ordersToCount.length,
       PENDENTE: counts.PENDENTE || 0,
       EM_ROTA: counts.EM_ROTA || 0,
       ENTREGUE: counts.ENTREGUE || 0,
       CANCELADA: counts.CANCELADA || 0,
     };
-  }, [orders]);
+  }, [orders, clientFilter]);
 
   const allStatuses = ['TODAS', ...statuses] as const;
 
@@ -206,10 +236,7 @@ export default function EncomendasPage() {
   };
 
   const exportToCSV = () => {
-    const ordersToExport =
-      activeTab === 'TODAS'
-        ? orders
-        : orders?.filter((o) => o.status === activeTab);
+    const ordersToExport = filteredOrdersForTab;
 
     if (!ordersToExport || ordersToExport.length === 0) {
       toast({
@@ -288,6 +315,7 @@ export default function EncomendasPage() {
         <div className="flex items-center">
           <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
             Encomendas
+            {clientFilter && <span className="ml-2 text-base text-muted-foreground font-normal">(Filtrando por: {clientFilter})</span>}
           </h1>
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <Button
@@ -312,7 +340,7 @@ export default function EncomendasPage() {
           </div>
         </div>
         <Tabs
-          defaultValue="TODAS"
+          value={activeTab}
           onValueChange={(tab) => {
             setActiveTab(tab);
             setSelectedOrderIds([]); // Clear selection when changing tabs
@@ -321,9 +349,7 @@ export default function EncomendasPage() {
           <ScrollArea className="w-full whitespace-nowrap rounded-md">
             <TabsList className="grid w-full grid-cols-5">
               {allStatuses.map((status) => {
-                const label = status
-                  .charAt(0)
-                  .concat(status.slice(1).toLowerCase().replace('_', ' '));
+                const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];
                 const count = pageIsLoading ? '' : `(${statusCounts[status]})`;
                 return (
                   <TabsTrigger key={status} value={status}>
@@ -346,13 +372,7 @@ export default function EncomendasPage() {
           {orders &&
             !pageIsLoading &&
             allStatuses.map((status) => {
-              const filteredForTab =
-                status === 'TODAS'
-                  ? orders
-                  : orders.filter((order) => order.status === status);
-              const label = status
-                .charAt(0)
-                .concat(status.slice(1).toLowerCase().replace('_', ' '));
+               const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];
 
               return (
                 <TabsContent key={status} value={status}>
@@ -362,7 +382,7 @@ export default function EncomendasPage() {
                         <div>
                           <CardTitle>{label}</CardTitle>
                           <CardDescription>
-                            {filteredForTab.length} encomenda(s) encontrada(s).
+                            {filteredOrdersForTab.length} encomenda(s) encontrada(s).
                           </CardDescription>
                         </div>
                         {selectedOrderIds.length > 0 && (
@@ -396,9 +416,10 @@ export default function EncomendasPage() {
                     </CardHeader>
                     <CardContent>
                       <OrderTable
-                        orders={filteredForTab}
+                        orders={filteredOrdersForTab}
                         selectedOrderIds={selectedOrderIds}
                         setSelectedOrderIds={setSelectedOrderIds}
+                        initialFilter={clientFilter || ''}
                       />
                     </CardContent>
                   </Card>

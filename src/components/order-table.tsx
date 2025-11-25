@@ -41,11 +41,16 @@ interface OrderTableProps {
   orders: Order[];
   selectedOrderIds: string[];
   setSelectedOrderIds: React.Dispatch<React.SetStateAction<string[]>>;
+  initialFilter?: string;
 }
 
-export function OrderTable({ orders, selectedOrderIds, setSelectedOrderIds }: OrderTableProps) {
-  const [filter, setFilter] = React.useState('');
+export function OrderTable({ orders, selectedOrderIds, setSelectedOrderIds, initialFilter = '' }: OrderTableProps) {
+  const [filter, setFilter] = React.useState(initialFilter);
   const { toast } = useToast();
+  
+  React.useEffect(() => {
+    setFilter(initialFilter);
+  }, [initialFilter]);
 
   const filteredOrders = orders.filter(
     (order) =>

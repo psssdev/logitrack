@@ -20,11 +20,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Order, Company } from '@/lib/types';
+import type { Order, Company, Client } from '@/lib/types';
 import { collection, query, where, doc, orderBy } from 'firebase/firestore';
 import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { MessageCircle, DollarSign, AlertCircle, Download, Send } from 'lucide-react';
+import { MessageCircle, DollarSign, AlertCircle, Download, Send, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { RecordPaymentDialog } from '@/components/record-payment-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePickerWithRange } from '@/components/date-range-picker';
 import { Timestamp } from 'firebase/firestore';
+import Link from 'next/link';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
@@ -52,55 +53,59 @@ const openWhatsApp = (phone: string, message: string) => {
   window.open(url, '_blank');
 };
 
+interface ClientDebt {
+    clientId: string;
+    nomeCliente: string;
+    telefone: string;
+    totalPendente: number;
+    orderCount: number;
+    orderIds: string[];
+}
+
 
 export default function CobrancasPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
-
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   
   // Filter states
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
-  const [paymentStatus, setPaymentStatus] = useState<'all' | 'paid' | 'pending'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState<'all' | string>('all');
 
 
-  const ordersQuery = useMemoFirebase(() => {
+  const pendingOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return query(
       collection(firestore, 'orders'),
+      where('pago', '==', false),
       orderBy('createdAt', 'desc')
     );
   }, [firestore, user]);
 
+  const { data: allPendingOrders, isLoading: isLoadingOrders } = useCollection<Order>(pendingOrdersQuery);
+  
   const companyRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // Assuming a single company document for simplicity, adjust if multi-tenant
     return doc(firestore, 'companies', '1');
   }, [firestore, user]);
-
-  const { data: allOrders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+  
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
   const isLoading = isUserLoading || isLoadingOrders || isLoadingCompany;
 
   const cities = useMemo(() => {
-    if (!allOrders) return [];
+    if (!allPendingOrders) return [];
     const citySet = new Set<string>();
-    allOrders.forEach(order => {
+    allPendingOrders.forEach(order => {
         if (typeof order.destino === 'string') {
-            // Split by comma and get the second to last part, which is usually the city
             const parts = order.destino.split(',').map(p => p.trim());
             if (parts.length >= 2) {
-                // Heuristic: City is usually before State and CEP. E.g. "Street, 123, Neighborhood, City, State"
-                // Assuming City is the second to last element before the state abbreviation
                 const cityCandidate = parts[parts.length - 2];
-                // A simple check to avoid adding the state as a city
                 if (cityCandidate && cityCandidate.length > 2) { 
                     citySet.add(cityCandidate);
                 }
@@ -108,57 +113,67 @@ export default function CobrancasPage() {
         }
     });
     return Array.from(citySet).sort();
-  }, [allOrders]);
+  }, [allPendingOrders]);
 
 
-  const filteredOrders = useMemo(() => {
-    if (!allOrders) return [];
+ const { clientDebts, summary } = useMemo(() => {
+    if (!allPendingOrders) return { clientDebts: [], summary: { totalPendente: 0, totalClientes: 0, totalEncomendas: 0 } };
     
-    return allOrders.filter(order => {
+    const filteredByDateAndCity = allPendingOrders.filter(order => {
         const orderDate = toDate(order.createdAt);
         
         // Date filter
         const isDateInRange = dateRange?.from && dateRange?.to ? isWithinInterval(orderDate, { start: dateRange.from, end: dateRange.to }) : true;
-        
-        // Payment status filter
-        const isStatusMatch = paymentStatus === 'all' || (paymentStatus === 'paid' && order.pago) || (paymentStatus === 'pending' && !order.pago);
-
-        // Search term filter
-        const isSearchMatch = searchTerm === '' ||
-            order.nomeCliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            order.codigoRastreio.toLowerCase().includes(searchTerm.toLowerCase());
             
         // City filter
          const orderCityParts = typeof order.destino === 'string' ? order.destino.split(',').map(p => p.trim()) : [];
          const orderCity = orderCityParts.length >= 2 ? orderCityParts[orderCityParts.length - 2] : '';
         const isCityMatch = selectedCity === 'all' || orderCity === selectedCity;
 
-        return isDateInRange && isStatusMatch && isSearchMatch && isCityMatch;
+        return isDateInRange && isCityMatch;
     });
-  }, [allOrders, dateRange, paymentStatus, searchTerm, selectedCity]);
-  
-  const summary = useMemo(() => {
-    if (!filteredOrders) return { pendente: 0, recebido: 0, geral: 0 };
-    const summaryData = filteredOrders.reduce((acc, order) => {
-        const value = order.valorEntrega || 0;
-        acc.geral += value;
-        
+
+    const debtsByClient = filteredByDateAndCity.reduce((acc, order) => {
         const paidAmount = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+        const pendingAmount = order.valorEntrega - paidAmount;
 
-        if(order.pago) {
-            acc.recebido += value; // Assuming valorEntrega is the final correct value if pago is true.
-        } else {
-             acc.pendente += (value - paidAmount);
-             acc.recebido += paidAmount;
+        if (pendingAmount <= 0) return acc;
+
+        if (!acc[order.clientId]) {
+            acc[order.clientId] = {
+                clientId: order.clientId,
+                nomeCliente: order.nomeCliente,
+                telefone: order.telefone,
+                totalPendente: 0,
+                orderCount: 0,
+                orderIds: []
+            };
         }
+
+        acc[order.clientId].totalPendente += pendingAmount;
+        acc[order.clientId].orderCount += 1;
+        acc[order.clientId].orderIds.push(order.id);
         return acc;
-    }, { pendente: 0, recebido: 0, geral: 0 });
 
-    return summaryData;
-  }, [filteredOrders]);
+    }, {} as Record<string, ClientDebt>);
+
+    const debtList = Object.values(debtsByClient).sort((a,b) => b.totalPendente - a.totalPendente);
+    
+    const filteredByName = searchTerm
+      ? debtList.filter(client => client.nomeCliente.toLowerCase().includes(searchTerm.toLowerCase()))
+      : debtList;
+
+    const summaryData = {
+        totalPendente: filteredByName.reduce((sum, client) => sum + client.totalPendente, 0),
+        totalClientes: filteredByName.length,
+        totalEncomendas: filteredByName.reduce((sum, client) => sum + client.orderCount, 0),
+    };
+
+    return { clientDebts: filteredByName, summary: summaryData };
+  }, [allPendingOrders, dateRange, selectedCity, searchTerm]);
 
 
-  const handleCharge = (order: Order) => {
+  const handleCharge = (client: ClientDebt) => {
     if (!company) {
       toast({
         variant: 'destructive',
@@ -169,47 +184,36 @@ export default function CobrancasPage() {
     }
     const messageTemplate =
       company.msgCobranca ||
-      'Olá {cliente}, tudo bem? Verificamos que há uma pendência de {valor} referente à encomenda {codigo}. Poderia nos dar um retorno sobre o pagamento? Obrigado!';
+      'Olá {cliente}, tudo bem? Verificamos que há uma pendência de {valor} referente a {quantidade} encomenda(s). Poderia nos dar um retorno sobre o pagamento? Obrigado!';
 
     const message = messageTemplate
-      .replace('{cliente}', order.nomeCliente)
-      .replace('{valor}', formatCurrency(order.valorEntrega))
-      .replace('{codigo}', order.codigoRastreio);
+      .replace('{cliente}', client.nomeCliente)
+      .replace('{valor}', formatCurrency(client.totalPendente))
+      .replace('{quantidade}', client.orderCount.toString());
 
-    openWhatsApp(order.telefone, message);
+    openWhatsApp(client.telefone, message);
   };
   
 
-  const handleRecordPayment = (order: Order) => {
-    setSelectedOrder(order);
-    setIsPaymentDialogOpen(true);
-  };
-
-  const onPaymentRecorded = () => {
-    triggerRevalidation('/cobrancas');
-  };
-  
   const exportToCSV = () => {
-    if (filteredOrders.length === 0) {
+    if (clientDebts.length === 0) {
         toast({ description: 'Nenhum dado para exportar.'});
         return;
     }
 
-    const headers = ['Data', 'Código', 'Cliente', 'Valor', 'Status Pagamento', 'Forma Pagamento'];
-    const rows = filteredOrders.map(order => [
-        format(toDate(order.createdAt), 'yyyy-MM-dd'),
-        order.codigoRastreio,
-        `"${order.nomeCliente.replace(/"/g, '""')}"`,
-        order.valorEntrega.toFixed(2),
-        order.pago ? 'Pago' : 'Pendente',
-        order.formaPagamento
+    const headers = ['Cliente', 'Telefone', 'Qtd. Encomendas', 'Valor Pendente Total'];
+    const rows = clientDebts.map(client => [
+        `"${client.nomeCliente.replace(/"/g, '""')}"`,
+        client.telefone,
+        client.orderCount,
+        client.totalPendente.toFixed(2)
     ].join(','));
 
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `cobrancas_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.setAttribute("download", `cobrancas_por_cliente_${format(new Date(), 'yyyy-MM-dd')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -228,29 +232,29 @@ export default function CobrancasPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Valor Pendente</CardTitle>
-            <CardDescription>Soma dos valores não pagos no período.</CardDescription>
+            <CardTitle>Valor Total Pendente</CardTitle>
+            <CardDescription>Soma de todos os valores não pagos.</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <p className="text-3xl font-bold text-destructive">{formatCurrency(summary.pendente)}</p>}
+            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <p className="text-3xl font-bold text-destructive">{formatCurrency(summary.totalPendente)}</p>}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Valor Recebido</CardTitle>
-            <CardDescription>Soma dos valores pagos no período.</CardDescription>
+            <CardTitle>Clientes Devedores</CardTitle>
+            <CardDescription>Total de clientes com pendências.</CardDescription>
           </CardHeader>
           <CardContent>
-             {isLoading ? <Skeleton className="h-8 w-3/4" /> : <p className="text-3xl font-bold text-green-600">{formatCurrency(summary.recebido)}</p>}
+             {isLoading ? <Skeleton className="h-8 w-3/4" /> : <p className="text-3xl font-bold">{summary.totalClientes}</p>}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Valor Geral</CardTitle>
-            <CardDescription>Soma de todas as encomendas no período.</CardDescription>
+            <CardTitle>Encomendas Pendentes</CardTitle>
+            <CardDescription>Total de encomendas com pagamento pendente.</CardDescription>
           </CardHeader>
           <CardContent>
-             {isLoading ? <Skeleton className="h-8 w-3/4" /> : <p className="text-3xl font-bold">{formatCurrency(summary.geral)}</p>}
+             {isLoading ? <Skeleton className="h-8 w-3/4" /> : <p className="text-3xl font-bold">{summary.totalEncomendas}</p>}
           </CardContent>
         </Card>
       </div>
@@ -260,9 +264,9 @@ export default function CobrancasPage() {
         <CardHeader>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex-1">
-                    <CardTitle>Controle de Encomendas</CardTitle>
+                    <CardTitle>Controle de Cobranças por Cliente</CardTitle>
                     <CardDescription>
-                        Filtre e gerencie as encomendas e seus status de pagamento.
+                        Filtre e gerencie as dívidas consolidadas por cliente.
                     </CardDescription>
                 </div>
                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -275,21 +279,11 @@ export default function CobrancasPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Filters */}
-           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-                <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as any)}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Status do Pagamento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todos os Status</SelectItem>
-                        <SelectItem value="pending">Pendentes</SelectItem>
-                        <SelectItem value="paid">Pagos</SelectItem>
-                    </SelectContent>
-                </Select>
                  <Select value={selectedCity} onValueChange={setSelectedCity}>
                     <SelectTrigger>
-                        <SelectValue placeholder="Filtrar por cidade" />
+                        <SelectValue placeholder="Filtrar por cidade de destino" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Todas as Cidades</SelectItem>
@@ -299,7 +293,7 @@ export default function CobrancasPage() {
                     </SelectContent>
                 </Select>
                  <Input 
-                    placeholder="Buscar por cliente ou código..."
+                    placeholder="Buscar por nome do cliente..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -307,61 +301,49 @@ export default function CobrancasPage() {
           
           {/* Table */}
           {isLoading && <Skeleton className="h-64 w-full" />}
-          {!isLoading && allOrders && (
+          {!isLoading && allPendingOrders && (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Nº de Encomendas</TableHead>
+                    <TableHead>Valor Pendente</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOrders.length > 0 ? (
-                    filteredOrders.map((order) => (
-                      <TableRow key={order.id}>
+                  {clientDebts.length > 0 ? (
+                    clientDebts.map((client) => (
+                      <TableRow key={client.clientId}>
                         <TableCell>
-                          <div className="font-medium">{order.nomeCliente}</div>
+                          <div className="font-medium">{client.nomeCliente}</div>
                           <div className="text-sm text-muted-foreground">
-                            {order.codigoRastreio}
+                            {client.telefone}
                           </div>
                         </TableCell>
-                        <TableCell>{format(toDate(order.createdAt), 'dd/MM/yyyy')}</TableCell>
-                        <TableCell className="font-semibold">
-                          {formatCurrency(order.valorEntrega)}
+                        <TableCell className="text-center">
+                          <Badge variant="secondary">{client.orderCount}</Badge>
                         </TableCell>
-                        <TableCell>
-                            <Badge variant={order.pago ? 'default' : 'destructive'} className={order.pago ? 'bg-green-600' : ''}>
-                                {order.pago ? 'Pago' : 'Pendente'}
-                            </Badge>
+                        <TableCell className="font-semibold text-destructive">
+                          {formatCurrency(client.totalPendente)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {!order.pago && (
-                                <>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleCharge(order)}
-                                >
-                                    <MessageCircle className="mr-2 h-4 w-4" />
-                                    Cobrar
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    onClick={() => handleRecordPayment(order)}
-                                >
-                                    <DollarSign className="mr-2 h-4 w-4" />
-                                    Pagar
-                                </Button>
-                                </>
-                            )}
-                            {order.pago && (
-                                <Button size="sm" disabled variant="ghost">Pago</Button>
-                            )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCharge(client)}
+                            >
+                                <MessageCircle className="mr-2 h-4 w-4" />
+                                Cobrar
+                            </Button>
+                            <Button asChild size="sm">
+                                <Link href={`/encomendas?status=PENDENTE&cliente=${client.nomeCliente}`}>
+                                 <ArrowRight className="mr-2 h-4 w-4" />
+                                  Ver Encomendas
+                                </Link>
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -369,10 +351,10 @@ export default function CobrancasPage() {
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={4}
                         className="h-24 text-center"
                       >
-                        Nenhum resultado encontrado para os filtros aplicados.
+                        Nenhum cliente com pendências para os filtros aplicados.
                       </TableCell>
                     </TableRow>
                   )}
@@ -380,7 +362,7 @@ export default function CobrancasPage() {
               </Table>
             </div>
           )}
-           {!isLoading && !allOrders && (
+           {!isLoading && !allPendingOrders && (
              <div className="text-center p-8 border-2 border-dashed rounded-md flex flex-col items-center gap-2">
                 <AlertCircle className="h-8 w-8 text-destructive"/>
                 <p className="font-semibold text-destructive">Ocorreu um erro</p>
@@ -389,13 +371,6 @@ export default function CobrancasPage() {
            )}
         </CardContent>
       </Card>
-
-      <RecordPaymentDialog
-        order={selectedOrder}
-        isOpen={isPaymentDialogOpen}
-        setIsOpen={setIsPaymentDialogOpen}
-        onPaymentRecorded={onPaymentRecorded}
-      />
     </div>
   );
 }
