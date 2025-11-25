@@ -95,6 +95,7 @@ const openWhatsApp = (phone: string, message: string) => {
 }
 
 const itemDescriptionOptions = ['Pacote', 'Fardo', 'Caixa'];
+const predefinedValues = [50, 80, 100, 150];
 
 export function NewOrderForm({
   clients,
@@ -119,7 +120,7 @@ export function NewOrderForm({
     defaultValues: {
       origem: origins.length > 0 ? origins[0].address : '',
       destino: '',
-      items: [{ description: 'Pacote', quantity: 1, value: 0 }],
+      items: [{ description: 'Pacote', quantity: 1, value: 50 }],
       formaPagamento: 'haver',
       observacao: '',
       numeroNota: '',
@@ -476,7 +477,7 @@ export function NewOrderForm({
         <div className="grid gap-4">
             <div className="flex justify-between items-center">
                 <FormLabel>Itens da Encomenda</FormLabel>
-                <Button type="button" size="sm" variant="outline" onClick={() => append({ description: 'Pacote', quantity: 1, value: 0 })}>
+                <Button type="button" size="sm" variant="outline" onClick={() => append({ description: 'Pacote', quantity: 1, value: 50 })}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Adicionar Item
                 </Button>
@@ -540,14 +541,43 @@ export function NewOrderForm({
                                     <FormField
                                         control={form.control}
                                         name={`items.${index}.value`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormControl>
-                                                    <Input type="number" {...field}  onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="w-24" />
-                                                </FormControl>
-                                                 <FormMessage />
-                                            </FormItem>
-                                        )}
+                                        render={({ field }) => {
+                                            const isCustom = !predefinedValues.includes(field.value || 0);
+                                            return (
+                                                <FormItem>
+                                                    <div className="flex gap-2">
+                                                        <Select
+                                                            onValueChange={(value) => {
+                                                                if (value !== 'outro') {
+                                                                    field.onChange(Number(value));
+                                                                } else {
+                                                                    field.onChange(0); // Or some other indicator for custom
+                                                                }
+                                                            }}
+                                                            value={isCustom ? 'outro' : String(field.value)}
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className={cn(isCustom ? 'w-2/5' : 'w-full')}>
+                                                                    <SelectValue placeholder="Valor"/>
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                {predefinedValues.map(v => (
+                                                                    <SelectItem key={v} value={String(v)}>{formatCurrency(v)}</SelectItem>
+                                                                ))}
+                                                                <SelectItem value="outro">Outro...</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {isCustom && (
+                                                            <FormControl>
+                                                                <Input type="number" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="w-3/5" placeholder="Valor" autoFocus/>
+                                                            </FormControl>
+                                                        )}
+                                                    </div>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )
+                                        }}
                                     />
                                 </TableCell>
                                 <TableCell className="text-right font-medium">{formatCurrency(subtotal)}</TableCell>

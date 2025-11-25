@@ -38,6 +38,8 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
+import { cn } from '@/lib/utils';
+
 
 type EditOrderFormValues = z.infer<typeof editOrderSchema>;
 
@@ -57,6 +59,8 @@ const formatCurrency = (value: number | undefined) => {
     currency: 'BRL',
   }).format(value);
 };
+
+const predefinedValues = [50, 80, 100, 150];
 
 export function EditOrderForm({
   order,
@@ -308,23 +312,45 @@ export function EditOrderForm({
                       </TableCell>
                       <TableCell>
                         <FormField
-                          control={form.control}
-                          name={`items.${index}.value`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  {...field}
-                                  onChange={(e) =>
-                                    field.onChange(e.target.valueAsNumber || 0)
-                                  }
-                                  className="w-24"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                            control={form.control}
+                            name={`items.${index}.value`}
+                            render={({ field }) => {
+                                const isCustom = !predefinedValues.includes(field.value || 0);
+                                return (
+                                    <FormItem>
+                                        <div className="flex gap-2">
+                                            <Select
+                                                onValueChange={(value) => {
+                                                    if (value !== 'outro') {
+                                                        field.onChange(Number(value));
+                                                    } else {
+                                                        field.onChange(0); // Or some other indicator for custom
+                                                    }
+                                                }}
+                                                value={isCustom ? 'outro' : String(field.value)}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger className={cn(isCustom ? 'w-2/5' : 'w-full')}>
+                                                        <SelectValue placeholder="Valor"/>
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {predefinedValues.map(v => (
+                                                        <SelectItem key={v} value={String(v)}>{formatCurrency(v)}</SelectItem>
+                                                    ))}
+                                                    <SelectItem value="outro">Outro...</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {isCustom && (
+                                                <FormControl>
+                                                    <Input type="number" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="w-3/5" placeholder="Valor" autoFocus/>
+                                                </FormControl>
+                                            )}
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )
+                            }}
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
