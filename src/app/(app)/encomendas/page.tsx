@@ -61,8 +61,10 @@ import { useMemo, useState, useTransition, Suspense } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
-import { format } from 'date-fns';
+import { format, isWithinInterval } from 'date-fns';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { DatePickerWithRange } from '@/components/date-range-picker';
+import type { DateRange } from 'react-day-picker';
 
 const openWhatsApp = (phone: string, message: string) => {
   const cleanedPhone = phone.replace(/\\D/g, '');
@@ -94,6 +96,8 @@ function EncomendasContent() {
   const [showNotifyAlert, setShowNotifyAlert] = useState(false);
   const [pendingBulkStatus, setPendingBulkStatus] =
     useState<OrderStatus | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
 
   const statuses: OrderStatus[] = [
     'PENDENTE',
@@ -126,16 +130,30 @@ function EncomendasContent() {
         filtered = filtered.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()));
     }
     
+    if (dateRange?.from && dateRange?.to) {
+        filtered = filtered.filter(order => {
+            const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+            return isWithinInterval(orderDate, { start: dateRange.from!, end: dateRange.to! });
+        })
+    }
+
     return filtered;
-  }, [orders, activeTab, clientFilter]);
+  }, [orders, activeTab, clientFilter, dateRange]);
 
   const statusCounts = useMemo(() => {
     if (!orders)
       return { TODAS: 0, PENDENTE: 0, EM_ROTA: 0, ENTREGUE: 0, CANCELADA: 0 };
       
-    const ordersToCount = clientFilter 
-        ? orders.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()))
-        : orders;
+    let ordersToCount = orders;
+     if (clientFilter) {
+        ordersToCount = orders.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()));
+    }
+     if (dateRange?.from && dateRange?.to) {
+        ordersToCount = ordersToCount.filter(order => {
+            const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+            return isWithinInterval(orderDate, { start: dateRange.from!, end: dateRange.to! });
+        })
+    }
 
     const counts = ordersToCount.reduce(
       (acc, order) => {
@@ -152,7 +170,7 @@ function EncomendasContent() {
       ENTREGUE: counts.ENTREGUE || 0,
       CANCELADA: counts.CANCELADA || 0,
     };
-  }, [orders, clientFilter]);
+  }, [orders, clientFilter, dateRange]);
 
   const allStatuses = ['TODAS', ...statuses] as const;
 
@@ -220,7 +238,12 @@ function EncomendasContent() {
   };
 
   const startBulkUpdate = (newStatus: OrderStatus) => {
-    handleBulkStatusUpdate(newStatus);
+    if (newStatus === 'EM_ROTA') {
+      setPendingBulkStatus(newStatus);
+      setShowNotifyAlert(true);
+    } else {
+      handleBulkStatusUpdate(newStatus);
+    }
   };
 
   const exportToCSV = () => {
@@ -300,11 +323,13 @@ function EncomendasContent() {
   return (
     <>
       <div className="flex flex-col gap-6">
-        <div className="flex items-center">
-          <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
-            Encomendas
-            {clientFilter && <span className="ml-2 text-base text-muted-foreground font-normal">(Filtrando por: {clientFilter})</span>}
-          </h1>
+        <div className="flex items-start md:items-center flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl font-semibold md:text-3xl">
+              Encomendas
+            </h1>
+              {clientFilter && <span className="text-base text-muted-foreground font-normal">(Filtrando por cliente: {clientFilter})</span>}
+          </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <Button
               size="sm"
@@ -329,25 +354,33 @@ function EncomendasContent() {
         </div>
         <Tabs value={activeTab}>
           <ScrollArea className="w-full whitespace-nowrap rounded-md">
-            <TabsList>
-              {allStatuses.map((status) => {
-                const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];
-                const count = pageIsLoading ? '' : `(${statusCounts[status]})`;
-                return (
-                  <Link
-                    key={status}
-                    href={status === 'TODAS' ? '/encomendas' : `/encomendas?status=${status}`}
-                    scroll={false}
-                  >
-                    <TabsTrigger value={status}>
-                      {label} {count}
-                    </TabsTrigger>
-                  </Link>
-                );
-              })}
-            </TabsList>
+            <div className="flex items-center gap-2 pb-2">
+                 <TabsList className="flex-1 sm:flex-initial h-auto">
+                    {allStatuses.map((status) => {
+                        const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];
+                        const count = pageIsLoading ? '' : `(${statusCounts[status]})`;
+                        return (
+                        <Link
+                            key={status}
+                            href={status === 'TODAS' ? '/encomendas' : `/encomendas?status=${status}`}
+                            scroll={false}
+                        >
+                            <TabsTrigger value={status}>
+                            {label} {count}
+                            </TabsTrigger>
+                        </Link>
+                        );
+                    })}
+                 </TabsList>
+                 <div className="hidden sm:block">
+                    <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                 </div>
+            </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
+           <div className="sm:hidden mt-2">
+                <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+            </div>
 
           {pageIsLoading && (
             <Card>
