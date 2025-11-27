@@ -130,8 +130,8 @@ export default function ConfiguracoesPage() {
         </h1>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-         <Card className="lg:col-span-1">
+      <div className="flex flex-col gap-6">
+         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                    <HardDriveDownload className="h-6 w-6"/>
@@ -163,7 +163,7 @@ export default function ConfiguracoesPage() {
                 </div>
             </CardContent>
          </Card>
-          <Card className="lg:col-span-2">
+          <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Settings className="h-6 w-6" />
