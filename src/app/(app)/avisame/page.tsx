@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Client, Order } from '@/lib/types';
+import type { Client, Order, Address } from '@/lib/types';
 import { collection, query, where, doc, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { Megaphone, MessageCircle, Send, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -84,28 +84,30 @@ const openWhatsAppSmart = (phoneRaw: string, message: string) => {
 const getClientCity = (order: Order, clients: Client[]): string | null => {
     const client = clients.find(c => c.id === order.clientId);
     if (!client) return null;
-    
-    // Simplification: Assume the client's city is stored in the destination address.
-    // A more robust solution might check a `city` field on the client document itself
-    // or parse it from a primary address.
+
+    // 1. Try to get city from client's addresses if they exist
+    if (client.addresses && client.addresses.length > 0) {
+        const primaryAddress = client.addresses.find(a => (a as any).principal) || client.addresses[0];
+        if (primaryAddress && (primaryAddress as any).cidade) {
+            return titleCase((primaryAddress as any).cidade);
+        }
+    }
+
+    // 2. Fallback to parsing from the destination string if no structured address is found
     const address = order.destino;
     if (!address) return null;
 
     const parts = address.split(',').map(p => p.trim());
     if (parts.length > 1) {
-        // Heuristic: The city is often the second to last part.
+        // Heuristic: city is often second to last part
         const cityCandidate = parts[parts.length - 2];
         if (cityCandidate) {
-            // Further check to avoid picking a neighborhood name if format is "Bairro, Cidade - UF"
-            const stateAndCep = parts[parts.length - 1];
-            if (stateAndCep.includes('-')) {
-                 return titleCase(cityCandidate);
-            }
+            return titleCase(cityCandidate.split(' - ')[0]); // Handle "Cidade - UF"
         }
     }
-     // Fallback if the format is just the city name
-    if (parts.length === 1 && parts[0]) {
-        return titleCase(parts[0]);
+    // Fallback for single-part addresses or if heuristic fails
+    if(parts.length > 0 && parts[parts.length-1]) {
+        return titleCase(parts[parts.length-1].split(' - ')[0]);
     }
 
     return null;

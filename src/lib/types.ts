@@ -35,12 +35,13 @@ export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
 // Base Client type with potential Firestore Timestamp
-export type Client = Omit<z.infer<typeof clientSchema>, 'createdAt'> & {
+export type Client = Omit<z.infer<typeof clientSchema>, 'createdAt' | 'addresses'> & {
     id: string;
     createdAt: Date | Timestamp;
     defaultDestinoId?: string;
     defaultOriginId?: string;
     addresses?: Address[];
+    city?: string;
 };
 
 // NewClient type for form creation
