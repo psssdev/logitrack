@@ -42,6 +42,8 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
       linkBaseRastreio: company?.linkBaseRastreio || 'https://seusite.com/rastreio/',
       msgCobranca: company?.msgCobranca || 'Olá {cliente}, tudo bem? Verificamos que há uma pendência de {valor} referente a {quantidade} encomenda(s). Poderia nos dar um retorno sobre o pagamento? Obrigado!',
       msgRecebido: company?.msgRecebido || 'Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}',
+      msgAvisame: company?.msgAvisame || 'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!',
+      msgEmRota: company?.msgEmRota || 'Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}',
     },
   });
 
@@ -231,6 +233,34 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                 <FormMessage />
                 </FormItem>
             )}
+            />
+             <FormField
+                control={form.control}
+                name="msgEmRota"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Mensagem de 'Em Rota'</FormLabel>
+                    <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
+                    <FormDescription>
+                        Variáveis disponíveis: `'{'{cliente}'}'`, `'{'{codigo}'}'`, `'{'{link}'}'`.
+                    </FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="msgAvisame"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Mensagem do Avisa-me</FormLabel>
+                    <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
+                    <FormDescription>
+                        Variáveis disponíveis: `'{'{nome}'}'`, `'{'{cidade}'}'`, `'{'{codigo}'}'`.
+                    </FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
             />
             <FormField
             control={form.control}

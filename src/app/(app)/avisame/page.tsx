@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Client, Order, Address } from '@/lib/types';
+import type { Client, Order, Address, Company } from '@/lib/types';
 import { collection, query, where, doc, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { Megaphone, MessageCircle, Send, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { triggerRevalidation } from '@/lib/actions';
 import Link from 'next/link';
+import { useDoc } from '@/firebase';
 
 const isMobileLike = () => {
   if (typeof navigator === 'undefined') return false;
@@ -140,11 +141,17 @@ export default function AvisamePage() {
     if (!canQuery) return null;
     return query(collection(firestore!, 'clients'));
   }, [canQuery, firestore]);
+  
+  const companyRef = useMemoFirebase(() => {
+    if (!canQuery) return null;
+    return doc(firestore!, 'companies', '1');
+  }, [canQuery, firestore]);
 
   const { data: openOrders, isLoading: isLoadingOrders } = useCollection<Order>(openOrdersQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
-  const isLoading = isLoadingOrders || isLoadingClients || isUserLoading;
+  const isLoading = isLoadingOrders || isLoadingClients || isUserLoading || isLoadingCompany;
 
   const { cities, filteredOrders } = useMemo(() => {
     if (!openOrders?.length || !clients?.length) return { cities: [] as string[], filteredOrders: [] as Order[] };
@@ -171,7 +178,7 @@ export default function AvisamePage() {
     return { cities: sortedCities, filteredOrders: filtered };
   }, [openOrders, clients, selectedCity]);
 
-  const getTemplate = () => 'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!';
+  const getTemplate = () => company?.msgAvisame || 'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!';
 
   const renderTemplate = (tpl: string, order: Order, cidade: string) => {
     return buildMessage(tpl, { cidade, nome: order.nomeCliente || '', codigo: order.codigoRastreio });

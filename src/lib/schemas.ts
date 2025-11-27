@@ -245,4 +245,6 @@ export const companySchema = z.object({
   linkBaseRastreio: z.string().url('A URL base de rastreio deve ser um link válido.'),
   msgCobranca: z.string().optional(),
   msgRecebido: z.string().optional(),
+  msgAvisame: z.string().optional(),
+  msgEmRota: z.string().optional(),
 });

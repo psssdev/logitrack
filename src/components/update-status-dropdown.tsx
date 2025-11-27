@@ -11,9 +11,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import type { Order, OrderStatus } from '@/lib/types';
+import type { Order, OrderStatus, Company } from '@/lib/types';
 import { Loader2, ChevronDown } from 'lucide-react';
-import { useFirestore, useUser } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import {
   doc,
   updateDoc,
@@ -49,6 +49,15 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
+  const canQuery = !!firestore && !!user?.uid && !isUserLoading;
+  
+  const companyRef = useMemoFirebase(() => {
+    if (!canQuery) return null;
+    return doc(firestore!, 'companies', '1');
+  }, [canQuery, firestore]);
+
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
+
   const handleUpdateStatus = (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
 
@@ -78,7 +87,7 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
         let notificationTitle = 'Status Atualizado';
 
         if (newStatus === 'EM_ROTA') {
-          messageTemplate = "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
+          messageTemplate = company?.msgEmRota || "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
           notificationTitle = 'Encomenda em rota!';
         } else if (newStatus === 'ENTREGUE') {
           messageTemplate = "Olá {cliente}! Sua encomenda {codigo} foi entregue com sucesso! Obrigado por confiar em nossos serviços.";
@@ -86,7 +95,7 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
         }
 
         if (messageTemplate) {
-          const trackingLink = `https://seusite.com/rastreio/${order.codigoRastreio}`;
+          const trackingLink = `${company?.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
           let message = messageTemplate
             .replace('{cliente}', order.nomeCliente)
             .replace('{codigo}', order.codigoRastreio)
@@ -117,7 +126,7 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="w-[180px] justify-between" disabled={isPending || isUserLoading}>
+        <Button variant="outline" className="w-[180px] justify-between" disabled={isPending || isUserLoading || isLoadingCompany}>
           {isPending ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (

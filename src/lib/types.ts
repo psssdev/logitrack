@@ -109,6 +109,6 @@ export type FinancialEntry = Omit<z.infer<typeof baseFinancialEntrySchema>, 'dat
 
 export type Company = Omit<z.infer<typeof companySchema>, 'createdAt' | 'updatedAt'> & {
     id: string;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
 }

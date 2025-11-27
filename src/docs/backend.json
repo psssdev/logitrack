@@ -379,7 +379,9 @@
         "codigoPrefixo": { "type": "string", "description": "The prefix for tracking codes, e.g., 'TR'." },
         "linkBaseRastreio": { "type": "string", "description": "The base URL for the tracking page, e.g., 'https://seusite.com/rastreio/'." },
         "msgCobranca": { "type": "string", "description": "The default template for payment reminder messages." },
-        "msgRecebido": { "type": "string", "description": "The default template for new order received notifications." }
+        "msgRecebido": { "type": "string", "description": "The default template for new order received notifications." },
+        "msgAvisame": { "type": "string", "description": "The default template for the 'Avisa-me' feature." },
+        "msgEmRota": { "type": "string", "description": "The default template for 'out for delivery' notifications." }
       },
       "required": ["nomeFantasia", "razaoSocial", "cnpj", "codigoPrefixo", "linkBaseRastreio"]
     }
