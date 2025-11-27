@@ -28,13 +28,22 @@ import {
 } from '@/components/ui/popover';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
-import type { Order, PaymentMethod } from '@/lib/types';
+import type { Order, PaymentMethod, Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
-import { doc, updateDoc, serverTimestamp, Timestamp, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, Timestamp, arrayUnion, writeBatch } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+interface ClientDebt {
+    clientId: string;
+    nomeCliente: string;
+    telefone: string;
+    totalPendente: number;
+    orderCount: number;
+    pendingOrders: Order[];
+}
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
   pix: 'PIX',
@@ -42,18 +51,18 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
   cartao: 'Cartão',
   boleto: 'Boleto',
   link: 'Link',
-  haver: 'A Haver', // Shouldn't be selectable here but included for completeness
+  haver: 'A Haver', 
 };
 
 interface RecordPaymentDialogProps {
-  order: Order | null;
+  clientDebt: ClientDebt | null;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   onPaymentRecorded: () => void;
 }
 
 export function RecordPaymentDialog({
-  order,
+  clientDebt,
   isOpen,
   setIsOpen,
   onPaymentRecorded,
@@ -68,59 +77,61 @@ export function RecordPaymentDialog({
   const [paymentNotes, setPaymentNotes] = useState('');
 
   useEffect(() => {
-    if (order) {
-      const alreadyPaid = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-      const remaining = order.valorEntrega - alreadyPaid;
-      setPaymentAmount(remaining > 0 ? remaining : 0);
-      setPaymentMethod(order.formaPagamento === 'haver' ? 'pix' : order.formaPagamento);
+    if (clientDebt) {
+      setPaymentAmount(clientDebt.totalPendente);
+      setPaymentMethod('pix');
       setPaymentNotes('');
       setPaymentDate(new Date());
     }
-  }, [order]);
+  }, [clientDebt]);
 
-  if (!order) return null;
-  
-  const alreadyPaid = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-  const currentPendentValue = order.valorEntrega - alreadyPaid;
-
+  if (!clientDebt) return null;
 
   const handleSave = async () => {
     if (!firestore || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0) {
       toast({
         variant: 'destructive',
-        title: 'Erro',
+        title: 'Erro de Validação',
         description: 'Preencha um valor e método de pagamento válidos.',
       });
       return;
     }
     setIsSaving(true);
-
-    const orderRef = doc(firestore, 'orders', order.id);
+    
+    const batch = writeBatch(firestore);
 
     try {
-      const totalPaid = alreadyPaid + paymentAmount;
-      const isPaid = totalPaid >= order.valorEntrega;
+        const paymentRecord = {
+            amount: paymentAmount,
+            method: paymentMethod,
+            date: Timestamp.fromDate(paymentDate),
+            notes: paymentNotes
+        };
+        
+        // This is a simplified approach. It marks all pending orders as paid
+        // if the payment covers the total debt. A more robust solution might
+        // distribute the payment among orders, but this is a good start.
+        const isFullyPaid = paymentAmount >= clientDebt.totalPendente;
+        
+        clientDebt.pendingOrders.forEach(order => {
+             const orderRef = doc(firestore, 'orders', order.id);
+             batch.update(orderRef, {
+                pago: isFullyPaid,
+                dataPagamento: isFullyPaid ? Timestamp.fromDate(paymentDate) : null,
+                payments: arrayUnion(paymentRecord),
+                updatedAt: serverTimestamp(),
+             });
+        });
 
-      const paymentRecord = {
-          amount: paymentAmount,
-          method: paymentMethod,
-          date: Timestamp.fromDate(paymentDate),
-          notes: paymentNotes
-      };
-
-      await updateDoc(orderRef, {
-        pago: isPaid,
-        dataPagamento: isPaid ? Timestamp.fromDate(paymentDate) : null,
-        payments: arrayUnion(paymentRecord),
-        updatedAt: serverTimestamp(),
-      });
+      await batch.commit();
 
       toast({
         title: 'Pagamento Registrado!',
-        description: `Recebido ${paymentAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}.`,
+        description: `Recebido ${paymentAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} de ${clientDebt.nomeCliente}.`,
       });
       onPaymentRecorded();
       setIsOpen(false);
+
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -138,17 +149,17 @@ export function RecordPaymentDialog({
         <DialogHeader>
           <DialogTitle>Registrar Pagamento</DialogTitle>
           <DialogDescription>
-            Registre um pagamento para a encomenda{' '}
+            Registre um pagamento para o cliente{' '}
             <span className="font-mono font-bold text-foreground">
-              {order.codigoRastreio}
+              {clientDebt.nomeCliente}
             </span>
             .
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
            <div className="p-4 bg-muted/50 rounded-md">
-                <p className="text-sm text-muted-foreground">Valor pendente</p>
-                <p className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(currentPendentValue)}</p>
+                <p className="text-sm text-muted-foreground">Valor total pendente</p>
+                <p className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(clientDebt.totalPendente)}</p>
            </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">
@@ -158,7 +169,7 @@ export function RecordPaymentDialog({
               id="amount"
               type="number"
               value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.valueAsNumber)}
+              onChange={(e) => setPaymentAmount(e.target.valueAsNumber || 0)}
               className="col-span-3"
             />
           </div>

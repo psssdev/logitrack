@@ -59,7 +59,7 @@ interface ClientDebt {
     telefone: string;
     totalPendente: number;
     orderCount: number;
-    orderIds: string[];
+    pendingOrders: Order[];
 }
 
 
@@ -75,6 +75,7 @@ export default function CobrancasPage() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState<'all' | string>('all');
+  const [payingClient, setPayingClient] = useState<ClientDebt | null>(null);
 
 
   const pendingOrdersQuery = useMemoFirebase(() => {
@@ -145,13 +146,13 @@ export default function CobrancasPage() {
                 telefone: order.telefone,
                 totalPendente: 0,
                 orderCount: 0,
-                orderIds: []
+                pendingOrders: []
             };
         }
 
         acc[order.clientId].totalPendente += pendingAmount;
         acc[order.clientId].orderCount += 1;
-        acc[order.clientId].orderIds.push(order.id);
+        acc[order.clientId].pendingOrders.push(order);
         return acc;
 
     }, {} as Record<string, ClientDebt>);
@@ -193,6 +194,15 @@ export default function CobrancasPage() {
     openWhatsApp(client.telefone, message);
   };
   
+  const handlePaymentSuccess = () => {
+    // This will trigger a re-fetch of the `useCollection` hook
+    triggerRevalidation('/cobrancas');
+    toast({
+      title: 'Sucesso!',
+      description: 'A lista de cobranças foi atualizada.',
+    });
+  }
+
 
   const exportToCSV = () => {
     if (clientDebts.length === 0) {
@@ -220,6 +230,7 @@ export default function CobrancasPage() {
 
 
   return (
+    <>
     <div className="flex flex-col gap-6">
       <div className="flex items-center">
         <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
@@ -329,7 +340,7 @@ export default function CobrancasPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
+                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleCharge(client)}
@@ -337,10 +348,16 @@ export default function CobrancasPage() {
                                 <MessageCircle className="mr-2 h-4 w-4" />
                                 Cobrar
                             </Button>
-                            <Button asChild size="sm">
+                             <Button
+                              size="sm"
+                              onClick={() => setPayingClient(client)}
+                            >
+                              <DollarSign className="mr-2 h-4 w-4" />
+                              Pagar
+                            </Button>
+                            <Button asChild size="sm" variant="ghost">
                                 <Link href={`/encomendas?status=PENDENTE&cliente=${client.nomeCliente}`}>
-                                 <ArrowRight className="mr-2 h-4 w-4" />
-                                  Ver Encomendas
+                                 <ArrowRight className="h-4 w-4" />
                                 </Link>
                             </Button>
                           </div>
@@ -371,5 +388,15 @@ export default function CobrancasPage() {
         </CardContent>
       </Card>
     </div>
+
+    {payingClient && (
+        <RecordPaymentDialog
+            clientDebt={payingClient}
+            isOpen={!!payingClient}
+            setIsOpen={() => setPayingClient(null)}
+            onPaymentRecorded={handlePaymentSuccess}
+        />
+    )}
+    </>
   );
 }
