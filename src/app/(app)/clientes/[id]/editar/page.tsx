@@ -28,7 +28,7 @@ export default function EditClientPage({
 
 function EditClientContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;

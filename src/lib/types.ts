@@ -39,6 +39,7 @@ export type Client = Omit<z.infer<typeof clientSchema>, 'createdAt'> & {
     id: string;
     createdAt: Date | Timestamp;
     defaultDestinoId?: string;
+    defaultOriginId?: string;
     addresses?: Address[];
 };
 

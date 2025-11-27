@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editClientSchema } from '@/lib/schemas';
 import type { Client, Destino } from '@/lib/types';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -63,6 +63,7 @@ export function EditClientForm({ client, destinos }: { client: Client, destinos:
       await triggerRevalidation('/clientes');
       await triggerRevalidation(`/clientes/${client.id}`);
       await triggerRevalidation('/encomendas/nova');
+      await triggerRevalidation('/vender-passagem');
 
       toast({
         title: 'Sucesso!',
