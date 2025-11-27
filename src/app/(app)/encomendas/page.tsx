@@ -5,10 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   PlusCircle,
   File,
-  Truck,
-  Megaphone,
-  Loader2,
-  ChevronDown,
+  Trash,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,6 +52,7 @@ import {
   writeBatch,
   doc,
   arrayUnion,
+  deleteDoc,
 } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMemo, useState, useTransition, Suspense } from 'react';
@@ -65,15 +63,6 @@ import { format, isWithinInterval } from 'date-fns';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { DatePickerWithRange } from '@/components/date-range-picker';
 import type { DateRange } from 'react-day-picker';
-
-const openWhatsApp = (phone: string, message: string) => {
-  const cleanedPhone = phone.replace(/\\D/g, '');
-  const fullPhone = cleanedPhone.startsWith('55')
-    ? cleanedPhone
-    : `55${cleanedPhone}`;
-  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
-  window.open(url, '_blank');
-};
 
 const statusLabels: Record<OrderStatus, string> = {
   PENDENTE: 'Pendente',
@@ -93,9 +82,9 @@ function EncomendasContent() {
   const clientFilter = searchParams.get('cliente');
 
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [showNotifyAlert, setShowNotifyAlert] = useState(false);
-  const [pendingBulkStatus, setPendingBulkStatus] =
-    useState<OrderStatus | null>(null);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
 
@@ -174,10 +163,7 @@ function EncomendasContent() {
 
   const allStatuses = ['TODAS', ...statuses] as const;
 
-  const handleBulkStatusUpdate = (
-    newStatus: OrderStatus,
-    notify: boolean = false
-  ) => {
+  const handleBulkStatusUpdate = (newStatus: OrderStatus) => {
     startTransition(async () => {
       if (!firestore || !user || selectedOrderIds.length === 0) return;
 
@@ -210,17 +196,6 @@ function EncomendasContent() {
           description: `${updatedOrders.length} encomenda(s) atualizada(s) para "${statusLabels[newStatus]}".`,
         });
 
-        if (notify && newStatus === 'EM_ROTA' && updatedOrders.length > 0) {
-          for (const order of updatedOrders) {
-            const messageTemplate =
-              'Olá {cliente}! Sua encomenda {codigo} saiu para entrega.';
-            const message = messageTemplate
-              .replace('{cliente}', order.nomeCliente)
-              .replace('{codigo}', order.codigoRastreio);
-            openWhatsApp(order.telefone, message);
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-        }
       } catch (error: any) {
         toast({
           variant: 'destructive',
@@ -231,20 +206,36 @@ function EncomendasContent() {
         });
       } finally {
         setSelectedOrderIds([]);
-        setPendingBulkStatus(null);
-        setShowNotifyAlert(false);
       }
     });
   };
 
-  const startBulkUpdate = (newStatus: OrderStatus) => {
-    if (newStatus === 'EM_ROTA') {
-      setPendingBulkStatus(newStatus);
-      setShowNotifyAlert(true);
-    } else {
-      handleBulkStatusUpdate(newStatus);
+  const confirmDelete = async () => {
+    if (!firestore || !orderToDelete) return;
+    try {
+      await deleteDoc(doc(firestore, 'orders', orderToDelete.id));
+      await triggerRevalidation('/encomendas');
+      await triggerRevalidation('/inicio');
+      toast({
+        title: 'Encomenda excluída',
+        description: `A encomenda "${orderToDelete.codigoRastreio}" foi removida.`,
+      });
+    } catch(error: any) {
+        toast({
+            variant: "destructive",
+            title: "Erro ao excluir",
+            description: error.message,
+        });
+    } finally {
+        setOrderToDelete(null);
+        setShowDeleteAlert(false);
     }
-  };
+  }
+
+  const handleDeleteClick = (order: Order) => {
+    setOrderToDelete(order);
+    setShowDeleteAlert(true);
+  }
 
   const exportToCSV = () => {
     const ordersToExport = filteredOrdersForTab;
@@ -413,19 +404,14 @@ function EncomendasContent() {
                                 variant="outline"
                                 disabled={isUpdating}
                               >
-                                {isUpdating ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  'Ações em Massa'
-                                )}
-                                <ChevronDown className="ml-2 h-4 w-4" />
+                                {`Ações para ${selectedOrderIds.length} item(s)`}
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
                               {statuses.map((s) => (
                                 <DropdownMenuItem
                                   key={s}
-                                  onClick={() => startBulkUpdate(s)}
+                                  onClick={() => handleBulkStatusUpdate(s)}
                                 >
                                   Mudar para {statusLabels[s]}
                                 </DropdownMenuItem>
@@ -441,6 +427,7 @@ function EncomendasContent() {
                         selectedOrderIds={selectedOrderIds}
                         setSelectedOrderIds={setSelectedOrderIds}
                         initialFilter={clientFilter || ''}
+                        onDeleteClick={handleDeleteClick}
                       />
                     </CardContent>
                   </Card>
@@ -449,31 +436,18 @@ function EncomendasContent() {
             })}
         </Tabs>
       </div>
-
-      <AlertDialog
-        open={showNotifyAlert}
-        onOpenChange={setShowNotifyAlert}
-      >
+      <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Notificar Clientes?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Você alterou o status para "Em Rota". Deseja abrir o WhatsApp
-              para enviar uma notificação para os clientes selecionados?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => handleBulkStatusUpdate(pendingBulkStatus!, false)}
-            >
-              Não, apenas alterar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => handleBulkStatusUpdate(pendingBulkStatus!, true)}
-            >
-              Sim, alterar e notificar
-            </AlertDialogAction>
-          </AlertDialogFooter>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                <AlertDialogDescription>
+                   Esta ação não pode ser desfeita. Isso excluirá permanentemente a encomenda <span className="font-bold font-mono">"{orderToDelete?.codigoRastreio}"</span>.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

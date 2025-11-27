@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, ArrowRight } from 'lucide-react';
+import { MoreHorizontal, ArrowRight, Trash } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -42,9 +42,10 @@ interface OrderTableProps {
   selectedOrderIds: string[];
   setSelectedOrderIds: React.Dispatch<React.SetStateAction<string[]>>;
   initialFilter?: string;
+  onDeleteClick: (order: Order) => void;
 }
 
-export function OrderTable({ orders, selectedOrderIds, setSelectedOrderIds, initialFilter = '' }: OrderTableProps) {
+export function OrderTable({ orders, selectedOrderIds, setSelectedOrderIds, initialFilter = '', onDeleteClick }: OrderTableProps) {
   const [filter, setFilter] = React.useState(initialFilter);
   const { toast } = useToast();
   
@@ -201,6 +202,11 @@ export function OrderTable({ orders, selectedOrderIds, setSelectedOrderIds, init
                                 Enviar Comprovante de Dívida
                                 </DropdownMenuItem>
                             )}
+                             <DropdownMenuSeparator />
+                             <DropdownMenuItem className="text-destructive" onClick={() => onDeleteClick(order)}>
+                                <Trash className="mr-2 h-4 w-4" />
+                                Excluir
+                             </DropdownMenuItem>
                             
                         </DropdownMenuContent>
                         </DropdownMenu>
