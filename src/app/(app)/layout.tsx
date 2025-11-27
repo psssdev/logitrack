@@ -17,6 +17,7 @@ import { FirebaseClientProvider } from '@/firebase';
 import { AuthGuard } from '@/components/auth-guard';
 import { Logo } from '@/components/logo';
 import { useUser } from '@/firebase';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const navItems = [
   { href: '/inicio', icon: Home, label: 'Início' },
@@ -106,7 +107,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                          <span>LogiTrack</span>
                        </Link>
                     </div>
-                    <NavLinks onLinkClick={() => setIsMobileSheetOpen(false)} />
+                    <ScrollArea className="flex-1">
+                        <NavLinks onLinkClick={() => setIsMobileSheetOpen(false)} />
+                    </ScrollArea>
                   </nav>
                 </SheetContent>
               </Sheet>
