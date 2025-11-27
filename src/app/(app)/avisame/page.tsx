@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Order } from '@/lib/types';
+import type { Client, Order } from '@/lib/types';
 import { collection, query, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { Megaphone, MessageCircle, Send, Settings2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { triggerRevalidation } from '@/lib/actions';
+import Link from 'next/link';
 
 const isMobileLike = () => {
   if (typeof navigator === 'undefined') return false;
@@ -80,23 +81,35 @@ const openWhatsAppSmart = (phoneRaw: string, message: string) => {
   }
 };
 
-const extractCityFromAddress = (address: string): string => {
-    if (!address) return '';
+const getClientCity = (order: Order, clients: Client[]): string | null => {
+    const client = clients.find(c => c.id === order.clientId);
+    if (!client) return null;
+    
+    // Simplification: Assume the client's city is stored in the destination address.
+    // A more robust solution might check a `city` field on the client document itself
+    // or parse it from a primary address.
+    const address = order.destino;
+    if (!address) return null;
+
     const parts = address.split(',').map(p => p.trim());
-    if (parts.length >= 2) {
-      // Heuristic: City is usually the second to last part, before the state code
-      const cityCandidate = parts[parts.length - 2];
-      if (cityCandidate && cityCandidate.split(' - ').length === 1 && cityCandidate.length > 2) {
-        return titleCase(cityCandidate);
-      }
+    if (parts.length > 1) {
+        // Heuristic: The city is often the second to last part.
+        const cityCandidate = parts[parts.length - 2];
+        if (cityCandidate) {
+            // Further check to avoid picking a neighborhood name if format is "Bairro, Cidade - UF"
+            const stateAndCep = parts[parts.length - 1];
+            if (stateAndCep.includes('-')) {
+                 return titleCase(cityCandidate);
+            }
+        }
     }
-    // Fallback to the last part if it doesn't look like a state-cep combo
-    const lastPart = parts[parts.length - 1] || '';
-    if (!lastPart.includes(' - ')) {
-        return titleCase(lastPart);
+     // Fallback if the format is just the city name
+    if (parts.length === 1 && parts[0]) {
+        return titleCase(parts[0]);
     }
-    return '';
-};
+
+    return null;
+}
 
 export default function AvisamePage() {
   const firestore = useFirestore();
@@ -106,41 +119,50 @@ export default function AvisamePage() {
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
 
+  const canQuery = firestore && user && !isUserLoading;
+
   const openOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!canQuery) return null;
     return query(
         collection(firestore, 'orders'),
         where('status', 'in', ['PENDENTE', 'EM_ROTA'])
     );
-  }, [firestore, user]);
+  }, [canQuery, firestore]);
+  
+  const clientsQuery = useMemoFirebase(() => {
+    if (!canQuery) return null;
+    return query(collection(firestore, 'clients'));
+  }, [canQuery, firestore]);
 
   const { data: openOrders, isLoading: isLoadingOrders } = useCollection<Order>(openOrdersQuery);
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
-  const isLoading = isLoadingOrders || isUserLoading;
+  const isLoading = isLoadingOrders || isLoadingClients || isUserLoading;
 
   const { cities, filteredOrders } = useMemo(() => {
-    if (!openOrders?.length) return { cities: [] as string[], filteredOrders: [] as Order[] };
+    if (!openOrders?.length || !clients?.length) return { cities: [] as string[], filteredOrders: [] as Order[] };
 
-    const citySet = new Set<string>();
-    for (const order of openOrders) {
-        if(order.destino) {
-            const city = extractCityFromAddress(order.destino);
-            if(city) citySet.add(city);
+    const cityMap = new Map<string, boolean>();
+    
+    openOrders.forEach(order => {
+        const city = getClientCity(order, clients);
+        if (city) {
+            cityMap.set(city, true);
         }
-    }
+    });
 
-    const sortedCities = Array.from(citySet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const sortedCities = Array.from(cityMap.keys()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
     const filtered =
       selectedCity
         ? openOrders.filter((order) => {
-            const orderCity = extractCityFromAddress(order.destino);
+            const orderCity = getClientCity(order, clients);
             return orderCity === selectedCity;
         })
         : [];
 
     return { cities: sortedCities, filteredOrders: filtered };
-  }, [openOrders, selectedCity]);
+  }, [openOrders, clients, selectedCity]);
 
   const getTemplate = () => 'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!';
 
@@ -266,7 +288,11 @@ export default function AvisamePage() {
                           const phoneOk = sanitizePhoneBR(order?.telefone || '');
                           return (
                             <TableRow key={order.id}>
-                              <TableCell className="font-medium">{order?.nomeCliente || '-'}</TableCell>
+                              <TableCell className="font-medium">
+                                <Link href={`/clientes/${order.clientId}`} className="hover:underline">
+                                    {order?.nomeCliente || '-'}
+                                </Link>
+                              </TableCell>
                                <TableCell><Badge variant="outline">{order.codigoRastreio}</Badge></TableCell>
                               <TableCell><Badge variant={order.status === 'PENDENTE' ? 'destructive' : 'secondary'}>{order.status}</Badge></TableCell>
                               <TableCell className={!phoneOk ? 'text-red-600' : ''}>
