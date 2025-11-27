@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
 import { useFirestore } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import type { Company } from '@/lib/types';
 import { companySchema } from '@/lib/schemas';
 
@@ -28,6 +28,7 @@ type CompanyFormValues = z.infer<typeof companySchema>;
 export function CompanySettingsForm({ company }: { company: Company | null }) {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const [isFetchingCnpj, setIsFetchingCnpj] = React.useState(false);
 
   const form = useForm<CompanyFormValues>({
     resolver: zodResolver(companySchema),
@@ -43,6 +44,50 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
       msgRecebido: company?.msgRecebido || 'Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}',
     },
   });
+
+  const handleCnpjSearch = async () => {
+    const cnpj = form.getValues('cnpj').replace(/\D/g, '');
+    if (cnpj.length !== 14) {
+      toast({
+        variant: 'destructive',
+        title: 'CNPJ Inválido',
+        description: 'Por favor, digite um CNPJ válido com 14 dígitos.',
+      });
+      return;
+    }
+
+    setIsFetchingCnpj(true);
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!response.ok) {
+        throw new Error('Não foi possível encontrar o CNPJ. Verifique o número e tente novamente.');
+      }
+      const data = await response.json();
+
+      form.setValue('razaoSocial', data.razao_social || '', { shouldValidate: true });
+      form.setValue('nomeFantasia', data.nome_fantasia || '', { shouldValidate: true });
+      
+      const address = `${data.logradouro}, ${data.numero} - ${data.bairro}, ${data.municipio} - ${data.uf}, ${data.cep}`;
+      form.setValue('endereco', address, { shouldValidate: true });
+      form.setValue('telefone', data.ddd_telefone_1 || '', { shouldValidate: true });
+
+
+      toast({
+        title: 'Dados da Empresa Carregados!',
+        description: 'Os campos do formulário foram preenchidos com os dados do CNPJ.',
+      });
+
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao Buscar CNPJ',
+        description: error.message || 'Ocorreu um erro desconhecido.',
+      });
+    } finally {
+      setIsFetchingCnpj(false);
+    }
+  };
+
 
   async function onSubmit(data: CompanyFormValues) {
     if (!firestore) {
@@ -107,9 +152,16 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
             name="cnpj"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>CNPJ</FormLabel>
-                <FormControl><Input placeholder="00.000.000/0001-00" {...field} /></FormControl>
-                <FormMessage />
+                    <FormLabel>CNPJ</FormLabel>
+                    <div className="flex gap-2">
+                        <FormControl>
+                            <Input placeholder="00.000.000/0001-00" {...field} />
+                        </FormControl>
+                        <Button type="button" size="icon" onClick={handleCnpjSearch} disabled={isFetchingCnpj}>
+                            {isFetchingCnpj ? <Loader2 className="animate-spin" /> : <Search />}
+                        </Button>
+                    </div>
+                    <FormMessage />
                 </FormItem>
             )}
           />
