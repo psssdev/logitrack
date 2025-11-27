@@ -35,10 +35,12 @@ import { DatePickerWithRange } from '@/components/date-range-picker';
 import { Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+const formatCurrency = (value: number | undefined) => {
+  if(typeof value !== 'number') return 'R$ 0,00';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
     value
   );
+};
 
 const toDate = (date: any): Date => {
   if (date instanceof Timestamp) return date.toDate();
@@ -194,9 +196,10 @@ export default function CobrancasPage() {
     openWhatsApp(client.telefone, message);
   };
   
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = async () => {
     // This will trigger a re-fetch of the `useCollection` hook
-    triggerRevalidation('/cobrancas');
+    await triggerRevalidation('/cobrancas');
+    await triggerRevalidation('/encomendas');
     toast({
       title: 'Sucesso!',
       description: 'A lista de cobranças foi atualizada.',
@@ -356,7 +359,7 @@ export default function CobrancasPage() {
                               Pagar
                             </Button>
                             <Button asChild size="sm" variant="ghost">
-                                <Link href={`/encomendas?status=PENDENTE&cliente=${client.nomeCliente}`}>
+                                <Link href={`/encomendas?status=PENDENTE&pago=false&cliente=${encodeURIComponent(client.nomeCliente)}`}>
                                  <ArrowRight className="h-4 w-4" />
                                 </Link>
                             </Button>

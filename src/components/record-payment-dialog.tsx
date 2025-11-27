@@ -28,10 +28,10 @@ import {
 } from '@/components/ui/popover';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
-import type { Order, PaymentMethod, Client } from '@/lib/types';
+import type { Order, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore } from '@/firebase';
-import { doc, updateDoc, serverTimestamp, Timestamp, arrayUnion, writeBatch } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc, Timestamp, arrayUnion, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -68,6 +68,7 @@ export function RecordPaymentDialog({
   onPaymentRecorded,
 }: RecordPaymentDialogProps) {
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -88,7 +89,7 @@ export function RecordPaymentDialog({
   if (!clientDebt) return null;
 
   const handleSave = async () => {
-    if (!firestore || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0) {
+    if (!firestore || !user || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0) {
       toast({
         variant: 'destructive',
         title: 'Erro de Validação',
@@ -99,29 +100,46 @@ export function RecordPaymentDialog({
     setIsSaving(true);
     
     const batch = writeBatch(firestore);
+    let amountToDistribute = paymentAmount;
 
     try {
-        const paymentRecord = {
-            amount: paymentAmount,
-            method: paymentMethod,
-            date: Timestamp.fromDate(paymentDate),
-            notes: paymentNotes
-        };
-        
-        // This is a simplified approach. It marks all pending orders as paid
-        // if the payment covers the total debt. A more robust solution might
-        // distribute the payment among orders, but this is a good start.
-        const isFullyPaid = paymentAmount >= clientDebt.totalPendente;
-        
-        clientDebt.pendingOrders.forEach(order => {
-             const orderRef = doc(firestore, 'orders', order.id);
-             batch.update(orderRef, {
-                pago: isFullyPaid,
-                dataPagamento: isFullyPaid ? Timestamp.fromDate(paymentDate) : null,
-                payments: arrayUnion(paymentRecord),
-                updatedAt: serverTimestamp(),
-             });
+        // Sort orders to pay off oldest first
+        const sortedOrders = [...clientDebt.pendingOrders].sort((a, b) => {
+            const dateA = a.createdAt instanceof Timestamp ? a.createdAt.toDate() : new Date(a.createdAt);
+            const dateB = b.createdAt instanceof Timestamp ? b.createdAt.toDate() : new Date(b.createdAt);
+            return dateA.getTime() - dateB.getTime();
         });
+
+        for (const order of sortedOrders) {
+            if (amountToDistribute <= 0) break;
+
+            const paidOnOrder = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+            const pendingOnOrder = order.valorEntrega - paidOnOrder;
+            if (pendingOnOrder <= 0) continue;
+
+            const amountToPayOnThisOrder = Math.min(amountToDistribute, pendingOnOrder);
+            
+            const paymentRecord = {
+                amount: amountToPayOnThisOrder,
+                method: paymentMethod,
+                date: Timestamp.fromDate(paymentDate),
+                notes: paymentNotes || `Pagamento parcial de ${clientDebt.nomeCliente}`
+            };
+
+            const orderRef = doc(firestore, 'orders', order.id);
+
+            const newTotalPaid = paidOnOrder + amountToPayOnThisOrder;
+            const isOrderFullyPaid = newTotalPaid >= order.valorEntrega;
+
+            batch.update(orderRef, {
+                payments: arrayUnion(paymentRecord),
+                pago: isOrderFullyPaid,
+                ...(isOrderFullyPaid && { dataPagamento: Timestamp.fromDate(paymentDate) }),
+                updatedAt: serverTimestamp(),
+            });
+
+            amountToDistribute -= amountToPayOnThisOrder;
+        }
 
       await batch.commit();
 
