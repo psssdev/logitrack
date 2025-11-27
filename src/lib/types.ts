@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, vehicleSchema, baseFinancialEntrySchema, locationSchema, newLocationSchema } from './schemas';
+import { orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, vehicleSchema, baseFinancialEntrySchema, locationSchema, newLocationSchema, companySchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
 export type Payment = {
@@ -105,13 +105,8 @@ export type FinancialEntry = Omit<z.infer<typeof baseFinancialEntrySchema>, 'dat
 };
 
 
-export type Company = {
+export type Company = Omit<z.infer<typeof companySchema>, 'createdAt' | 'updatedAt'> & {
     id: string;
-    nomeFantasia: string;
-    codigoPrefixo: string;
-    linkBaseRastreio: string;
-    msgCobranca?: string;
-    msgRecebido?: string;
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }

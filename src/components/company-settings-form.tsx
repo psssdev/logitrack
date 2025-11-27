@@ -21,15 +21,7 @@ import { useFirestore } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import type { Company } from '@/lib/types';
-import { z } from 'zod';
-
-const companySchema = z.object({
-  nomeFantasia: z.string().min(1, 'O nome fantasia é obrigatório.'),
-  codigoPrefixo: z.string().min(2, 'O prefixo deve ter pelo menos 2 caracteres.').max(5, 'O prefixo deve ter no máximo 5 caracteres.'),
-  linkBaseRastreio: z.string().url('A URL base de rastreio deve ser um link válido.'),
-  msgCobranca: z.string().optional(),
-  msgRecebido: z.string().optional(),
-});
+import { companySchema } from '@/lib/schemas';
 
 type CompanyFormValues = z.infer<typeof companySchema>;
 
@@ -41,6 +33,10 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
     resolver: zodResolver(companySchema),
     defaultValues: {
       nomeFantasia: company?.nomeFantasia || '',
+      razaoSocial: company?.razaoSocial || '',
+      cnpj: company?.cnpj || '',
+      endereco: company?.endereco || '',
+      telefone: company?.telefone || '',
       codigoPrefixo: company?.codigoPrefixo || 'TR',
       linkBaseRastreio: company?.linkBaseRastreio || 'https://seusite.com/rastreio/',
       msgCobranca: company?.msgCobranca || 'Olá {cliente}, tudo bem? Verificamos que há uma pendência de {valor} referente a {quantidade} encomenda(s). Poderia nos dar um retorno sobre o pagamento? Obrigado!',
@@ -84,7 +80,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <FormField
+          <FormField
             control={form.control}
             name="nomeFantasia"
             render={({ field }) => (
@@ -94,7 +90,55 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                 <FormMessage />
                 </FormItem>
             )}
-            />
+          />
+           <FormField
+            control={form.control}
+            name="razaoSocial"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Razão Social</FormLabel>
+                <FormControl><Input placeholder="O nome legal da sua empresa" {...field} /></FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="cnpj"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>CNPJ</FormLabel>
+                <FormControl><Input placeholder="00.000.000/0001-00" {...field} /></FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="telefone"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Telefone de Contato</FormLabel>
+                <FormControl><Input placeholder="(00) 0000-0000" {...field} /></FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+            control={form.control}
+            name="endereco"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Endereço da Empresa</FormLabel>
+                <FormControl><Input placeholder="Rua, Número, Bairro, Cidade - Estado" {...field} /></FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+          />
+
+        <div className="border-t pt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             <FormField
             control={form.control}
             name="codigoPrefixo"
@@ -107,49 +151,50 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                 </FormItem>
             )}
             />
+            <FormField
+                control={form.control}
+                name="linkBaseRastreio"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Link Base para Rastreio</FormLabel>
+                    <FormControl><Input placeholder="https://seusite.com/rastreio/" {...field} /></FormControl>
+                    <FormDescription>O código de rastreio será adicionado no final deste link.</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
         </div>
-        
-         <FormField
+
+        <div className="border-t pt-6 space-y-6">
+            <FormField
             control={form.control}
-            name="linkBaseRastreio"
+            name="msgRecebido"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Link Base para Rastreio</FormLabel>
-                <FormControl><Input placeholder="https://seusite.com/rastreio/" {...field} /></FormControl>
-                <FormDescription>O código de rastreio será adicionado no final deste link.</FormDescription>
+                <FormLabel>Mensagem de Encomenda Recebida</FormLabel>
+                <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
+                <FormDescription>
+                    Variáveis disponíveis: `'{'{cliente}'}'`, `'{'{volumes}'}'`, `'{'{codigo}'}'`, `'{'{valor}'}'`, `'{'{link}'}'`.
+                </FormDescription>
                 <FormMessage />
                 </FormItem>
             )}
-         />
-
-        <FormField
-          control={form.control}
-          name="msgRecebido"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Mensagem de Encomenda Recebida</FormLabel>
-              <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
-              <FormDescription>
-                Variáveis disponíveis: `'{'{cliente}'}'`, `'{'{volumes}'}'`, `'{'{codigo}'}'`, `'{'{valor}'}'`, `'{'{link}'}'`.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="msgCobranca"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Mensagem de Cobrança</FormLabel>
-              <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
-              <FormDescription>
-                Variáveis disponíveis: `'{'{cliente}'}'`, `'{'{valor}'}'`, `'{'{quantidade}'}'`.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+            />
+            <FormField
+            control={form.control}
+            name="msgCobranca"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Mensagem de Cobrança</FormLabel>
+                <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
+                <FormDescription>
+                    Variáveis disponíveis: `'{'{cliente}'}'`, `'{'{valor}'}'`, `'{'{quantidade}'}'`.
+                </FormDescription>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
 
         <div className="flex justify-end pt-4">
           <Button type="submit" disabled={form.formState.isSubmitting}>

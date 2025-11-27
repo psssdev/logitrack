@@ -372,12 +372,16 @@
       "type": "object",
       "properties": {
         "nomeFantasia": { "type": "string", "description": "The trading name of the company." },
+        "razaoSocial": { "type": "string", "description": "The legal name of the company." },
+        "cnpj": { "type": "string", "description": "The company's tax ID (CNPJ)." },
+        "endereco": { "type": "string", "description": "The company's full address." },
+        "telefone": { "type": "string", "description": "The company's contact phone number." },
         "codigoPrefixo": { "type": "string", "description": "The prefix for tracking codes, e.g., 'TR'." },
         "linkBaseRastreio": { "type": "string", "description": "The base URL for the tracking page, e.g., 'https://seusite.com/rastreio/'." },
         "msgCobranca": { "type": "string", "description": "The default template for payment reminder messages." },
         "msgRecebido": { "type": "string", "description": "The default template for new order received notifications." }
       },
-      "required": ["nomeFantasia", "codigoPrefixo", "linkBaseRastreio"]
+      "required": ["nomeFantasia", "razaoSocial", "cnpj", "codigoPrefixo", "linkBaseRastreio"]
     }
   },
   "auth": {

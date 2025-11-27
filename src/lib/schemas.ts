@@ -234,3 +234,15 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
 export const editFinancialEntrySchema = baseFinancialEntrySchema;
 
 export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });
+
+export const companySchema = z.object({
+  nomeFantasia: z.string().min(1, 'O nome fantasia é obrigatório.'),
+  razaoSocial: z.string().min(1, 'A razão social é obrigatória.'),
+  cnpj: z.string().min(14, 'O CNPJ deve ter 14 dígitos.').max(18, 'O CNPJ parece longo demais.'),
+  endereco: z.string().optional(),
+  telefone: z.string().optional(),
+  codigoPrefixo: z.string().min(2, 'O prefixo deve ter pelo menos 2 caracteres.').max(5, 'O prefixo deve ter no máximo 5 caracteres.'),
+  linkBaseRastreio: z.string().url('A URL base de rastreio deve ser um link válido.'),
+  msgCobranca: z.string().optional(),
+  msgRecebido: z.string().optional(),
+});
