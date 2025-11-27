@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address, Origin, Driver, Destino } from '@/lib/types';
+import type { NewOrder, Client, Address, Origin, Driver, Destino, Company } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -101,10 +101,12 @@ export function NewOrderForm({
   clients,
   origins,
   destinos,
+  company,
 }: {
   clients: Client[];
   origins: Origin[];
   destinos: Destino[];
+  company: Company;
 }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -228,7 +230,7 @@ export function NewOrderForm({
         return;
       }
 
-      const trackingPrefix = 'TR'; // Using static prefix as company data fetch was removed
+      const trackingPrefix = company?.codigoPrefixo || 'TR';
       const trackingCode = `${trackingPrefix}-${Math.random()
         .toString(36)
         .substring(2, 8)
@@ -262,11 +264,11 @@ export function NewOrderForm({
       await triggerRevalidation('/financeiro');
 
       if (submitAction === 'save-and-send') {
-        const trackingLink = `https://seusite.com/rastreio/${trackingCode}`; // Static URL
+        const trackingLink = `${company.linkBaseRastreio || 'https://seusite.com/rastreio/'}${trackingCode}`;
         const totalValueFormatted = formatCurrency(totalValue);
         const totalVolumes = data.items.reduce((acc, item) => acc + (item.quantity || 0), 0).toString();
         
-        const messageTemplate = "Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}";
+        let messageTemplate = company.msgRecebido || "Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}";
         let message = messageTemplate;
         message = message.replace('{cliente}', client.nome);
         message = message.replace('{codigo}', trackingCode);

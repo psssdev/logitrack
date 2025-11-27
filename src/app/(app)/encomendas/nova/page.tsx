@@ -11,9 +11,10 @@ import {
 } from '@/components/ui/card';
 import { NewOrderForm } from '@/components/new-order-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, orderBy, query } from 'firebase/firestore';
+import { collection, orderBy, query, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Client, Origin, Destino } from '@/lib/types';
+import type { Client, Origin, Destino, Company } from '@/lib/types';
+import { useDoc } from '@/firebase';
 
 export default function NewOrderPage() {
   const firestore = useFirestore();
@@ -40,11 +41,18 @@ export default function NewOrderPage() {
     return query(collection(firestore, 'destinos'), orderBy('name', 'asc'));
   }, [firestore, isUserLoading, user]);
 
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return doc(firestore, 'companies', '1');
+  }, [firestore, isUserLoading, user]);
+
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
   const { data: destinos, isLoading: isLoadingDestinos } = useCollection<Destino>(destinosQuery);
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
-  const isLoading = isLoadingClients || isLoadingOrigins || isUserLoading || isLoadingDestinos;
+
+  const isLoading = isLoadingClients || isLoadingOrigins || isUserLoading || isLoadingDestinos || isLoadingCompany;
 
   return (
     <div className="mx-auto grid w-full max-w-4xl flex-1 auto-rows-max gap-4">
@@ -68,7 +76,7 @@ export default function NewOrderPage() {
         </CardHeader>
         <CardContent>
           {isLoading && <Skeleton className="h-48 w-full" />}
-          {clients && origins && destinos && <NewOrderForm clients={clients} origins={origins} destinos={destinos} />}
+          {clients && origins && destinos && company && <NewOrderForm clients={clients} origins={origins} destinos={destinos} company={company} />}
         </CardContent>
       </Card>
     </div>

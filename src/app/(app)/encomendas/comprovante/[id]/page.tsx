@@ -73,20 +73,24 @@ function ReceiptContent({ orderId }: { orderId: string }) {
     return doc(firestore, 'orders', orderId);
   }, [firestore, isUserLoading, orderId, user]);
   
-  // This is now null, but kept for compatibility with the component structure
-  const { data: company, isLoading: isLoadingCompany } = {data: null, isLoading: false};
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return doc(firestore, 'companies', '1');
+  }, [firestore, isUserLoading, user]);
+  
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
   const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
 
   const isLoading = isLoadingOrder || isLoadingCompany || isUserLoading;
   
   const handleSendNotification = async () => {
-    if (!order || !firestore || !user || !orderRef) return;
+    if (!order || !company || !firestore || !user || !orderRef) return;
 
-    const trackingLink = `${company?.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
+    const trackingLink = `${company.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
     const totalValue = formatCurrency(order.valorEntrega);
     const totalVolumes = order.items.reduce((acc, item) => acc + item.quantity, 0).toString();
 
-    let messageTemplate = company?.msgRecebido || `Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}`;
+    let messageTemplate = company.msgRecebido || `Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}`;
 
     let message = messageTemplate
       .replace('{cliente}', order.nomeCliente)
