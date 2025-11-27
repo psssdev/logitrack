@@ -92,8 +92,13 @@ const getClientCity = (order: Order, clients: Client[]): string | null => {
             return titleCase((primaryAddress as any).cidade);
         }
     }
+    
+    // 2. Fallback to a structured client-level city field
+    if (client.city) {
+        return titleCase(client.city);
+    }
 
-    // 2. Fallback to parsing from the destination string if no structured address is found
+    // 3. Fallback to parsing from the destination string if no structured address is found
     const address = order.destino;
     if (!address) return null;
 
@@ -217,60 +222,64 @@ export default function AvisamePage() {
   };
 
   const handleNotifyAll = () => {
-    if (!selectedCity || !firestore || !user) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Selecione uma cidade e verifique a sua ligação.' });
-        return;
-    }
+    toast({
+        title: 'Em Construção',
+        description: 'Esta funcionalidade estará disponível em breve.'
+    })
+    // if (!selectedCity || !firestore || !user) {
+    //     toast({ variant: 'destructive', title: 'Erro', description: 'Selecione uma cidade e verifique a sua ligação.' });
+    //     return;
+    // }
 
-    const validOrdersToNotify = filteredOrders.filter(o => !!sanitizePhoneBR(o.telefone));
+    // const validOrdersToNotify = filteredOrders.filter(o => !!sanitizePhoneBR(o.telefone));
     
-    if (validOrdersToNotify.length === 0) {
-        toast({ title: 'Nenhum cliente para notificar', description: 'Não foram encontradas encomendas com telefones válidos nesta cidade.' });
-        return;
-    }
+    // if (validOrdersToNotify.length === 0) {
+    //     toast({ title: 'Nenhum cliente para notificar', description: 'Não foram encontradas encomendas com telefones válidos nesta cidade.' });
+    //     return;
+    // }
 
-    startTransition(async () => {
-        const batch = writeBatch(firestore);
-        const tpl = getTemplate();
-        let ordersUpdatedCount = 0;
+    // startTransition(async () => {
+    //     const batch = writeBatch(firestore);
+    //     const tpl = getTemplate();
+    //     let ordersUpdatedCount = 0;
 
-        validOrdersToNotify.forEach(order => {
-             // Only update status if it's PENDENTE
-            if (order.status === 'PENDENTE') {
-                const orderRef = doc(firestore, 'orders', order.id);
-                batch.update(orderRef, {
-                    status: 'EM_ROTA',
-                    timeline: arrayUnion({
-                        status: 'EM_ROTA',
-                        at: new Date(),
-                        userId: user.uid,
-                    }),
-                });
-                ordersUpdatedCount++;
-            }
+    //     validOrdersToNotify.forEach(order => {
+    //          // Only update status if it's PENDENTE
+    //         if (order.status === 'PENDENTE') {
+    //             const orderRef = doc(firestore, 'orders', order.id);
+    //             batch.update(orderRef, {
+    //                 status: 'EM_ROTA',
+    //                 timeline: arrayUnion({
+    //                     status: 'EM_ROTA',
+    //                     at: new Date(),
+    //                     userId: user.uid,
+    //                 }),
+    //             });
+    //             ordersUpdatedCount++;
+    //         }
             
-            const msg = renderTemplate(tpl, order, selectedCity);
-            openWhatsAppSmart(order.telefone!, msg);
-        });
+    //         const msg = renderTemplate(tpl, order, selectedCity);
+    //         openWhatsAppSmart(order.telefone!, msg);
+    //     });
 
-        try {
-            if (ordersUpdatedCount > 0) {
-                await batch.commit();
-                await triggerRevalidation('/encomendas');
-                await triggerRevalidation('/inicio');
-            }
-            toast({
-                title: 'Notificações Enviadas!',
-                description: `${validOrdersToNotify.length} clientes notificados e ${ordersUpdatedCount} encomendas atualizadas para "Em Rota".`,
-            });
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao atualizar status em massa',
-                description: error.message,
-            });
-        }
-    });
+    //     try {
+    //         if (ordersUpdatedCount > 0) {
+    //             await batch.commit();
+    //             await triggerRevalidation('/encomendas');
+    //             await triggerRevalidation('/inicio');
+    //         }
+    //         toast({
+    //             title: 'Notificações Enviadas!',
+    //             description: `${validOrdersToNotify.length} clientes notificados e ${ordersUpdatedCount} encomendas atualizadas para "Em Rota".`,
+    //         });
+    //     } catch (error: any) {
+    //         toast({
+    //             variant: 'destructive',
+    //             title: 'Erro ao atualizar status em massa',
+    //             description: error.message,
+    //         });
+    //     }
+    // });
   }
 
   return (
@@ -325,8 +334,8 @@ export default function AvisamePage() {
                     {isLoading ? 'Carregando...' : `${filteredOrders.length} encomenda(s) encontrada(s).`}
                   </CardDescription>
                 </div>
-                 <Button onClick={handleNotifyAll} disabled={isUpdating || filteredOrders.length === 0}>
-                    {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                 <Button onClick={handleNotifyAll} disabled>
+                    <Send className="mr-2 h-4 w-4" />
                     Avisar Todos na Cidade
                  </Button>
               </CardHeader>
