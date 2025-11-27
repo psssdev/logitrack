@@ -57,7 +57,7 @@ import {
   arrayUnion,
 } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMemo, useState, useTransition, useEffect } from 'react';
+import { useMemo, useState, useTransition, Suspense } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
@@ -80,17 +80,16 @@ const statusLabels: Record<OrderStatus, string> = {
   CANCELADA: 'Cancelada',
 };
 
-export default function EncomendasPage() {
+function EncomendasContent() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isUpdating, startTransition] = useTransition();
   const searchParams = useSearchParams();
   
-  const initialTab = (searchParams.get('status') as OrderStatus) || 'TODAS';
+  const activeTab = (searchParams.get('status') as OrderStatus) || 'TODAS';
   const clientFilter = searchParams.get('cliente');
 
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [showNotifyAlert, setShowNotifyAlert] = useState(false);
   const [pendingBulkStatus, setPendingBulkStatus] =
@@ -113,14 +112,6 @@ export default function EncomendasPage() {
 
   const pageIsLoading = isLoadingOrders || isUserLoading;
   
-  // Set tab if it comes from URL
-  useEffect(() => {
-      const statusFromUrl = searchParams.get('status');
-      if (statusFromUrl && statusFromUrl !== activeTab) {
-          setActiveTab(statusFromUrl);
-      }
-  }, [searchParams, activeTab]);
-
 
   const filteredOrdersForTab = useMemo(() => {
     if (!orders) return [];
@@ -142,7 +133,6 @@ export default function EncomendasPage() {
     if (!orders)
       return { TODAS: 0, PENDENTE: 0, EM_ROTA: 0, ENTREGUE: 0, CANCELADA: 0 };
       
-    // If there's a client filter, counts should be based on that subset
     const ordersToCount = clientFilter 
         ? orders.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()))
         : orders;
@@ -210,7 +200,6 @@ export default function EncomendasPage() {
               .replace('{cliente}', order.nomeCliente)
               .replace('{codigo}', order.codigoRastreio);
             openWhatsApp(order.telefone, message);
-            // Add a small delay between opening tabs
             await new Promise((resolve) => setTimeout(resolve, 300));
           }
         }
@@ -231,7 +220,6 @@ export default function EncomendasPage() {
   };
 
   const startBulkUpdate = (newStatus: OrderStatus) => {
-    // Directly update the status without showing the notification alert.
     handleBulkStatusUpdate(newStatus);
   };
 
@@ -339,22 +327,22 @@ export default function EncomendasPage() {
             </Button>
           </div>
         </div>
-        <Tabs
-          value={activeTab}
-          onValueChange={(tab) => {
-            setActiveTab(tab);
-            setSelectedOrderIds([]); // Clear selection when changing tabs
-          }}
-        >
+        <Tabs value={activeTab}>
           <ScrollArea className="w-full whitespace-nowrap rounded-md">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList>
               {allStatuses.map((status) => {
                 const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];
                 const count = pageIsLoading ? '' : `(${statusCounts[status]})`;
                 return (
-                  <TabsTrigger key={status} value={status}>
-                    {label} {count}
-                  </TabsTrigger>
+                  <Link
+                    key={status}
+                    href={status === 'TODAS' ? '/encomendas' : `/encomendas?status=${status}`}
+                    scroll={false}
+                  >
+                    <TabsTrigger value={status}>
+                      {label} {count}
+                    </TabsTrigger>
+                  </Link>
                 );
               })}
             </TabsList>
@@ -457,4 +445,12 @@ export default function EncomendasPage() {
       </AlertDialog>
     </>
   );
+}
+
+export default function EncomendasPage() {
+  return (
+    <Suspense fallback={<Skeleton className="w-full h-96" />}>
+      <EncomendasContent />
+    </Suspense>
+  )
 }
