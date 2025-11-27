@@ -17,10 +17,10 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Client, Order } from '@/lib/types';
-import { collection, query, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { Megaphone, MessageCircle, Send, Settings2, Loader2 } from 'lucide-react';
+import { collection, query, where, doc, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
+import { Megaphone, MessageCircle, Send, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -119,19 +119,19 @@ export default function AvisamePage() {
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
 
-  const canQuery = firestore && user && !isUserLoading;
+  const canQuery = !!firestore && !!user?.uid && !isUserLoading;
 
   const openOrdersQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore, 'orders'),
+        collection(firestore!, 'orders'),
         where('status', 'in', ['PENDENTE', 'EM_ROTA'])
     );
   }, [canQuery, firestore]);
   
   const clientsQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
-    return query(collection(firestore, 'clients'));
+    return query(collection(firestore!, 'clients'));
   }, [canQuery, firestore]);
 
   const { data: openOrders, isLoading: isLoadingOrders } = useCollection<Order>(openOrdersQuery);
@@ -214,6 +214,63 @@ export default function AvisamePage() {
     });
   };
 
+  const handleNotifyAll = () => {
+    if (!selectedCity || !firestore || !user) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Selecione uma cidade e verifique a sua ligação.' });
+        return;
+    }
+
+    const validOrdersToNotify = filteredOrders.filter(o => !!sanitizePhoneBR(o.telefone));
+    
+    if (validOrdersToNotify.length === 0) {
+        toast({ title: 'Nenhum cliente para notificar', description: 'Não foram encontradas encomendas com telefones válidos nesta cidade.' });
+        return;
+    }
+
+    startTransition(async () => {
+        const batch = writeBatch(firestore);
+        const tpl = getTemplate();
+        let ordersUpdatedCount = 0;
+
+        validOrdersToNotify.forEach(order => {
+             // Only update status if it's PENDENTE
+            if (order.status === 'PENDENTE') {
+                const orderRef = doc(firestore, 'orders', order.id);
+                batch.update(orderRef, {
+                    status: 'EM_ROTA',
+                    timeline: arrayUnion({
+                        status: 'EM_ROTA',
+                        at: new Date(),
+                        userId: user.uid,
+                    }),
+                });
+                ordersUpdatedCount++;
+            }
+            
+            const msg = renderTemplate(tpl, order, selectedCity);
+            openWhatsAppSmart(order.telefone!, msg);
+        });
+
+        try {
+            if (ordersUpdatedCount > 0) {
+                await batch.commit();
+                await triggerRevalidation('/encomendas');
+                await triggerRevalidation('/inicio');
+            }
+            toast({
+                title: 'Notificações Enviadas!',
+                description: `${validOrdersToNotify.length} clientes notificados e ${ordersUpdatedCount} encomendas atualizadas para "Em Rota".`,
+            });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao atualizar status em massa',
+                description: error.message,
+            });
+        }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center">
@@ -259,13 +316,17 @@ export default function AvisamePage() {
 
           {selectedCity && (
             <Card className="border-dashed">
-              <CardHeader>
+              <CardHeader className="flex-row items-center justify-between">
                 <div>
                   <CardTitle>Encomendas para {selectedCity}</CardTitle>
                   <CardDescription>
                     {isLoading ? 'Carregando...' : `${filteredOrders.length} encomenda(s) encontrada(s).`}
                   </CardDescription>
                 </div>
+                 <Button onClick={handleNotifyAll} disabled={isUpdating || filteredOrders.length === 0}>
+                    {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Avisar Todos na Cidade
+                 </Button>
               </CardHeader>
 
               <CardContent>
