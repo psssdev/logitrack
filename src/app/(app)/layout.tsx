@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3, ChevronLeft, Home, Menu, Package, Users, Truck,
-  MapPin, Megaphone, CircleDollarSign, Bus, Ticket,
+  MapPin, Megaphone, CircleDollarSign, Bus, Ticket, Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -31,6 +31,7 @@ const navItems = [
   { href: '/origens', icon: MapPin, label: 'Origens' },
   { href: '/destinos', icon: MapPin, label: 'Destinos' },
   { href: '/avisame', icon: Megaphone, label: 'Avisa-me' },
+  { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
