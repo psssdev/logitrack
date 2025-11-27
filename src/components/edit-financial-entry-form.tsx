@@ -75,6 +75,12 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
 
   const selectedCategoryId = form.watch('categoryId');
 
+  // Sort categories client-side as they are pre-filtered
+  const sortedCategories = React.useMemo(() => {
+    if (!categories) return [];
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
+
   async function onSubmit(data: EditFinancialEntryFormValues) {
     if (!firestore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
@@ -127,13 +133,6 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
       });
     }
   }
-
-  const availableCategories = React.useMemo(() => {
-    if (!categories) return [];
-    return [...categories]
-      .filter(c => c.type === entry.type)
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories, entry.type]);
 
   return (
     <Form {...form}>
@@ -189,7 +188,7 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
                             <SelectTrigger><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                            {availableCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            {sortedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
                         <FormMessage />

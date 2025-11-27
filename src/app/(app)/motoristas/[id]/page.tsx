@@ -35,18 +35,18 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
   const { user, isUserLoading } = useUser();
 
   const driverRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return doc(firestore, 'drivers', driverId);
-  }, [firestore, isUserLoading, driverId]);
+  }, [firestore, user, driverId]);
 
   const driverOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return query(
       collection(firestore, 'orders'),
       where('motoristaId', '==', driverId),
       orderBy('createdAt', 'desc')
     );
-  }, [firestore, isUserLoading, driverId]);
+  }, [firestore, user, driverId]);
 
   const { data: driver, isLoading: isLoadingDriver } = useDoc<Driver>(driverRef);
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(driverOrdersQuery);
@@ -130,7 +130,9 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {orders && orders.length > 0 ? (
+            {isLoadingOrders ? (
+                <Skeleton className="h-48 w-full" />
+            ) : orders && orders.length > 0 ? (
                 <div className="rounded-md border">
                     <Table>
                         <TableHeader>

@@ -49,9 +49,9 @@ export default function MotoristasPage() {
   );
 
   const driversQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return query(collection(firestore, 'drivers'), orderBy('nome', 'asc'));
-  }, [firestore, isUserLoading]);
+  }, [firestore, user]);
 
   const { data: drivers, isLoading } = useCollection<Driver>(driversQuery);
   const pageIsLoading = isLoading || isUserLoading;
@@ -109,7 +109,13 @@ export default function MotoristasPage() {
               Array.from({ length: 3 }).map((_, i) => (
                 <Card key={i}>
                   <CardContent className="p-6">
-                    <Skeleton className="h-24 w-full" />
+                    <div className="flex items-center gap-4">
+                        <Skeleton className="h-12 w-12 rounded-full" />
+                        <div className="space-y-2">
+                           <Skeleton className="h-4 w-32" />
+                           <Skeleton className="h-3 w-24" />
+                        </div>
+                    </div>
                   </CardContent>
                 </Card>
               ))}

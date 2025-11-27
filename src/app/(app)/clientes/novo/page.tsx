@@ -20,21 +20,23 @@ export default function NewClientPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
+  const canQuery = firestore && user && !isUserLoading;
+
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!canQuery) return null;
     return query(
       collection(firestore, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [canQuery, firestore]);
 
   const destinosQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!canQuery) return null;
     return query(
       collection(firestore, 'destinos'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [canQuery, firestore]);
 
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
   const { data: destinos, isLoading: isLoadingDestinos } = useCollection<Destino>(destinosQuery);

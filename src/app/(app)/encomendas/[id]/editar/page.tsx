@@ -32,17 +32,17 @@ function EditOrderContent({ orderId }: { orderId: string }) {
   const { user, isUserLoading } = useUser();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || !user) return null;
     return doc(firestore, 'orders', orderId);
-  }, [firestore, isUserLoading, orderId, user]);
+  }, [firestore, user, orderId]);
   
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+    if (!firestore || !user) return null;
     return query(
       collection(firestore, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, user]);
 
   const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);

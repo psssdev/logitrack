@@ -35,12 +35,12 @@ export default function VeiculosPage() {
     const { user, isUserLoading } = useUser();
 
     const vehiclesQuery = useMemoFirebase(() => {
-        if (!firestore || isUserLoading || !user) return null;
+        if (!firestore || !user) return null;
         return query(
             collection(firestore, 'vehicles'),
             orderBy('modelo', 'asc')
         );
-    }, [firestore, isUserLoading, user]);
+    }, [firestore, user]);
 
     const { data: vehicles, isLoading } = useCollection<Vehicle>(vehiclesQuery);
     const pageIsLoading = isLoading || isUserLoading;
@@ -71,13 +71,21 @@ export default function VeiculosPage() {
           {pageIsLoading &&
             Array.from({ length: 3 }).map((_, i) => (
               <Card key={i}>
-                <CardHeader>
-                    <Skeleton className="h-6 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
+                <CardHeader className="flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                         <Skeleton className="h-8 w-8" />
+                         <div className="space-y-1">
+                             <Skeleton className="h-5 w-24" />
+                             <Skeleton className="h-4 w-16" />
+                         </div>
+                    </div>
+                    <Skeleton className="h-6 w-20 rounded-full" />
                 </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-12 w-full" />
-                </CardContent>
+                 <CardContent>
+                    <div className="flex justify-end items-center">
+                        <Skeleton className="h-4 w-12" />
+                    </div>
+                 </CardContent>
               </Card>
             ))}
           {!pageIsLoading && vehicles &&

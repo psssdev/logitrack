@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { EditClientForm } from '@/components/edit-client-form';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Client, Origin, Destino } from '@/lib/types';
+import type { Client, Destino } from '@/lib/types';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -28,35 +28,25 @@ export default function EditClientPage({
 
 function EditClientContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return doc(firestore, 'clients', clientId);
-  }, [firestore, isUserLoading, clientId]);
-
-  const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(
-      collection(firestore, 'origins'),
-      orderBy('name', 'asc')
-    );
-  }, [firestore, isUserLoading]);
+  }, [firestore, user, clientId]);
 
   const destinosQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return query(
         collection(firestore, 'destinos'),
         orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, user]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
-  const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
   const { data: destinos, isLoading: isLoadingDestinos } = useCollection<Destino>(destinosQuery);
 
-
-  const pageIsLoading = isLoadingClient || isLoadingOrigins || isLoadingDestinos || isUserLoading;
+  const pageIsLoading = isLoadingClient || isLoadingDestinos || isUserLoading;
 
   if (pageIsLoading) {
     return (

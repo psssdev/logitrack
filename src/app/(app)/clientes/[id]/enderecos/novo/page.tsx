@@ -28,12 +28,12 @@ export default function NewAddressPage({
 
 function NewAddressContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return doc(firestore, 'clients', clientId);
-  }, [firestore, clientId, isUserLoading]);
+  }, [firestore, user, clientId]);
 
   const { data: client, isLoading } = useDoc<Client>(clientRef);
 

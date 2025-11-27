@@ -49,12 +49,12 @@ export default function OrigensPage() {
   const [deletingOrigin, setDeletingOrigin] = React.useState<Origin | null>(null);
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return query(
       collection(firestore, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, user]);
 
   const { data: origins, isLoading } = useCollection<Origin>(originsQuery);
   const pageIsLoading = isLoading || isUserLoading;

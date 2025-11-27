@@ -19,12 +19,12 @@ export default function ClientesPage() {
   const { user, isUserLoading } = useUser();
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return query(
       collection(firestore, 'clients'),
       orderBy('nome', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, user]);
 
   const { data: clients, isLoading } = useCollection(clientsQuery);
   const pageIsLoading = isLoading || isUserLoading;

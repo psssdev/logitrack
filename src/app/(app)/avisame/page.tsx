@@ -34,12 +34,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { triggerRevalidation } from '@/lib/actions';
 
-
-// --------- Utils
 const isMobileLike = () => {
   if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent || '';
-  return /Android|iPhone|iPad|iPod|Windows Phone/i.test(ua);
+  return /Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
 };
 
 const titleCase = (s?: string) =>
@@ -47,31 +44,24 @@ const titleCase = (s?: string) =>
     .toLowerCase()
     .split(' ')
     .filter(Boolean)
-    .map((w) => w[0]?.toUpperCase() + w.slice(1))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
     .trim();
 
 const sanitizePhoneBR = (raw?: string) => {
   if (!raw) return '';
-  // remove não dígitos
   let digits = raw.replace(/\D/g, '');
-  // remove 0 à esquerda do DDD, se houver (casos de importações com 0)
   digits = digits.replace(/^0+/, '');
-  // garante código do país 55
   if (!digits.startsWith('55')) digits = `55${digits}`;
   return digits;
 };
 
-const buildMessage = (tpl: string, ctx: { cidade?: string; nome?: string, codigo?: string }) =>
+const buildMessage = (tpl: string, ctx: { cidade?: string; nome?: string; codigo?: string }) =>
   (tpl || '')
     .replaceAll('{cidade}', ctx.cidade || '')
     .replaceAll('{nome}', ctx.nome || '')
     .replaceAll('{codigo}', ctx.codigo || '');
 
-
-/**
- * Abre WhatsApp de forma resiliente.
- */
 const openWhatsAppSmart = (phoneRaw: string, message: string) => {
   const phone = sanitizePhoneBR(phoneRaw);
   if (!phone) return;
@@ -80,12 +70,9 @@ const openWhatsAppSmart = (phoneRaw: string, message: string) => {
   const waMeUrl = `https://wa.me/${phone}?text=${encoded}`;
   const deepUrl = `whatsapp://send?phone=${phone}&text=${encoded}`;
 
-  const onDesktop = !isMobileLike();
-
-  if (onDesktop) {
+  if (!isMobileLike()) {
     window.open(waMeUrl, '_blank');
   } else {
-    // mobile tenta app primeiro
     const win = window.open(deepUrl);
     setTimeout(() => {
       if (!win || win.closed) window.open(waMeUrl, '_blank');
@@ -96,16 +83,20 @@ const openWhatsAppSmart = (phoneRaw: string, message: string) => {
 const extractCityFromAddress = (address: string): string => {
     if (!address) return '';
     const parts = address.split(',').map(p => p.trim());
-    // Heuristic: City is usually the second to last part, before the state.
     if (parts.length >= 2) {
+      // Heuristic: City is usually the second to last part, before the state code
       const cityCandidate = parts[parts.length - 2];
-      if (cityCandidate && cityCandidate.length > 2) { // Avoid state abbreviations
+      if (cityCandidate && cityCandidate.split(' - ').length === 1 && cityCandidate.length > 2) {
         return titleCase(cityCandidate);
       }
     }
-    return titleCase(parts[parts.length - 1] || ''); // Fallback
-}
-
+    // Fallback to the last part if it doesn't look like a state-cep combo
+    const lastPart = parts[parts.length - 1] || '';
+    if (!lastPart.includes(' - ')) {
+        return titleCase(lastPart);
+    }
+    return '';
+};
 
 export default function AvisamePage() {
   const firestore = useFirestore();
@@ -113,17 +104,15 @@ export default function AvisamePage() {
   const { toast } = useToast();
   const [isUpdating, startTransition] = useTransition();
 
-
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
 
-  // Fetch only open orders
   const openOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return query(
         collection(firestore, 'orders'),
         where('status', 'in', ['PENDENTE', 'EM_ROTA'])
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, user]);
 
   const { data: openOrders, isLoading: isLoadingOrders } = useCollection<Order>(openOrdersQuery);
 
@@ -156,10 +145,8 @@ export default function AvisamePage() {
   const getTemplate = () => 'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!';
 
   const renderTemplate = (tpl: string, order: Order, cidade: string) => {
-    let out = buildMessage(tpl, { cidade, nome: order.nomeCliente || '', codigo: order.codigoRastreio });
-    return out;
+    return buildMessage(tpl, { cidade, nome: order.nomeCliente || '', codigo: order.codigoRastreio });
   };
-
 
   const handleNotifySingle = (order: Order) => {
     if (!selectedCity) {
