@@ -18,6 +18,7 @@ import { AuthGuard } from '@/components/auth-guard';
 import { Logo } from '@/components/logo';
 import { useUser } from '@/firebase';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { StoreProvider } from '@/contexts/store-context';
 
 const navItems = [
   { href: '/inicio', icon: Home, label: 'Início' },
@@ -51,80 +52,82 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <FirebaseClientProvider>
       <AuthGuard>
-        <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-          <aside
-            className={cn(
-              'hidden border-r bg-muted/40 md:block transition-all duration-300',
-              isSidebarOpen ? 'md:w-[220px] lg:w-[280px]' : 'w-0'
-            )}
-            aria-label="Navegação lateral"
-          >
-            {isSidebarOpen && (
-              <div className="flex h-full max-h-screen flex-col gap-2">
-                <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                  <Link href="/inicio" className="flex items-center gap-2 font-semibold">
-                    <Logo className="h-6 w-6" />
-                    <span>LogiTrack</span>
-                  </Link>
+        <StoreProvider>
+          <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+            <aside
+              className={cn(
+                'hidden border-r bg-muted/40 md:block transition-all duration-300',
+                isSidebarOpen ? 'md:w-[220px] lg:w-[280px]' : 'w-0'
+              )}
+              aria-label="Navegação lateral"
+            >
+              {isSidebarOpen && (
+                <div className="flex h-full max-h-screen flex-col gap-2">
+                  <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                    <Link href="/inicio" className="flex items-center gap-2 font-semibold">
+                      <Logo className="h-6 w-6" />
+                      <span>LogiTrack</span>
+                    </Link>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+                      <NavLinks onLinkClick={() => {}} />
+                    </nav>
+                  </div>
                 </div>
-                <div className="flex-1 overflow-y-auto">
-                  <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-                    <NavLinks onLinkClick={() => {}} />
-                  </nav>
-                </div>
-              </div>
-            )}
-          </aside>
+              )}
+            </aside>
 
-          <div className="flex flex-col">
-            <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsSidebarOpen((v) => !v)}
-                className="hidden md:flex"
-                aria-label={isSidebarOpen ? 'Recolher menu lateral' : 'Expandir menu lateral'}
-              >
-                <ChevronLeft
-                  className={cn('h-5 w-5 transition-transform', !isSidebarOpen && 'rotate-180')}
-                />
-              </Button>
+            <div className="flex flex-col">
+              <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSidebarOpen((v) => !v)}
+                  className="hidden md:flex"
+                  aria-label={isSidebarOpen ? 'Recolher menu lateral' : 'Expandir menu lateral'}
+                >
+                  <ChevronLeft
+                    className={cn('h-5 w-5 transition-transform', !isSidebarOpen && 'rotate-180')}
+                  />
+                </Button>
 
-              <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="icon" className="shrink-0 md:hidden" aria-label="Abrir menu">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="flex flex-col">
-                  <SheetHeader>
-                    <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
-                  </SheetHeader>
-                  <nav className="grid gap-2 text-lg font-medium">
-                    <div className="mb-4 flex items-center gap-2 text-lg font-semibold">
-                       <Link href="/inicio" className="flex items-center gap-2 font-semibold" onClick={() => setIsMobileSheetOpen(false)}>
-                         <Logo className="h-6 w-6" />
-                         <span>LogiTrack</span>
-                       </Link>
-                    </div>
-                    <ScrollArea className="flex-1">
-                        <NavLinks onLinkClick={() => setIsMobileSheetOpen(false)} />
-                    </ScrollArea>
-                  </nav>
-                </SheetContent>
-              </Sheet>
+                <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon" className="shrink-0 md:hidden" aria-label="Abrir menu">
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="flex flex-col">
+                    <SheetHeader>
+                      <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+                    </SheetHeader>
+                    <nav className="grid gap-2 text-lg font-medium">
+                      <div className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                        <Link href="/inicio" className="flex items-center gap-2 font-semibold" onClick={() => setIsMobileSheetOpen(false)}>
+                          <Logo className="h-6 w-6" />
+                          <span>LogiTrack</span>
+                        </Link>
+                      </div>
+                      <ScrollArea className="flex-1">
+                          <NavLinks onLinkClick={() => setIsMobileSheetOpen(false)} />
+                      </ScrollArea>
+                    </nav>
+                  </SheetContent>
+                </Sheet>
 
-              <div className="w-full flex-1" />
+                <div className="w-full flex-1" />
 
-              <ThemeToggle />
-              <UserMenu />
-            </header>
+                <ThemeToggle />
+                <UserMenu />
+              </header>
 
-            <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">
-              {children}
-            </main>
+              <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">
+                {children}
+              </main>
+            </div>
           </div>
-        </div>
+        </StoreProvider>
       </AuthGuard>
     </FirebaseClientProvider>
   );
