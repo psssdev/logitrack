@@ -4,6 +4,7 @@ import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { StoreProvider } from '@/contexts/store-context';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -24,7 +25,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (user) {
-    return <>{children}</>;
+    return <StoreProvider>{children}</StoreProvider>;
   }
 
   return null;

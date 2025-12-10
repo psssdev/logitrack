@@ -18,7 +18,6 @@ import { AuthGuard } from '@/components/auth-guard';
 import { Logo } from '@/components/logo';
 import { useUser } from '@/firebase';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { StoreProvider } from '@/contexts/store-context';
 
 const navItems = [
   { href: '/inicio', icon: Home, label: 'Início' },
@@ -52,7 +51,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <FirebaseClientProvider>
       <AuthGuard>
-        <StoreProvider>
           <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
             <aside
               className={cn(
@@ -127,7 +125,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </main>
             </div>
           </div>
-        </StoreProvider>
       </AuthGuard>
     </FirebaseClientProvider>
   );
