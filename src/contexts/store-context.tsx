@@ -5,7 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import type { Store } from '@/lib/types';
 import { collection, query, where } from 'firebase/firestore';
-import { Loader2 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 
 interface StoreContextType {
@@ -25,7 +24,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
 
-  // 1. Fetch stores available to the user
   const storesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     if (role === 'admin') {
@@ -36,9 +34,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const { data: stores, isLoading: isLoadingStores } = useCollection<Store>(storesQuery);
 
-  // 2. Load selected store from localStorage on mount, then manage redirection
+  const isLoading = isUserLoadingAuth || isLoadingStores;
+
   useEffect(() => {
-    if (isUserLoadingAuth || isLoadingStores) return;
+    if (isLoading) return;
 
     const savedStoreId = localStorage.getItem('selectedStoreId');
     let currentStore: Store | null = null;
@@ -47,7 +46,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       currentStore = stores.find(s => s.id === savedStoreId) || null;
     }
     
-    // Auto-select if there's only one store
     if (!currentStore && stores?.length === 1) {
         currentStore = stores[0]!;
     }
@@ -55,37 +53,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSelectedStore(currentStore);
 
     if (currentStore) {
-        if (!localStorage.getItem('selectedStoreId') || localStorage.getItem('selectedStoreId') !== currentStore.id) {
+        if (localStorage.getItem('selectedStoreId') !== currentStore.id) {
             localStorage.setItem('selectedStoreId', currentStore.id);
         }
         if (pathname === '/selecionar-loja') {
             router.replace('/inicio');
         }
-    } else if (stores && stores.length > 1) {
-        if (pathname !== '/selecionar-loja') {
-            router.replace('/selecionar-loja');
-        }
+    } else if (stores && stores.length > 0 && pathname !== '/selecionar-loja') {
+        router.replace('/selecionar-loja');
     }
     
-  }, [isUserLoadingAuth, isLoadingStores, stores, pathname, router]);
+  }, [isLoading, stores, pathname, router]);
 
   const handleSelectStore = useCallback((store: Store) => {
     setSelectedStore(store);
     localStorage.setItem('selectedStoreId', store.id);
     router.push('/inicio');
   }, [router]);
-
-  const isLoading = isUserLoadingAuth || isLoadingStores;
-
-  if (isLoading || (!selectedStore && pathname !== '/selecionar-loja')) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-            <Logo className="h-10 w-10 animate-pulse" />
-            <p className="text-muted-foreground">A carregar dados da aplicação...</p>
+  
+  if (isLoading && pathname !== '/selecionar-loja') {
+     return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-4">
+                <Logo className="h-10 w-10 animate-pulse" />
+                <p className="text-muted-foreground">A carregar dados da aplicação...</p>
+            </div>
         </div>
-      </div>
-    );
+     );
+  }
+  
+  if (!selectedStore && pathname !== '/selecionar-loja') {
+     return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-4">
+                <Logo className="h-10 w-10 animate-pulse" />
+                <p className="text-muted-foreground">A redirecionar...</p>
+            </div>
+        </div>
+     );
   }
 
   return (
