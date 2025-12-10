@@ -56,29 +56,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (selectedStore) {
-      setIsReady(true);
-      if (pathname === '/selecionar-loja') {
-        router.replace('/inicio');
-      }
-      return;
-    }
+    // Firebase data has loaded
+    setIsReady(true);
+    
+    if (stores && stores.length > 0) {
+        // If there's a selected store and we are on the selection page, redirect away.
+        if (selectedStore && pathname === '/selecionar-loja') {
+            router.replace('/inicio');
+            return;
+        }
 
-    if (isFirebaseReady) {
-        if (stores && stores.length > 0) {
-            // If only one store, select it automatically
+        // If there's no selected store, decide what to do
+        if (!selectedStore) {
+             // If only one store, select it automatically and redirect.
             if (stores.length === 1) {
-                setSelectedStore(stores[0]);
+                setSelectedStore(stores[0]!);
                 localStorage.setItem('selectedStoreId', stores[0]!.id);
                  if (pathname === '/selecionar-loja') {
                     router.replace('/inicio');
                  }
-            } else if (pathname !== '/selecionar-loja') {
+            }
+            // If multiple stores and no selection, force redirect to selection page.
+            else if (pathname !== '/selecionar-loja') {
                 router.replace('/selecionar-loja');
             }
         }
-        setIsReady(true); // Ready to show either app, selection page, or "no store" message
     }
+    // If ready and there are no stores, do nothing, let the selection page show "no stores".
 
   }, [isUserLoadingAuth, isLoadingStores, stores, selectedStore, pathname, router]);
 
@@ -88,7 +92,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     router.push('/inicio');
   }, [router]);
 
-  if (!isReady) {
+
+  const isLoading = !isReady || isUserLoadingAuth || isLoadingStores;
+
+  if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-2">
@@ -99,8 +106,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     );
   }
   
-  if (!selectedStore && pathname !== '/selecionar-loja') {
-    // This can happen briefly during redirection, show a loader
+  if (isReady && !selectedStore && pathname !== '/selecionar-loja') {
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-2">
@@ -112,7 +118,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <StoreContext.Provider value={{ stores: stores || [], selectedStore, selectStore: handleSelectStore, isLoading: !isReady }}>
+    <StoreContext.Provider value={{ stores: stores || [], selectedStore, selectStore: handleSelectStore, isLoading }}>
       {children}
     </StoreContext.Provider>
   );
