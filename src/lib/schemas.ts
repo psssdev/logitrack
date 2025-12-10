@@ -1,4 +1,11 @@
+
 import { z } from 'zod';
+
+export const storeSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  ownerId: z.string(),
+});
 
 export const orderStatusSchema = z.enum([
   'PENDENTE',
@@ -30,6 +37,7 @@ const paymentSchema = z.object({
 
 export const orderSchema = z.object({
   id: z.string(),
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
   codigoRastreio: z.string().min(1, 'O código de rastreio é obrigatório.'),
   nomeCliente: z.string().min(1, 'O nome do cliente é obrigatório.'),
   telefone: z.string().min(10, 'O número de telefone parece inválido.'),
@@ -80,10 +88,12 @@ export const newOrderSchema = orderSchema.omit({
 
 export const editOrderSchema = newOrderSchema.omit({
     clientId: true,
+    storeId: true, // storeId is not editable
 });
 
 export const driverSchema = z.object({
   id: z.string(),
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
   nome: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres.'),
   telefone: z.string().min(10, 'O número de telefone parece inválido.'),
   photoUrl: z.string().url('A URL da foto parece inválida.').optional().nullable(),
@@ -93,13 +103,12 @@ export const driverSchema = z.object({
 export const newDriverSchema = driverSchema.omit({ id: true, ativo: true }).extend({
     photoUrl: z.string().optional().nullable(),
 });
-export const editDriverSchema = newDriverSchema.extend({
-    photoUrl: z.string().optional().nullable(),
-});
+export const editDriverSchema = newDriverSchema.omit({ storeId: true });
 
 
 export const clientSchema = z.object({
     id: z.string(),
+    storeId: z.string().min(1, "A ID da loja é obrigatória."),
     nome: z.string().min(1, "O nome do cliente é obrigatório."),
     telefone: z.string().min(10, "O número de telefone parece inválido."),
     createdAt: z.any(),
@@ -107,20 +116,18 @@ export const clientSchema = z.object({
 });
 
 export const newClientSchema = z.object({
+    storeId: z.string().min(1, "A ID da loja é obrigatória."),
     nome: z.string().min(1, "O nome do cliente é obrigatório."),
     telefone: z.string().min(10, "O número de telefone parece inválido."),
     defaultDestinoId: z.string().optional().nullable(),
 });
 
-export const editClientSchema = z.object({
-    nome: z.string().min(1, "O nome do cliente é obrigatório."),
-    telefone: z.string().min(10, "O número de telefone parece inválido."),
-    defaultDestinoId: z.string().optional().nullable(),
-});
+export const editClientSchema = newClientSchema.omit({ storeId: true });
 
 
 export const addressSchema = z.object({
   id: z.string(),
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
   clientId: z.string(),
   label: z.string().min(1, 'O rótulo do endereço é obrigatório (ex: Casa, Trabalho).'),
   logradouro: z.string().min(1, 'O logradouro é obrigatório.'),
@@ -141,6 +148,7 @@ export const newAddressFormSchema = addressSchema.omit({
 
 export const locationSchema = z.object({
   id: z.string().optional(),
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
   name: z.string().min(1, 'O nome do local é obrigatório.'),
   logradouro: z.string().min(1, 'O logradouro é obrigatório.'),
   numero: z.string().min(1, 'O número é obrigatório.'),
@@ -155,6 +163,7 @@ export const locationSchema = z.object({
 });
 
 export const newLocationSchema = z.object({
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
   name: z.string().min(1, "O nome do local é obrigatório."),
   logradouro: z.string().min(1, "O logradouro é obrigatório."),
   numero: z.string().min(1, "O número é obrigatório."),
@@ -169,6 +178,7 @@ export const newLocationSchema = z.object({
 
 export const vehicleSchema = z.object({
   id: z.string(),
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
   placa: z.string().min(7, 'A placa deve ter 7 caracteres.'),
   modelo: z.string().min(1, 'O modelo é obrigatório.'),
   ano: z.coerce.number().int().min(1900, 'O ano de fabricação é inválido.').max(new Date().getFullYear() + 1, 'O ano de fabricação não pode ser no futuro.'),
@@ -180,11 +190,13 @@ export const vehicleSchema = z.object({
 
 export const financialCategorySchema = z.object({
   id: z.string().optional(),
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
   name: z.string().min(1, 'O nome da categoria é obrigatório.'),
   type: z.enum(['Entrada', 'Saída']),
 });
 
 export const baseFinancialEntrySchema = z.object({
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
   description: z.string().optional(),
   amount: z.coerce.number().positive('O valor deve ser maior que zero.'),
   type: z.enum(["Entrada", "Saída"]),
@@ -231,7 +243,7 @@ export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
 });
 
 
-export const editFinancialEntrySchema = baseFinancialEntrySchema;
+export const editFinancialEntrySchema = baseFinancialEntrySchema.omit({ storeId: true });
 
 export const financialEntrySchema = baseFinancialEntrySchema.extend({ id: z.string() });
 
@@ -248,3 +260,5 @@ export const companySchema = z.object({
   msgAvisame: z.string().optional(),
   msgEmRota: z.string().optional(),
 });
+
+    

@@ -1,6 +1,9 @@
+
 import { z } from 'zod';
-import { orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, vehicleSchema, baseFinancialEntrySchema, locationSchema, newLocationSchema, companySchema } from './schemas';
+import { storeSchema, orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, vehicleSchema, baseFinancialEntrySchema, locationSchema, newLocationSchema, companySchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
+
+export type Store = z.infer<typeof storeSchema>;
 
 export type Payment = {
     amount: number;
@@ -96,6 +99,7 @@ export type Vehicle = Omit<z.infer<typeof vehicleSchema>, 'seatLayout'> & {
 
 export type FinancialCategory = {
     id: string;
+    storeId: string;
     name: string;
     type: 'Entrada' | 'Saída';
 }
@@ -112,3 +116,5 @@ export type Company = Omit<z.infer<typeof companySchema>, 'createdAt' | 'updated
     createdAt?: Timestamp;
     updatedAt?: Timestamp;
 }
+
+    
