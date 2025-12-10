@@ -16,6 +16,7 @@ import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@
 import type { Client, Destino } from '@/lib/types';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
 
 export default function EditClientPage({
   params,
@@ -28,25 +29,28 @@ export default function EditClientPage({
 
 function EditClientContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
+
+  const canQuery = firestore && selectedStore && !isUserLoading;
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'clients', clientId);
-  }, [firestore, user, clientId]);
+    if (!canQuery) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'clients', clientId);
+  }, [canQuery, firestore, selectedStore, clientId]);
 
   const destinosQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!canQuery) return null;
     return query(
-        collection(firestore, 'destinos'),
+        collection(firestore, 'stores', selectedStore.id, 'destinos'),
         orderBy('name', 'asc')
     );
-  }, [firestore, user]);
+  }, [canQuery, firestore, selectedStore]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: destinos, isLoading: isLoadingDestinos } = useCollection<Destino>(destinosQuery);
 
-  const pageIsLoading = isLoadingClient || isLoadingDestinos || isUserLoading;
+  const pageIsLoading = isLoadingClient || isLoadingDestinos || isUserLoading || !selectedStore;
 
   if (pageIsLoading) {
     return (

@@ -18,68 +18,66 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
-  const { user, isUserLoading: isUserLoadingAuth } = useUser();
+  const { user, isUserLoading: isUserLoadingAuth, role } = useUser();
   const router = useRouter();
   const pathname = usePathname();
 
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isReady, setIsReady] = useState(false);
 
   // 1. Fetch stores available to the user
   const storesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
-    // For now, fetch all stores. Later, this could be filtered by user role/permissions.
-    // e.g., where('ownerId', '==', user.uid)
-    return query(collection(firestore, 'stores'));
-  }, [firestore, user?.uid]);
+    // For admin, fetch all stores. For other roles, filter by ownerId.
+    if (role === 'admin') {
+      return query(collection(firestore, 'stores'));
+    }
+    return query(collection(firestore, 'stores'), where('ownerId', '==', user.uid));
+  }, [firestore, user?.uid, role]);
 
   const { data: stores, isLoading: isLoadingStores } = useCollection<Store>(storesQuery);
 
-  // 2. Load selected store from localStorage on mount
+  // 2. Load selected store from localStorage on mount and when stores list changes
   useEffect(() => {
+    if (!stores) return;
     const savedStoreId = localStorage.getItem('selectedStoreId');
-    if (savedStoreId && stores) {
+    if (savedStoreId) {
       const store = stores.find(s => s.id === savedStoreId) || null;
       setSelectedStore(store);
     }
-  }, [stores]); // Run only when stores are loaded
+  }, [stores]);
 
   // 3. Main logic to handle loading state and redirection
   useEffect(() => {
-    const isReady = !isUserLoadingAuth && !isLoadingStores;
-
-    if (!isReady) {
-      setIsLoading(true);
+    const isFirebaseReady = !isUserLoadingAuth && !isLoadingStores;
+    
+    if (!isFirebaseReady) {
+      setIsReady(false);
       return;
     }
 
-    // If we have stores and a store is selected, we are good.
     if (selectedStore) {
-      setIsLoading(false);
-      // If user is on the selection page but already has a selection, move them to home
+      setIsReady(true);
       if (pathname === '/selecionar-loja') {
         router.replace('/inicio');
       }
       return;
     }
 
-    // If ready, but no store is selected yet
-    if (isReady && !selectedStore) {
-        // If there are stores available, redirect to selection page
+    if (isFirebaseReady) {
         if (stores && stores.length > 0) {
-            if (pathname !== '/selecionar-loja') {
+            // If only one store, select it automatically
+            if (stores.length === 1) {
+                setSelectedStore(stores[0]);
+                localStorage.setItem('selectedStoreId', stores[0]!.id);
+                 if (pathname === '/selecionar-loja') {
+                    router.replace('/inicio');
+                 }
+            } else if (pathname !== '/selecionar-loja') {
                 router.replace('/selecionar-loja');
             }
-            setIsLoading(false); // Stop loading, let the selection page render
-        } else {
-            // No stores available for this user
-            setIsLoading(false);
-            // Here you could redirect to a "create store" page or show a message
-            if (pathname !== '/criar-loja') {
-                 // For now, just show a message on the current page
-                 console.warn("Nenhuma loja encontrada para este utilizador.");
-            }
         }
+        setIsReady(true); // Ready to show either app, selection page, or "no store" message
     }
 
   }, [isUserLoadingAuth, isLoadingStores, stores, selectedStore, pathname, router]);
@@ -90,37 +88,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     router.push('/inicio');
   }, [router]);
 
-  if (isLoading) {
+  if (!isReady) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">A carregar dados da loja...</p>
+            <p className="text-muted-foreground">A carregar dados da aplicação...</p>
         </div>
       </div>
     );
   }
   
-   // Don't render children if we are on the selection page but still don't have a store
-  if (pathname === '/selecionar-loja' && !selectedStore) {
-      // The selection page will be rendered by the router
-      return null;
-  }
-  
-  if (!selectedStore && stores && stores.length > 0) {
-      return (
+  if (!selectedStore && pathname !== '/selecionar-loja') {
+    // This can happen briefly during redirection, show a loader
+     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-2">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-muted-foreground">A redirecionar para a seleção de loja...</p>
+                <p className="text-muted-foreground">A redirecionar...</p>
             </div>
         </div>
-      )
+      );
   }
 
-
   return (
-    <StoreContext.Provider value={{ stores: stores || [], selectedStore, selectStore: handleSelectStore, isLoading }}>
+    <StoreContext.Provider value={{ stores: stores || [], selectedStore, selectStore: handleSelectStore, isLoading: !isReady }}>
       {children}
     </StoreContext.Provider>
   );

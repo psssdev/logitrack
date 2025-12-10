@@ -15,33 +15,35 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebas
 import type { Destino, Origin } from '@/lib/types';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
 
 export default function NewClientPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
-  const canQuery = firestore && user && !isUserLoading;
+  const canQuery = firestore && selectedStore && !isUserLoading;
 
   const originsQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-      collection(firestore, 'origins'),
+      collection(firestore, 'stores', selectedStore.id, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [canQuery, firestore]);
+  }, [canQuery, firestore, selectedStore]);
 
   const destinosQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-      collection(firestore, 'destinos'),
+      collection(firestore, 'stores', selectedStore.id, 'destinos'),
       orderBy('name', 'asc')
     );
-  }, [canQuery, firestore]);
+  }, [canQuery, firestore, selectedStore]);
 
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
   const { data: destinos, isLoading: isLoadingDestinos } = useCollection<Destino>(destinosQuery);
 
-  const isLoading = isLoadingOrigins || isLoadingDestinos || isUserLoading;
+  const isLoading = isLoadingOrigins || isLoadingDestinos || isUserLoading || !selectedStore;
 
   return (
     <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">

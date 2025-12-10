@@ -17,6 +17,7 @@ import type { Order, Origin } from '@/lib/types';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection } from '@/firebase';
+import { useStore } from '@/contexts/store-context';
 
 export default function EditOrderPage({
   params,
@@ -29,25 +30,28 @@ export default function EditOrderPage({
 
 function EditOrderContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
+
+  const canQuery = firestore && selectedStore && !isUserLoading;
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'orders', orderId);
-  }, [firestore, user, orderId]);
+    if (!canQuery) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'orders', orderId);
+  }, [canQuery, firestore, selectedStore, orderId]);
   
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!canQuery) return null;
     return query(
-      collection(firestore, 'origins'),
+      collection(firestore, 'stores', selectedStore.id, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, user]);
+  }, [canQuery, firestore, selectedStore]);
 
   const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
 
-  const isLoading = isLoadingOrder || isLoadingOrigins || isUserLoading;
+  const isLoading = isLoadingOrder || isLoadingOrigins || isUserLoading || !selectedStore;
 
   if (isLoading) {
     return (
