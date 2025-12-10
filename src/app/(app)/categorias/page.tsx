@@ -35,6 +35,7 @@ import { EditCategoryDialog } from '@/components/edit-category-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
+import { useStore } from '@/contexts/store-context';
 
 
 const defaultExpenseCategories = [
@@ -51,7 +52,7 @@ const defaultExpenseCategories = [
 
 export default function CategoriasPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
 
   const [isNewCategoryOpen, setIsNewCategoryOpen] = React.useState(false);
@@ -61,14 +62,14 @@ export default function CategoriasPage() {
   const [isCreatingDefaults, setIsCreatingDefaults] = React.useState(false);
 
   const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !selectedStore) return null;
     return query(
-      collection(firestore, 'financialCategories')
+      collection(firestore, 'stores', selectedStore.id, 'financialCategories')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, selectedStore]);
 
   const { data: categories, isLoading } = useCollection<FinancialCategory>(categoriesQuery);
-  const pageIsLoading = isLoading || isUserLoading;
+  const pageIsLoading = isLoading || !selectedStore;
 
   // Sort categories client-side
   const sortedCategories = React.useMemo(() => {
@@ -86,9 +87,9 @@ export default function CategoriasPage() {
   };
   
   const confirmDelete = async () => {
-    if (!firestore || !deletingCategory) return;
+    if (!firestore || !deletingCategory || !selectedStore) return;
     try {
-      await deleteDoc(doc(firestore, 'financialCategories', deletingCategory.id));
+      await deleteDoc(doc(firestore, 'stores', selectedStore.id, 'financialCategories', deletingCategory.id));
       await triggerRevalidation('/categorias');
       await triggerRevalidation('/financeiro/novo');
       toast({
@@ -108,13 +109,13 @@ export default function CategoriasPage() {
   }
 
   const handleCreateDefaultCategories = async () => {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
         toast({ variant: "destructive", title: "Erro de conexão" });
         return;
     }
     setIsCreatingDefaults(true);
     try {
-        const categoriesCollection = collection(firestore, 'financialCategories');
+        const categoriesCollection = collection(firestore, 'stores', selectedStore.id, 'financialCategories');
         const existingCategoryNames = new Set(categories?.map(c => c.name.toLowerCase()));
         
         const batch = writeBatch(firestore);
@@ -123,7 +124,7 @@ export default function CategoriasPage() {
         defaultExpenseCategories.forEach(defaultCategory => {
             if (!existingCategoryNames.has(defaultCategory.name.toLowerCase())) {
                 const newDocRef = doc(categoriesCollection);
-                batch.set(newDocRef, defaultCategory);
+                batch.set(newDocRef, { ...defaultCategory, storeId: selectedStore.id });
                 count++;
             }
         });

@@ -16,6 +16,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Client } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
 
 export default function NewAddressPage({
   params,
@@ -28,16 +29,16 @@ export default function NewAddressPage({
 
 function NewAddressContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
-    return doc(firestore, 'clients', clientId);
-  }, [firestore, clientId, user, isUserLoading]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'clients', clientId);
+  }, [firestore, selectedStore, clientId]);
 
   const { data: client, isLoading } = useDoc<Client>(clientRef);
 
-  const pageIsLoading = isLoading || isUserLoading;
+  const pageIsLoading = isLoading || !selectedStore;
 
   if (pageIsLoading) {
       return (

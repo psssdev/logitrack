@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/badge';
 import { triggerRevalidation } from '@/lib/actions';
 import Link from 'next/link';
 import { useDoc } from '@/firebase';
+import { useStore } from '@/contexts/store-context';
 
 const isMobileLike = () => {
   if (typeof navigator === 'undefined') return false;
@@ -122,36 +123,38 @@ const getClientCity = (order: Order, clients: Client[]): string | null => {
 export default function AvisamePage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
   const [isUpdating, startTransition] = useTransition();
 
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
 
-  const canQuery = !!firestore && !!user?.uid && !isUserLoading;
+  const canQuery = !!firestore && !!user?.uid && !isUserLoading && !!selectedStore;
 
   const openOrdersQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore!, 'orders'),
+        collection(firestore, 'stores', selectedStore.id, 'orders'),
         where('status', 'in', ['PENDENTE', 'EM_ROTA'])
     );
-  }, [canQuery, firestore]);
+  }, [canQuery, firestore, selectedStore]);
   
   const clientsQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
-    return query(collection(firestore!, 'clients'));
-  }, [canQuery, firestore]);
+    return query(collection(firestore, 'stores', selectedStore.id, 'clients'));
+  }, [canQuery, firestore, selectedStore]);
   
   const companyRef = useMemoFirebase(() => {
-    if (!canQuery) return null;
-    return doc(firestore!, 'companies', '1');
-  }, [canQuery, firestore]);
+    // Company settings are global, not per-store in this model
+    if (!firestore || !user?.uid) return null;
+    return doc(firestore, 'companies', '1');
+  }, [firestore, user?.uid]);
 
   const { data: openOrders, isLoading: isLoadingOrders } = useCollection<Order>(openOrdersQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
-  const isLoading = isLoadingOrders || isLoadingClients || isUserLoading || isLoadingCompany;
+  const isLoading = isLoadingOrders || isLoadingClients || isUserLoading || isLoadingCompany || !selectedStore;
 
   const { cities, filteredOrders } = useMemo(() => {
     if (!openOrders?.length || !clients?.length) return { cities: [] as string[], filteredOrders: [] as Order[] };
@@ -196,9 +199,9 @@ export default function AvisamePage() {
     }
 
     startTransition(async () => {
-        if (order.status === 'PENDENTE' && firestore && user) {
+        if (order.status === 'PENDENTE' && firestore && user && selectedStore) {
             try {
-                const orderRef = doc(firestore, 'orders', order.id);
+                const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
                 await updateDoc(orderRef, {
                     status: 'EM_ROTA',
                     timeline: arrayUnion({
@@ -229,64 +232,60 @@ export default function AvisamePage() {
   };
 
   const handleNotifyAll = () => {
-    toast({
-        title: 'Em Construção',
-        description: 'Esta funcionalidade estará disponível em breve.'
-    })
-    // if (!selectedCity || !firestore || !user) {
-    //     toast({ variant: 'destructive', title: 'Erro', description: 'Selecione uma cidade e verifique a sua ligação.' });
-    //     return;
-    // }
+    if (!selectedCity || !firestore || !user || !selectedStore) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Selecione uma cidade e verifique a sua ligação.' });
+        return;
+    }
 
-    // const validOrdersToNotify = filteredOrders.filter(o => !!sanitizePhoneBR(o.telefone));
+    const validOrdersToNotify = filteredOrders.filter(o => !!sanitizePhoneBR(o.telefone));
     
-    // if (validOrdersToNotify.length === 0) {
-    //     toast({ title: 'Nenhum cliente para notificar', description: 'Não foram encontradas encomendas com telefones válidos nesta cidade.' });
-    //     return;
-    // }
+    if (validOrdersToNotify.length === 0) {
+        toast({ title: 'Nenhum cliente para notificar', description: 'Não foram encontradas encomendas com telefones válidos nesta cidade.' });
+        return;
+    }
 
-    // startTransition(async () => {
-    //     const batch = writeBatch(firestore);
-    //     const tpl = getTemplate();
-    //     let ordersUpdatedCount = 0;
+    startTransition(async () => {
+        const batch = writeBatch(firestore);
+        const tpl = getTemplate();
+        let ordersUpdatedCount = 0;
 
-    //     validOrdersToNotify.forEach(order => {
-    //          // Only update status if it's PENDENTE
-    //         if (order.status === 'PENDENTE') {
-    //             const orderRef = doc(firestore, 'orders', order.id);
-    //             batch.update(orderRef, {
-    //                 status: 'EM_ROTA',
-    //                 timeline: arrayUnion({
-    //                     status: 'EM_ROTA',
-    //                     at: new Date(),
-    //                     userId: user.uid,
-    //                 }),
-    //             });
-    //             ordersUpdatedCount++;
-    //         }
+        validOrdersToNotify.forEach(order => {
+             // Only update status if it's PENDENTE
+            if (order.status === 'PENDENTE') {
+                const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
+                batch.update(orderRef, {
+                    status: 'EM_ROTA',
+                    timeline: arrayUnion({
+                        status: 'EM_ROTA',
+                        at: new Date(),
+                        userId: user.uid,
+                    }),
+                });
+                ordersUpdatedCount++;
+            }
             
-    //         const msg = renderTemplate(tpl, order, selectedCity);
-    //         openWhatsAppSmart(order.telefone!, msg);
-    //     });
+            const msg = renderTemplate(tpl, order, selectedCity);
+            openWhatsAppSmart(order.telefone!, msg);
+        });
 
-    //     try {
-    //         if (ordersUpdatedCount > 0) {
-    //             await batch.commit();
-    //             await triggerRevalidation('/encomendas');
-    //             await triggerRevalidation('/inicio');
-    //         }
-    //         toast({
-    //             title: 'Notificações Enviadas!',
-    //             description: `${validOrdersToNotify.length} clientes notificados e ${ordersUpdatedCount} encomendas atualizadas para "Em Rota".`,
-    //         });
-    //     } catch (error: any) {
-    //         toast({
-    //             variant: 'destructive',
-    //             title: 'Erro ao atualizar status em massa',
-    //             description: error.message,
-    //         });
-    //     }
-    // });
+        try {
+            if (ordersUpdatedCount > 0) {
+                await batch.commit();
+                await triggerRevalidation('/encomendas');
+                await triggerRevalidation('/inicio');
+            }
+            toast({
+                title: 'Notificações Enviadas!',
+                description: `${validOrdersToNotify.length} clientes notificados e ${ordersUpdatedCount} encomendas atualizadas para "Em Rota".`,
+            });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao atualizar status em massa',
+                description: error.message,
+            });
+        }
+    });
   }
 
   return (
@@ -341,7 +340,7 @@ export default function AvisamePage() {
                     {isLoading ? 'Carregando...' : `${filteredOrders.length} encomenda(s) encontrada(s).`}
                   </CardDescription>
                 </div>
-                 <Button onClick={handleNotifyAll} disabled>
+                 <Button onClick={handleNotifyAll} disabled={isUpdating}>
                     <Send className="mr-2 h-4 w-4" />
                     Avisar Todos na Cidade
                  </Button>
