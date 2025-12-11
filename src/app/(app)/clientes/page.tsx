@@ -13,21 +13,50 @@ import ClientTable from '@/components/client-table';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, orderBy, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
+import { useMemo } from 'react';
+import type { Client } from '@/lib/types';
 
 export default function ClientesPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
-  const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
+
+  const storeClientsQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(
+      collection(firestore, 'stores', selectedStore.id, 'clients'),
+      orderBy('nome', 'asc')
+    );
+  }, [firestore, selectedStore]);
+
+  const legacyClientsQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
     return query(
       collection(firestore, 'clients'),
       orderBy('nome', 'asc')
     );
-  }, [firestore, user]);
+  }, [firestore, isSpecialUser]);
 
-  const { data: clients, isLoading } = useCollection(clientsQuery);
-  const pageIsLoading = isLoading || isUserLoading;
+
+  const { data: storeClients, isLoading: isLoadingStoreClients } = useCollection<Client>(storeClientsQuery);
+  const { data: legacyClients, isLoading: isLoadingLegacyClients } = useCollection<Client>(legacyClientsQuery);
+  
+  const combinedClients = useMemo(() => {
+    const allClients = new Map<string, Client>();
+    if (isSpecialUser && legacyClients) {
+      legacyClients.forEach(client => allClients.set(client.id, client));
+    }
+    if (storeClients) {
+      storeClients.forEach(client => allClients.set(client.id, client));
+    }
+    return Array.from(allClients.values()).sort((a,b) => a.nome.localeCompare(b.nome));
+  }, [storeClients, legacyClients, isSpecialUser]);
+
+
+  const pageIsLoading = isLoadingStoreClients || isLoadingLegacyClients || isUserLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,7 +82,7 @@ export default function ClientesPage() {
         </CardHeader>
         <CardContent>
           {pageIsLoading && <Skeleton className="h-48 w-full" />}
-          {clients && !pageIsLoading && <ClientTable clients={clients} />}
+          {combinedClients && !pageIsLoading && <ClientTable clients={combinedClients} />}
         </CardContent>
       </Card>
     </div>

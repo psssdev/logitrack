@@ -62,7 +62,7 @@ import { triggerRevalidation } from '@/lib/actions';
 import { format, isWithinInterval } from 'date-fns';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { DatePickerWithRange } from '@/components/date-range-picker';
-import type { DateRange } from 'react-day-picker';
+import { useStore } from '@/contexts/store-context';
 
 const statusLabels: Record<OrderStatus, string> = {
   PENDENTE: 'Pendente',
@@ -74,6 +74,7 @@ const statusLabels: Record<OrderStatus, string> = {
 function EncomendasContent() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
   const [isUpdating, startTransition] = useTransition();
   const searchParams = useSearchParams();
@@ -87,6 +88,7 @@ function EncomendasContent() {
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
 
   const statuses: OrderStatus[] = [
     'PENDENTE',
@@ -95,21 +97,43 @@ function EncomendasContent() {
     'CANCELADA',
   ];
 
-  const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
+  const storeOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'orders'), orderBy('createdAt', 'desc'));
+  }, [firestore, selectedStore]);
+
+  const legacyOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
     return query(collection(firestore, 'orders'), orderBy('createdAt', 'desc'));
-  }, [firestore, isUserLoading, user]);
+  }, [firestore, isSpecialUser]);
 
-  const { data: orders, isLoading: isLoadingOrders } =
-    useCollection<Order>(ordersQuery);
+  const { data: storeOrders, isLoading: isLoadingStoreOrders } = useCollection<Order>(storeOrdersQuery);
+  const { data: legacyOrders, isLoading: isLoadingLegacyOrders } = useCollection<Order>(legacyOrdersQuery);
 
-  const pageIsLoading = isLoadingOrders || isUserLoading;
+  const combinedOrders = useMemo(() => {
+    const allOrders = new Map<string, Order>();
+
+    // Add legacy orders first if the user is special
+    if (isSpecialUser && legacyOrders) {
+      legacyOrders.forEach(order => allOrders.set(order.id, order));
+    }
+
+    // Add or overwrite with store-specific orders
+    if (storeOrders) {
+      storeOrders.forEach(order => allOrders.set(order.id, order));
+    }
+    
+    return Array.from(allOrders.values()).sort((a,b) => (b.createdAt as Timestamp).toMillis() - (a.createdAt as Timestamp).toMillis());
+  }, [storeOrders, legacyOrders, isSpecialUser]);
+
+
+  const pageIsLoading = isLoadingStoreOrders || isLoadingLegacyOrders || isUserLoading || !selectedStore;
   
 
   const filteredOrdersForTab = useMemo(() => {
-    if (!orders) return [];
+    if (!combinedOrders) return [];
     
-    let filtered = orders;
+    let filtered = combinedOrders;
     
     if (activeTab !== 'TODAS') {
         filtered = filtered.filter((order) => order.status === activeTab);
@@ -127,15 +151,15 @@ function EncomendasContent() {
     }
 
     return filtered;
-  }, [orders, activeTab, clientFilter, dateRange]);
+  }, [combinedOrders, activeTab, clientFilter, dateRange]);
 
   const statusCounts = useMemo(() => {
-    if (!orders)
+    if (!combinedOrders)
       return { TODAS: 0, PENDENTE: 0, EM_ROTA: 0, ENTREGUE: 0, CANCELADA: 0 };
       
-    let ordersToCount = orders;
+    let ordersToCount = combinedOrders;
      if (clientFilter) {
-        ordersToCount = orders.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()));
+        ordersToCount = combinedOrders.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()));
     }
      if (dateRange?.from && dateRange?.to) {
         ordersToCount = ordersToCount.filter(order => {
@@ -159,20 +183,22 @@ function EncomendasContent() {
       ENTREGUE: counts.ENTREGUE || 0,
       CANCELADA: counts.CANCELADA || 0,
     };
-  }, [orders, clientFilter, dateRange]);
+  }, [combinedOrders, clientFilter, dateRange]);
 
   const allStatuses = ['TODAS', ...statuses] as const;
 
   const handleBulkStatusUpdate = (newStatus: OrderStatus) => {
     startTransition(async () => {
-      if (!firestore || !user || selectedOrderIds.length === 0) return;
+      if (!firestore || !user || !selectedStore || selectedOrderIds.length === 0) return;
 
       const batch = writeBatch(firestore);
       const updatedOrders: Order[] = [];
 
       selectedOrderIds.forEach((id) => {
-        const orderRef = doc(firestore, 'orders', id);
-        const order = orders?.find((o) => o.id === id);
+        const order = combinedOrders?.find((o) => o.id === id);
+        // Determine the correct path
+        const orderRef = doc(firestore, order?.storeId ? `stores/${order.storeId}/orders` : 'orders', id);
+
         if (order && order.status !== newStatus) {
           batch.update(orderRef, {
             status: newStatus,
@@ -211,9 +237,10 @@ function EncomendasContent() {
   };
 
   const confirmDelete = async () => {
-    if (!firestore || !orderToDelete) return;
+    if (!firestore || !orderToDelete || !selectedStore) return;
     try {
-      await deleteDoc(doc(firestore, 'orders', orderToDelete.id));
+      const orderRef = doc(firestore, orderToDelete?.storeId ? `stores/${orderToDelete.storeId}/orders` : 'orders', orderToDelete.id);
+      await deleteDoc(orderRef);
       await triggerRevalidation('/encomendas');
       await triggerRevalidation('/inicio');
       toast({
@@ -381,7 +408,7 @@ function EncomendasContent() {
             </Card>
           )}
 
-          {orders &&
+          {combinedOrders &&
             !pageIsLoading &&
             allStatuses.map((status) => {
                const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];

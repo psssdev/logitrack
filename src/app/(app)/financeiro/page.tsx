@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -34,6 +34,7 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { triggerRevalidation } from '@/lib/actions';
+import { useStore } from '@/contexts/store-context';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
@@ -50,37 +51,68 @@ const formatDate = (date: Date | Timestamp) => {
 export default function FinanceiroPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
 
   const [deletingEntry, setDeletingEntry] = React.useState<FinancialEntry | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = React.useState(false);
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
 
+  const storeEntriesQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'financialEntries'), orderBy('date', 'desc'));
+  }, [firestore, selectedStore]);
 
-  const entriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return query(
-      collection(firestore, 'financialEntries'),
-      orderBy('date', 'desc')
-    );
-  }, [firestore, isUserLoading, user]);
+  const legacyEntriesQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
+    return query(collection(firestore, 'financialEntries'), orderBy('date', 'desc'));
+  }, [firestore, isSpecialUser]);
   
-  const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return query(
-      collection(firestore, 'orders')
-    );
-  }, [firestore, isUserLoading, user]);
+  const storeOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'orders'));
+  }, [firestore, selectedStore]);
 
-  const { data: entries, isLoading: isLoadingEntries } = useCollection<FinancialEntry>(entriesQuery);
-  const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+  const legacyOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
+    return query(collection(firestore, 'orders'));
+  }, [firestore, isSpecialUser]);
 
-  const pageIsLoading = isLoadingEntries || isLoadingOrders || isUserLoading;
+  const { data: storeEntries, isLoading: isLoadingStoreEntries } = useCollection<FinancialEntry>(storeEntriesQuery);
+  const { data: legacyEntries, isLoading: isLoadingLegacyEntries } = useCollection<FinancialEntry>(legacyEntriesQuery);
+  const { data: storeOrders, isLoading: isLoadingStoreOrders } = useCollection<Order>(storeOrdersQuery);
+  const { data: legacyOrders, isLoading: isLoadingLegacyOrders } = useCollection<Order>(legacyOrdersQuery);
+
+  const combinedEntries = useMemo(() => {
+    const allEntries = new Map<string, FinancialEntry>();
+    if (isSpecialUser && legacyEntries) {
+      legacyEntries.forEach(entry => allEntries.set(entry.id, entry));
+    }
+    if (storeEntries) {
+      storeEntries.forEach(entry => allEntries.set(entry.id, entry));
+    }
+    return Array.from(allEntries.values()).sort((a,b) => (b.date as Timestamp).toMillis() - (a.date as Timestamp).toMillis());
+  }, [storeEntries, legacyEntries, isSpecialUser]);
+
+  const combinedOrders = useMemo(() => {
+    const allOrders = new Map<string, Order>();
+    if (isSpecialUser && legacyOrders) {
+      legacyOrders.forEach(order => allOrders.set(order.id, order));
+    }
+    if (storeOrders) {
+      storeOrders.forEach(order => allOrders.set(order.id, order));
+    }
+    return Array.from(allOrders.values());
+  }, [storeOrders, legacyOrders, isSpecialUser]);
+
+
+  const pageIsLoading = isLoadingStoreEntries || isLoadingLegacyEntries || isLoadingStoreOrders || isLoadingLegacyOrders || isUserLoading;
 
   const summary = React.useMemo(() => {
     const initialSummary = { entradas: 0, saidas: 0, saldo: 0, aReceber: 0 };
-    if (!entries || !orders) return initialSummary;
+    if (!combinedEntries || !combinedOrders) return initialSummary;
 
-    const financialSummary = entries.reduce((acc, entry) => {
+    const financialSummary = combinedEntries.reduce((acc, entry) => {
         if(entry.type === 'Entrada') {
             acc.entradas += entry.amount;
         } else {
@@ -89,7 +121,7 @@ export default function FinanceiroPage() {
         return acc;
     }, { entradas: 0, saidas: 0 });
 
-    const receivableSummary = orders.reduce((acc, order) => {
+    const receivableSummary = combinedOrders.reduce((acc, order) => {
         if(!order.pago) {
             const paidAmount = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
             acc += (order.valorEntrega - paidAmount);
@@ -103,7 +135,7 @@ export default function FinanceiroPage() {
         saldo: financialSummary.entradas - financialSummary.saidas,
         aReceber: receivableSummary,
     };
-  }, [entries, orders]);
+  }, [combinedEntries, combinedOrders]);
   
   const handleDelete = (entry: FinancialEntry) => {
     setDeletingEntry(entry);
@@ -113,7 +145,8 @@ export default function FinanceiroPage() {
   const confirmDelete = async () => {
     if (!firestore || !deletingEntry) return;
     try {
-        await deleteDoc(doc(firestore, 'financialEntries', deletingEntry.id));
+        const docRef = doc(firestore, deletingEntry.storeId ? `stores/${deletingEntry.storeId}/financialEntries` : 'financialEntries', deletingEntry.id);
+        await deleteDoc(docRef);
         await triggerRevalidation('/financeiro');
         toast({ title: 'Lançamento excluído com sucesso.' });
     } catch (error: any) {
@@ -208,7 +241,7 @@ export default function FinanceiroPage() {
           {pageIsLoading ? (
             <Skeleton className="h-48 w-full" />
           ) : (
-            <EntryList entries={entries || []} onDelete={handleDelete} />
+            <EntryList entries={combinedEntries || []} onDelete={handleDelete} />
           )}
         </CardContent>
       </Card>

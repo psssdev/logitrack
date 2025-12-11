@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -41,23 +41,42 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
+import { useStore } from '@/contexts/store-context';
 
 export default function DestinosPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
   const [deletingDestino, setDeletingDestino] = React.useState<Destino | null>(null);
 
-  const destinosQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(
-      collection(firestore, 'destinos'),
-      orderBy('name', 'asc')
-    );
-  }, [firestore, isUserLoading]);
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
 
-  const { data: destinos, isLoading } = useCollection<Destino>(destinosQuery);
-  const pageIsLoading = isLoading || isUserLoading;
+  const storeDestinosQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'destinos'), orderBy('name', 'asc'));
+  }, [firestore, selectedStore]);
+
+  const legacyDestinosQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
+    return query(collection(firestore, 'destinos'), orderBy('name', 'asc'));
+  }, [firestore, isSpecialUser]);
+
+  const { data: storeDestinos, isLoading: isLoadingStore } = useCollection<Destino>(storeDestinosQuery);
+  const { data: legacyDestinos, isLoading: isLoadingLegacy } = useCollection<Destino>(legacyDestinosQuery);
+
+  const combinedDestinos = useMemo(() => {
+    const allDestinos = new Map<string, Destino>();
+    if (isSpecialUser && legacyDestinos) {
+      legacyDestinos.forEach(d => allDestinos.set(d.id, d));
+    }
+    if (storeDestinos) {
+      storeDestinos.forEach(d => allDestinos.set(d.id, d));
+    }
+    return Array.from(allDestinos.values()).sort((a,b) => a.name.localeCompare(b.name));
+  }, [storeDestinos, legacyDestinos, isSpecialUser]);
+
+  const pageIsLoading = isLoadingStore || isLoadingLegacy || isUserLoading;
 
   const handleDelete = (destino: Destino) => {
     setDeletingDestino(destino);
@@ -66,7 +85,8 @@ export default function DestinosPage() {
   const confirmDelete = async () => {
     if (!firestore || !deletingDestino) return;
     try {
-      await deleteDoc(doc(firestore, 'destinos', deletingDestino.id));
+      const docRef = doc(firestore, deletingDestino.storeId ? `stores/${deletingDestino.storeId}/destinos` : 'destinos', deletingDestino.id);
+      await deleteDoc(docRef);
       await triggerRevalidation('/destinos');
       await triggerRevalidation('/vender-passagem');
       toast({
@@ -108,8 +128,8 @@ export default function DestinosPage() {
           </CardHeader>
           <CardContent>
             {pageIsLoading && <Skeleton className="h-48 w-full" />}
-            {destinos && !pageIsLoading && (
-              <DestinoList destinos={destinos} onDelete={handleDelete} />
+            {combinedDestinos && !pageIsLoading && (
+              <DestinoList destinos={combinedDestinos} onDelete={handleDelete} />
             )}
           </CardContent>
         </Card>

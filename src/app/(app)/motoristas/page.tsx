@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -39,22 +39,44 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
+import { useStore } from '@/contexts/store-context';
 
 export default function MotoristasPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
   const [deletingDriver, setDeletingDriver] = React.useState<Driver | null>(
     null
   );
 
-  const driversQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'drivers'), orderBy('nome', 'asc'));
-  }, [firestore, user]);
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
 
-  const { data: drivers, isLoading } = useCollection<Driver>(driversQuery);
-  const pageIsLoading = isLoading || isUserLoading;
+  const storeDriversQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'drivers'), orderBy('nome', 'asc'));
+  }, [firestore, selectedStore]);
+
+  const legacyDriversQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
+    return query(collection(firestore, 'drivers'), orderBy('nome', 'asc'));
+  }, [firestore, isSpecialUser]);
+
+  const { data: storeDrivers, isLoading: isLoadingStoreDrivers } = useCollection<Driver>(storeDriversQuery);
+  const { data: legacyDrivers, isLoading: isLoadingLegacyDrivers } = useCollection<Driver>(legacyDriversQuery);
+
+  const combinedDrivers = useMemo(() => {
+    const allDrivers = new Map<string, Driver>();
+    if (isSpecialUser && legacyDrivers) {
+      legacyDrivers.forEach(driver => allDrivers.set(driver.id, driver));
+    }
+    if (storeDrivers) {
+      storeDrivers.forEach(driver => allDrivers.set(driver.id, driver));
+    }
+    return Array.from(allDrivers.values()).sort((a,b) => a.nome.localeCompare(b.nome));
+  }, [storeDrivers, legacyDrivers, isSpecialUser]);
+
+  const pageIsLoading = isLoadingStoreDrivers || isLoadingLegacyDrivers || isUserLoading;
 
   const handleDeleteClick = (driver: Driver) => {
     setDeletingDriver(driver);
@@ -63,7 +85,8 @@ export default function MotoristasPage() {
   const confirmDelete = async () => {
     if (!firestore || !deletingDriver) return;
     try {
-      await deleteDoc(doc(firestore, 'drivers', deletingDriver.id));
+      const docRef = doc(firestore, deletingDriver.storeId ? `stores/${deletingDriver.storeId}/drivers` : 'drivers', deletingDriver.id);
+      await deleteDoc(docRef);
       await triggerRevalidation('/motoristas');
       toast({
         title: 'Motorista excluído',
@@ -120,8 +143,8 @@ export default function MotoristasPage() {
                 </Card>
               ))}
             {!pageIsLoading &&
-              drivers &&
-              drivers.map((driver) => (
+              combinedDrivers &&
+              combinedDrivers.map((driver) => (
                 <Card
                   key={driver.id}
                   className="hover:shadow-md transition-shadow flex flex-col"
@@ -178,7 +201,7 @@ export default function MotoristasPage() {
                   </CardContent>
                 </Card>
               ))}
-            {!pageIsLoading && (!drivers || drivers.length === 0) && (
+            {!pageIsLoading && (!combinedDrivers || combinedDrivers.length === 0) && (
               <div className="col-span-full text-center p-8 border-2 border-dashed rounded-md">
                 <p className="text-muted-foreground">
                   Nenhum motorista cadastrado.

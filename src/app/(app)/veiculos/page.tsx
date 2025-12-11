@@ -16,6 +16,8 @@ import { collection, orderBy, query } from 'firebase/firestore';
 import { PlusCircle, Bus, Car, Truck, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useStore } from '@/contexts/store-context';
+import { useMemo } from 'react';
 
 const statusConfig = {
     "Ativo": "bg-green-500/80",
@@ -33,17 +35,35 @@ const iconConfig = {
 export default function VeiculosPage() {
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
+    const { selectedStore } = useStore();
 
-    const vehiclesQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        return query(
-            collection(firestore, 'vehicles'),
-            orderBy('modelo', 'asc')
-        );
-    }, [firestore, user]);
+    const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
 
-    const { data: vehicles, isLoading } = useCollection<Vehicle>(vehiclesQuery);
-    const pageIsLoading = isLoading || isUserLoading;
+    const storeVehiclesQuery = useMemoFirebase(() => {
+        if (!firestore || !selectedStore) return null;
+        return query(collection(firestore, 'stores', selectedStore.id, 'vehicles'), orderBy('modelo', 'asc'));
+    }, [firestore, selectedStore]);
+
+    const legacyVehiclesQuery = useMemoFirebase(() => {
+        if (!firestore || !isSpecialUser) return null;
+        return query(collection(firestore, 'vehicles'), orderBy('modelo', 'asc'));
+    }, [firestore, isSpecialUser]);
+
+    const { data: storeVehicles, isLoading: isLoadingStore } = useCollection<Vehicle>(storeVehiclesQuery);
+    const { data: legacyVehicles, isLoading: isLoadingLegacy } = useCollection<Vehicle>(legacyVehiclesQuery);
+
+    const combinedVehicles = useMemo(() => {
+        const allVehicles = new Map<string, Vehicle>();
+        if (isSpecialUser && legacyVehicles) {
+            legacyVehicles.forEach(v => allVehicles.set(v.id, v));
+        }
+        if (storeVehicles) {
+            storeVehicles.forEach(v => allVehicles.set(v.id, v));
+        }
+        return Array.from(allVehicles.values()).sort((a,b) => a.modelo.localeCompare(b.modelo));
+    }, [storeVehicles, legacyVehicles, isSpecialUser]);
+
+    const pageIsLoading = isLoadingStore || isLoadingLegacy || isUserLoading;
 
 
   return (
@@ -88,8 +108,8 @@ export default function VeiculosPage() {
                  </CardContent>
               </Card>
             ))}
-          {!pageIsLoading && vehicles &&
-            vehicles.map((vehicle) => {
+          {!pageIsLoading && combinedVehicles &&
+            combinedVehicles.map((vehicle) => {
               const Icon = iconConfig[vehicle.tipo] || Bus;
               return (
                 <Link key={vehicle.id} href={`/veiculos/${vehicle.id}`} className="block hover:shadow-lg transition-shadow rounded-lg">
@@ -115,7 +135,7 @@ export default function VeiculosPage() {
                 </Link>
               )
             })}
-            {!pageIsLoading && (!vehicles || vehicles.length === 0) && (
+            {!pageIsLoading && (!combinedVehicles || combinedVehicles.length === 0) && (
                 <div className="col-span-full text-center p-8 border-2 border-dashed rounded-md">
                     <p className="text-muted-foreground">Nenhum veículo cadastrado.</p>
                 </div>

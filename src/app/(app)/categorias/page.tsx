@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -52,6 +52,7 @@ const defaultExpenseCategories = [
 
 export default function CategoriasPage() {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const { selectedStore } = useStore();
   const { toast } = useToast();
 
@@ -61,21 +62,33 @@ export default function CategoriasPage() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = React.useState(false);
   const [isCreatingDefaults, setIsCreatingDefaults] = React.useState(false);
 
-  const categoriesQuery = useMemoFirebase(() => {
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
+
+  const storeCategoriesQuery = useMemoFirebase(() => {
     if (!firestore || !selectedStore) return null;
-    return query(
-      collection(firestore, 'stores', selectedStore.id, 'financialCategories')
-    );
+    return query(collection(firestore, 'stores', selectedStore.id, 'financialCategories'));
   }, [firestore, selectedStore]);
 
-  const { data: categories, isLoading } = useCollection<FinancialCategory>(categoriesQuery);
-  const pageIsLoading = isLoading || !selectedStore;
+  const legacyCategoriesQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
+    return query(collection(firestore, 'financialCategories'));
+  }, [firestore, isSpecialUser]);
 
-  // Sort categories client-side
-  const sortedCategories = React.useMemo(() => {
-    if (!categories) return [];
-    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories]);
+  const { data: storeCategories, isLoading: isLoadingStore } = useCollection<FinancialCategory>(storeCategoriesQuery);
+  const { data: legacyCategories, isLoading: isLoadingLegacy } = useCollection<FinancialCategory>(legacyCategoriesQuery);
+
+  const combinedCategories = useMemo(() => {
+    const allCategories = new Map<string, FinancialCategory>();
+    if (isSpecialUser && legacyCategories) {
+      legacyCategories.forEach(cat => allCategories.set(cat.id, cat));
+    }
+    if (storeCategories) {
+      storeCategories.forEach(cat => allCategories.set(cat.id, cat));
+    }
+    return Array.from(allCategories.values()).sort((a,b) => a.name.localeCompare(b.name));
+  }, [storeCategories, legacyCategories, isSpecialUser]);
+
+  const pageIsLoading = isLoadingStore || isLoadingLegacy || isUserLoading || !selectedStore;
 
   const handleEdit = (category: FinancialCategory) => {
     setEditingCategory(category);
@@ -89,7 +102,8 @@ export default function CategoriasPage() {
   const confirmDelete = async () => {
     if (!firestore || !deletingCategory || !selectedStore) return;
     try {
-      await deleteDoc(doc(firestore, 'stores', selectedStore.id, 'financialCategories', deletingCategory.id));
+      const docRef = doc(firestore, deletingCategory.storeId ? `stores/${deletingCategory.storeId}/financialCategories` : 'financialCategories', deletingCategory.id);
+      await deleteDoc(docRef);
       await triggerRevalidation('/categorias');
       await triggerRevalidation('/financeiro/novo');
       toast({
@@ -116,7 +130,7 @@ export default function CategoriasPage() {
     setIsCreatingDefaults(true);
     try {
         const categoriesCollection = collection(firestore, 'stores', selectedStore.id, 'financialCategories');
-        const existingCategoryNames = new Set(categories?.map(c => c.name.toLowerCase()));
+        const existingCategoryNames = new Set(combinedCategories?.map(c => c.name.toLowerCase()));
         
         const batch = writeBatch(firestore);
         let count = 0;
@@ -190,7 +204,7 @@ export default function CategoriasPage() {
               <Skeleton className="h-48 w-full" />
             ) : (
               <CategoryList 
-                categories={sortedCategories || []} 
+                categories={combinedCategories || []} 
                 onEdit={handleEdit}
                 onDelete={handleDelete}
               />

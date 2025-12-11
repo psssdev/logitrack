@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -41,23 +41,45 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
+import { useStore } from '@/contexts/store-context';
 
 export default function OrigensPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
   const [deletingOrigin, setDeletingOrigin] = React.useState<Origin | null>(null);
 
-  const originsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
+
+  const storeOriginsQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
     return query(
-      collection(firestore, 'origins'),
+      collection(firestore, 'stores', selectedStore.id, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, user]);
+  }, [firestore, selectedStore]);
 
-  const { data: origins, isLoading } = useCollection<Origin>(originsQuery);
-  const pageIsLoading = isLoading || isUserLoading;
+  const legacyOriginsQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
+    return query(collection(firestore, 'origins'), orderBy('name', 'asc'));
+  }, [firestore, isSpecialUser]);
+
+  const { data: storeOrigins, isLoading: isLoadingStore } = useCollection<Origin>(storeOriginsQuery);
+  const { data: legacyOrigins, isLoading: isLoadingLegacy } = useCollection<Origin>(legacyOriginsQuery);
+
+  const combinedOrigins = useMemo(() => {
+    const allOrigins = new Map<string, Origin>();
+    if (isSpecialUser && legacyOrigins) {
+      legacyOrigins.forEach(o => allOrigins.set(o.id, o));
+    }
+    if (storeOrigins) {
+      storeOrigins.forEach(o => allOrigins.set(o.id, o));
+    }
+    return Array.from(allOrigins.values()).sort((a,b) => a.name.localeCompare(b.name));
+  }, [storeOrigins, legacyOrigins, isSpecialUser]);
+
+  const pageIsLoading = isLoadingStore || isLoadingLegacy || isUserLoading;
 
   const handleDelete = (origin: Origin) => {
     setDeletingOrigin(origin);
@@ -66,7 +88,8 @@ export default function OrigensPage() {
   const confirmDelete = async () => {
     if (!firestore || !deletingOrigin) return;
     try {
-      await deleteDoc(doc(firestore, 'origins', deletingOrigin.id));
+      const docRef = doc(firestore, deletingOrigin.storeId ? `stores/${deletingOrigin.storeId}/origins` : 'origins', deletingOrigin.id);
+      await deleteDoc(docRef);
       await triggerRevalidation('/origens');
       await triggerRevalidation('/vender-passagem');
       toast({
@@ -108,7 +131,7 @@ export default function OrigensPage() {
           </CardHeader>
           <CardContent>
             {pageIsLoading && <Skeleton className="h-48 w-full" />}
-            {origins && !pageIsLoading && <OriginList origins={origins} onDelete={handleDelete} />}
+            {combinedOrigins && !pageIsLoading && <OriginList origins={combinedOrigins} onDelete={handleDelete} />}
           </CardContent>
         </Card>
       </div>
