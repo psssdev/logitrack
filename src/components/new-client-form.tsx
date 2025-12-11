@@ -37,6 +37,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useStore } from '@/contexts/store-context';
 
 const brazilianStates = [
     { value: 'AC', label: 'Acre' },
@@ -83,6 +84,7 @@ function AddLocationDialog({
 }) {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
@@ -90,7 +92,7 @@ function AddLocationDialog({
 
   const form = useForm<NewLocation>({
     resolver: zodResolver(newLocationSchema),
-    defaultValues: { name: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '', cep: '' },
+    defaultValues: { storeId: selectedStore?.id || '', name: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '', cep: '' },
   });
 
   const selectedState = form.watch('estado');
@@ -145,18 +147,20 @@ function AddLocationDialog({
   };
 
   async function onSubmit(data: NewLocation) {
-    if (!firestore) {
-        toast({ variant: 'destructive', title: 'Erro de Conexão', description: 'A ligação com a base de dados falhou.' });
+    if (!firestore || !selectedStore) {
+        toast({ variant: 'destructive', title: 'Erro de Conexão', description: 'A ligação com a base de dados falhou. Verifique a seleção da loja.' });
         return;
     }
 
     try {
       const collectionName = locationType === 'destino' ? 'destinos' : 'origins';
-      const collectionRef = collection(firestore, collectionName);
+      const collectionRef = collection(firestore, 'stores', selectedStore.id, collectionName);
       const { logradouro, numero, bairro, cidade, estado, cep } = data;
       const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 
       const newDocRef = await addDoc(collectionRef, {
+        ...data,
+        storeId: selectedStore.id,
         name: data.name,
         address: fullAddress,
         city: data.cidade,
@@ -177,12 +181,13 @@ function AddLocationDialog({
         lng: data.lng ?? 0,
         city: data.cidade ?? '',
         active: true,
+        storeId: selectedStore.id,
       };
 
       onLocationCreated(newLocation as Origin | Destino);
 
       setIsOpen(false);
-      form.reset();
+      form.reset({ storeId: selectedStore.id, name: '', logradouro: '', numero: '', bairro: '', cidade: '', estado: '', cep: '' });
       await triggerRevalidation('/vender-passagem');
       await triggerRevalidation('/clientes/novo');
     } catch (error: any) {
@@ -357,17 +362,25 @@ export function NewClientForm({
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
 
   const [liveDestinos, setLiveDestinos] = React.useState(initialDestinos);
 
   const form = useForm<NewClient>({
     resolver: zodResolver(newClientSchema),
     defaultValues: {
+      storeId: selectedStore?.id || '',
       nome: '',
       telefone: '',
       defaultDestinoId: '',
     },
   });
+  
+  React.useEffect(() => {
+    if (selectedStore?.id) {
+        form.setValue('storeId', selectedStore.id);
+    }
+  }, [selectedStore, form])
 
   const onDestinoCreated = (newLocation: Origin | Destino) => {
     setLiveDestinos((prev) => [...prev, newLocation as Destino]);
@@ -385,11 +398,9 @@ export function NewClientForm({
     }
 
     try {
-      const newClientRef = collection(firestore, 'clients');
+      const newClientRef = collection(firestore, 'stores', data.storeId, 'clients');
       await addDoc(newClientRef, {
-        nome: data.nome,
-        telefone: data.telefone,
-        defaultDestinoId: data.defaultDestinoId || null,
+        ...data,
         createdAt: serverTimestamp(),
       });
 
@@ -450,7 +461,7 @@ export function NewClientForm({
               <FormItem>
                 <FormLabel>Destino Padrão</FormLabel>
                 <div className="flex gap-2">
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Nenhum" />
