@@ -72,6 +72,7 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
+import { useStore } from '@/contexts/store-context';
 
 const paymentMethodLabels = {
   pix: 'PIX',
@@ -112,6 +113,7 @@ export function NewOrderForm({
   const router = useRouter();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -120,6 +122,7 @@ export function NewOrderForm({
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
     defaultValues: {
+      storeId: selectedStore?.id || '',
       origem: origins.length > 0 ? origins[0].address : '',
       destino: '',
       items: [{ description: 'Pacote', quantity: 1, value: 50 }],
@@ -129,6 +132,13 @@ export function NewOrderForm({
       motoristaId: '',
     },
   });
+
+  React.useEffect(() => {
+    if (selectedStore?.id) {
+        form.setValue('storeId', selectedStore.id);
+    }
+  }, [selectedStore, form]);
+
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -209,7 +219,7 @@ export function NewOrderForm({
   }, [origins, form]);
 
   async function onSubmit(data: NewOrder) {
-    if (!firestore || !user) {
+    if (!firestore || !user || !selectedStore) {
       toast({
         variant: 'destructive',
         title: 'Erro de Conexão',
@@ -238,10 +248,11 @@ export function NewOrderForm({
 
       const ordersCollection = collection(
         firestore,
-        'orders'
+        'stores', selectedStore.id, 'orders'
       );
       const newOrderData = {
         ...data,
+        storeId: selectedStore.id,
         motoristaId: data.motoristaId === 'null' ? null : data.motoristaId,
         valorEntrega: totalValue,
         nomeCliente: client.nome,
