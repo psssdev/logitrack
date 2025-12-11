@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter, usePathname } from 'next/navigation';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import type { Store } from '@/lib/types';
-import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, addDoc, serverTimestamp, doc } from 'firebase/firestore';
 import { Logo } from '@/components/logo';
 import { useToast } from '@/hooks/use-toast';
 
@@ -27,47 +27,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
 
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
+
   const storesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return query(collection(firestore, 'stores'), where('ownerId', '==', user.uid));
   }, [firestore, user?.uid]);
 
+  const specialUserDefaultStoreQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
+    return query(collection(firestore, 'stores'), where('__name__', '==', '1'));
+  }, [firestore, isSpecialUser]);
+  
   const { data: storesFromDB, isLoading: isLoadingStores } = useCollection<Store>(storesQuery);
-  const [stores, setStores] = useState<Store[]>(storesFromDB || []);
+  const { data: specialStore, isLoading: isLoadingSpecialStore } = useCollection<Store>(specialUserDefaultStoreQuery);
 
-  const isLoading = isUserLoadingAuth || isLoadingStores;
-
-   // Effect to sync stores from DB to state
-  useEffect(() => {
+  const stores = React.useMemo(() => {
+    const allStores = new Map<string, Store>();
     if (storesFromDB) {
-      setStores(storesFromDB);
+      storesFromDB.forEach(s => allStores.set(s.id, s));
     }
-  }, [storesFromDB]);
+    if (isSpecialUser && specialStore) {
+      specialStore.forEach(s => allStores.set(s.id, s));
+    }
+    return Array.from(allStores.values());
+  }, [storesFromDB, specialStore, isSpecialUser]);
 
+  const isLoading = isUserLoadingAuth || isLoadingStores || isLoadingSpecialStore;
 
   useEffect(() => {
-    if (isLoading || !user) return; // Wait until everything is loaded and user is confirmed
-
-    const isSpecial = user.email === 'jiverson.t@gmail.com';
-    let currentStores = storesFromDB || [];
-    let shouldRedirectToSelect = false;
-
-    // Special user logic: ensure default store exists
-    if (isSpecial && !currentStores.some(s => s.id === '1')) {
-      // It's possible the collection hook hasn't updated yet. We can't write and read in the same tick.
-      // This logic will be handled by createStore if no stores are found.
-    }
+    if (isLoading || !user) return; 
 
     const savedStoreId = localStorage.getItem('selectedStoreId');
     let storeToSelect: Store | null = null;
     
-    if(currentStores.length > 0) {
+    if(stores.length > 0) {
         if (savedStoreId) {
-            storeToSelect = currentStores.find(s => s.id === savedStoreId) || null;
+            storeToSelect = stores.find(s => s.id === savedStoreId) || null;
         }
-        // If no saved store, or saved store is invalid, and there's only one store, select it.
-        if (!storeToSelect && currentStores.length === 1) {
-            storeToSelect = currentStores[0];
+        
+        if (!storeToSelect && stores.length === 1) {
+            storeToSelect = stores[0];
         }
     }
 
@@ -80,21 +80,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             router.replace('/inicio');
         }
     } else {
-        // If no store can be selected, and we are not on the selection page, redirect.
-         if (currentStores.length > 0 && pathname !== '/selecionar-loja') {
-            shouldRedirectToSelect = true;
-         }
-         // If there are no stores, user should also be on the select page to create one
-         if (currentStores.length === 0 && pathname !== '/selecionar-loja') {
-            shouldRedirectToSelect = true;
-         }
+        if (pathname !== '/selecionar-loja') {
+            router.replace('/selecionar-loja');
+        }
     }
 
-    if(shouldRedirectToSelect) {
-        router.replace('/selecionar-loja');
-    }
-
-  }, [isLoading, user, storesFromDB, router, pathname, selectedStore]);
+  }, [isLoading, user, stores, router, pathname, selectedStore]);
 
 
   const handleSelectStore = useCallback((store: Store) => {
@@ -109,16 +100,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         throw new Error('User not authenticated');
     }
     try {
-        const newStoreRef = await addDoc(collection(firestore, 'stores'), {
+        const newDocRef = await addDoc(collection(firestore, 'stores'), {
             name,
             ownerId: user.uid,
             createdAt: serverTimestamp(),
         });
-        const newStore: Store = { id: newStoreRef.id, name, ownerId: user.uid };
+        const newStore: Store = { id: newDocRef.id, name, ownerId: user.uid };
         
-        // This will update the local state, which triggers the useEffect to select it and redirect.
-        setStores(prevStores => [...prevStores, newStore]);
-        // Immediately select the new store
+        // Let the useCollection hook update the `stores` list naturally.
+        // Immediately select the new store to trigger redirection.
         handleSelectStore(newStore);
         
         toast({ title: 'Sucesso!', description: 'Loja criada e selecionada.' });
@@ -129,8 +119,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [firestore, user, toast, handleSelectStore]);
 
-  // This is the "gatekeeper". It ensures that children are only rendered if a store is selected.
-  // The pages that don't need a store (like /selecionar-loja) are not wrapped by this provider's children.
   if (!selectedStore && pathname !== '/selecionar-loja') {
       return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -141,7 +129,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         </div>
       );
   }
-
 
   return (
     <StoreContext.Provider value={{ stores, selectedStore, selectStore: handleSelectStore, isLoading, createStore }}>
