@@ -86,7 +86,11 @@ export default function FinanceiroPage() {
   const combinedEntries = useMemo(() => {
     const allEntries = new Map<string, FinancialEntry>();
     if (isSpecialUser && legacyEntries) {
-      legacyEntries.forEach(entry => allEntries.set(entry.id, entry));
+        legacyEntries.forEach(entry => {
+            if (!entry.storeId) {
+                allEntries.set(entry.id, entry);
+            }
+        });
     }
     if (storeEntries) {
       storeEntries.forEach(entry => allEntries.set(entry.id, entry));
@@ -97,7 +101,11 @@ export default function FinanceiroPage() {
   const combinedOrders = useMemo(() => {
     const allOrders = new Map<string, Order>();
     if (isSpecialUser && legacyOrders) {
-      legacyOrders.forEach(order => allOrders.set(order.id, order));
+        legacyOrders.forEach(order => {
+            if (!order.storeId) {
+                allOrders.set(order.id, order);
+            }
+        });
     }
     if (storeOrders) {
       storeOrders.forEach(order => allOrders.set(order.id, order));
@@ -106,7 +114,7 @@ export default function FinanceiroPage() {
   }, [storeOrders, legacyOrders, isSpecialUser]);
 
 
-  const pageIsLoading = isLoadingStoreEntries || isLoadingLegacyEntries || isLoadingStoreOrders || isLoadingLegacyOrders || isUserLoading;
+  const pageIsLoading = (isSpecialUser && (isLoadingLegacyEntries || isLoadingLegacyOrders)) || isLoadingStoreEntries || isLoadingStoreOrders || isUserLoading;
 
   const summary = React.useMemo(() => {
     const initialSummary = { entradas: 0, saidas: 0, saldo: 0, aReceber: 0 };

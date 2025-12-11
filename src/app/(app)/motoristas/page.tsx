@@ -68,7 +68,11 @@ export default function MotoristasPage() {
   const combinedDrivers = useMemo(() => {
     const allDrivers = new Map<string, Driver>();
     if (isSpecialUser && legacyDrivers) {
-      legacyDrivers.forEach(driver => allDrivers.set(driver.id, driver));
+      legacyDrivers.forEach(driver => {
+        if (!driver.storeId) {
+            allDrivers.set(driver.id, driver);
+        }
+      });
     }
     if (storeDrivers) {
       storeDrivers.forEach(driver => allDrivers.set(driver.id, driver));
@@ -76,7 +80,7 @@ export default function MotoristasPage() {
     return Array.from(allDrivers.values()).sort((a,b) => a.nome.localeCompare(b.nome));
   }, [storeDrivers, legacyDrivers, isSpecialUser]);
 
-  const pageIsLoading = isLoadingStoreDrivers || isLoadingLegacyDrivers || isUserLoading;
+  const pageIsLoading = (isSpecialUser && isLoadingLegacyDrivers) || isLoadingStoreDrivers || isUserLoading;
 
   const handleDeleteClick = (driver: Driver) => {
     setDeletingDriver(driver);
@@ -85,7 +89,11 @@ export default function MotoristasPage() {
   const confirmDelete = async () => {
     if (!firestore || !deletingDriver) return;
     try {
-      const docRef = doc(firestore, deletingDriver.storeId ? `stores/${deletingDriver.storeId}/drivers` : 'drivers', deletingDriver.id);
+      const docPath = deletingDriver.storeId 
+          ? `stores/${deletingDriver.storeId}/drivers/${deletingDriver.id}`
+          : `drivers/${deletingDriver.id}`;
+      const docRef = doc(firestore, docPath);
+
       await deleteDoc(docRef);
       await triggerRevalidation('/motoristas');
       toast({

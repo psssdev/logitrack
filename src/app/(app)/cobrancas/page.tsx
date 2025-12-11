@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/select';
 import { DatePickerWithRange } from '@/components/date-range-picker';
 import Link from 'next/link';
+import { useStore } from '@/contexts/store-context';
 
 const formatCurrency = (value?: number | null) => {
   const safe = typeof value === 'number' && !isNaN(value) ? value : 0;
@@ -99,6 +100,7 @@ interface ClientDebt {
 export default function CobrancasPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
 
   // Filter states
@@ -109,17 +111,43 @@ export default function CobrancasPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState<'all' | string>('all');
   const [payingClient, setPayingClient] = useState<ClientDebt | null>(null);
+  
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
 
-  const pendingOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+  const storePendingOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(
+      collection(firestore, 'stores', selectedStore.id, 'orders'),
+      where('pago', '==', false)
+    );
+  }, [firestore, selectedStore]);
+  
+  const legacyPendingOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
     return query(
       collection(firestore, 'orders'),
       where('pago', '==', false)
     );
-  }, [firestore, user]);
+  }, [firestore, isSpecialUser]);
 
-  const { data: allPendingOrders, isLoading: isLoadingOrders } =
-    useCollection<Order>(pendingOrdersQuery);
+  const { data: storePendingOrders, isLoading: isLoadingStoreOrders } = useCollection<Order>(storePendingOrdersQuery);
+  const { data: legacyPendingOrders, isLoading: isLoadingLegacyOrders } = useCollection<Order>(legacyPendingOrdersQuery);
+
+  const allPendingOrders = useMemo(() => {
+    const allOrders = new Map<string, Order>();
+    if (isSpecialUser && legacyPendingOrders) {
+        legacyPendingOrders.forEach(order => {
+            if(!order.storeId) {
+                allOrders.set(order.id, order);
+            }
+        });
+    }
+    if (storePendingOrders) {
+      storePendingOrders.forEach(order => allOrders.set(order.id, order));
+    }
+    return Array.from(allOrders.values());
+  }, [storePendingOrders, legacyPendingOrders, isSpecialUser]);
+
 
   const companyRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -130,7 +158,7 @@ export default function CobrancasPage() {
   const { data: company, isLoading: isLoadingCompany } =
     useDoc<Company>(companyRef);
 
-  const isLoading = isUserLoading || isLoadingOrders || isLoadingCompany;
+  const isLoading = isUserLoading || isLoadingStoreOrders || (isSpecialUser && isLoadingLegacyOrders) || isLoadingCompany;
 
   const cities = useMemo(() => {
     if (!allPendingOrders) return [];

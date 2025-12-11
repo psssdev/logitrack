@@ -113,12 +113,16 @@ function EncomendasContent() {
   const combinedOrders = useMemo(() => {
     const allOrders = new Map<string, Order>();
 
-    // Add legacy orders first if the user is special
+    // Only add legacy orders if the user is the special user
     if (isSpecialUser && legacyOrders) {
-      legacyOrders.forEach(order => allOrders.set(order.id, order));
+      legacyOrders.forEach(order => {
+        if (!order.storeId) { // Ensure we don't double-add migrated data
+            allOrders.set(order.id, order);
+        }
+      });
     }
 
-    // Add or overwrite with store-specific orders
+    // Always add store-specific orders
     if (storeOrders) {
       storeOrders.forEach(order => allOrders.set(order.id, order));
     }
@@ -127,7 +131,7 @@ function EncomendasContent() {
   }, [storeOrders, legacyOrders, isSpecialUser]);
 
 
-  const pageIsLoading = isLoadingStoreOrders || isLoadingLegacyOrders || isUserLoading || !selectedStore;
+  const pageIsLoading = isLoadingStoreOrders || (isSpecialUser && isLoadingLegacyOrders) || isUserLoading || !selectedStore;
   
 
   const filteredOrdersForTab = useMemo(() => {
@@ -237,9 +241,15 @@ function EncomendasContent() {
   };
 
   const confirmDelete = async () => {
-    if (!firestore || !orderToDelete || !selectedStore) return;
+    if (!firestore || !orderToDelete) return;
     try {
-      const orderRef = doc(firestore, orderToDelete?.storeId ? `stores/${orderToDelete.storeId}/orders` : 'orders', orderToDelete.id);
+      // Use the storeId from the order to build the correct path
+      const docPath = orderToDelete.storeId 
+          ? `stores/${orderToDelete.storeId}/orders/${orderToDelete.id}`
+          : `orders/${orderToDelete.id}`;
+          
+      const orderRef = doc(firestore, docPath);
+
       await deleteDoc(orderRef);
       await triggerRevalidation('/encomendas');
       await triggerRevalidation('/inicio');

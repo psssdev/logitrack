@@ -38,6 +38,9 @@ import { useMemo } from 'react';
 import type { Client, Order, OrderStatus } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
+import { useStore } from '@/contexts/store-context';
+import { Timestamp } from 'firebase/firestore';
+
 
 interface TopClient extends Client {
   orderCount: number;
@@ -55,23 +58,62 @@ const formatCurrency = (value: number) => {
 export default function InicioPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
-  const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return collection(firestore, 'orders');
-  }, [firestore, isUserLoading, user]);
+  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
 
-  const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return collection(firestore, 'clients');
-  }, [firestore, isUserLoading, user]);
+  const storeOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'orders'));
+  }, [firestore, selectedStore]);
 
-  const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
-  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  const legacyOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
+    return query(collection(firestore, 'orders'));
+  }, [firestore, isSpecialUser]);
   
-  const isLoading = isLoadingOrders || isLoadingClients || isUserLoading;
+  const storeClientsQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'clients'));
+  }, [firestore, selectedStore]);
+
+  const legacyClientsQuery = useMemoFirebase(() => {
+    if (!firestore || !isSpecialUser) return null;
+    return query(collection(firestore, 'clients'));
+  }, [firestore, isSpecialUser]);
+
+  const { data: storeOrders, isLoading: isLoadingStoreOrders } = useCollection<Order>(storeOrdersQuery);
+  const { data: legacyOrders, isLoading: isLoadingLegacyOrders } = useCollection<Order>(legacyOrdersQuery);
+  const { data: storeClients, isLoading: isLoadingStoreClients } = useCollection<Client>(storeClientsQuery);
+  const { data: legacyClients, isLoading: isLoadingLegacyClients } = useCollection<Client>(legacyClientsQuery);
+  
+  const isLoading = (isSpecialUser && (isLoadingLegacyOrders || isLoadingLegacyClients)) || isLoadingStoreOrders || isLoadingStoreClients || isUserLoading || !selectedStore;
 
   const { summary, topClients } = useMemo(() => {
+    
+    const combinedOrders = new Map<string, Order>();
+    if (isSpecialUser && legacyOrders) {
+      legacyOrders.forEach(order => {
+        if (!order.storeId) combinedOrders.set(order.id, order);
+      });
+    }
+    if (storeOrders) {
+      storeOrders.forEach(order => combinedOrders.set(order.id, order));
+    }
+    const orders = Array.from(combinedOrders.values());
+
+    const combinedClients = new Map<string, Client>();
+     if (isSpecialUser && legacyClients) {
+      legacyClients.forEach(client => {
+        if (!client.storeId) combinedClients.set(client.id, client);
+      });
+    }
+    if (storeClients) {
+      storeClients.forEach(client => combinedClients.set(client.id, client));
+    }
+    const clients = Array.from(combinedClients.values());
+
+
     if (!orders || !clients) {
       return {
         summary: { total: 0, pendentes: 0, emRota: 0, entregues: 0, canceladas: 0 },
@@ -102,7 +144,7 @@ export default function InicioPage() {
     }).sort((a,b) => b.totalValue - a.totalValue).slice(0, 5); // Get top 5
 
     return { summary: summaryData, topClients: clientPerformance };
-  }, [orders, clients]);
+  }, [storeOrders, legacyOrders, storeClients, legacyClients, isSpecialUser]);
 
 
   const chartData = useMemo(

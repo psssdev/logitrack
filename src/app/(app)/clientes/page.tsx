@@ -33,6 +33,7 @@ export default function ClientesPage() {
   }, [firestore, selectedStore]);
 
   const legacyClientsQuery = useMemoFirebase(() => {
+    // Only the special user can query legacy data
     if (!firestore || !isSpecialUser) return null;
     return query(
       collection(firestore, 'clients'),
@@ -46,9 +47,15 @@ export default function ClientesPage() {
   
   const combinedClients = useMemo(() => {
     const allClients = new Map<string, Client>();
+    // Only add legacy clients if the user is the special user
     if (isSpecialUser && legacyClients) {
-      legacyClients.forEach(client => allClients.set(client.id, client));
+      legacyClients.forEach(client => {
+        if (!client.storeId) { // Ensure we don't double-add migrated data
+            allClients.set(client.id, client);
+        }
+      });
     }
+    // Always add store-specific clients
     if (storeClients) {
       storeClients.forEach(client => allClients.set(client.id, client));
     }
@@ -56,7 +63,7 @@ export default function ClientesPage() {
   }, [storeClients, legacyClients, isSpecialUser]);
 
 
-  const pageIsLoading = isLoadingStoreClients || isLoadingLegacyClients || isUserLoading;
+  const pageIsLoading = isLoadingStoreClients || (isSpecialUser && isLoadingLegacyClients) || isUserLoading;
 
   return (
     <div className="flex flex-col gap-6">
