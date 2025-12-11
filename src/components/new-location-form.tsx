@@ -26,8 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useStore } from '@/contexts/store-context';
 
 type City = {
   id: number;
@@ -68,6 +69,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
@@ -75,6 +77,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
   const form = useForm<NewLocation>({
     resolver: zodResolver(newLocationSchema),
     defaultValues: {
+      storeId: selectedStore?.id || '',
       name: '',
       logradouro: '',
       numero: '',
@@ -169,7 +172,7 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
   };
 
   async function onSubmit(data: NewLocation) {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
         toast({
             variant: 'destructive',
             title: 'Erro de Conexão',
@@ -181,12 +184,13 @@ export function NewLocationForm({ locationType }: { locationType: 'origin' | 'de
     try {
         const collectionName = locationType === 'origin' ? 'origins' : 'destinos';
         const redirectPath = locationType === 'origin' ? '/origens' : '/destinos';
-        const collectionRef = collection(firestore, collectionName);
+        const collectionRef = collection(firestore, 'stores', selectedStore.id, collectionName);
         const { logradouro, numero, bairro, cidade, estado, cep } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 
         await addDoc(collectionRef, {
-            name: data.name,
+            ...data,
+            storeId: selectedStore.id,
             address: fullAddress,
             city: data.cidade,
             lat: data.lat ?? null,
