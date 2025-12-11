@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useStore } from '@/contexts/store-context';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -65,13 +66,14 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
 function ReceiptContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const router = useRouter();
   const { toast } = useToast();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'orders', orderId);
-  }, [firestore, isUserLoading, orderId, user]);
+    if (!firestore || isUserLoading || !user || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'orders', orderId);
+  }, [firestore, isUserLoading, orderId, user, selectedStore]);
   
   const companyRef = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;

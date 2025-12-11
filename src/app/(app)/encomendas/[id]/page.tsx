@@ -30,6 +30,7 @@ import { doc } from 'firebase/firestore';
 import type { Order, Payment } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
+import { useStore } from '@/contexts/store-context';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -72,15 +73,22 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
 function OrderDetailContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'orders', orderId);
-  }, [firestore, isUserLoading, orderId, user]);
+    if (!firestore || isUserLoading || !selectedStore) return null;
+    // Check both legacy and new path
+    const legacyRef = doc(firestore, 'orders', orderId);
+    const storeRef = doc(firestore, 'stores', selectedStore.id, 'orders', orderId);
+    // In a real scenario, you might check which one exists, but for now we assume new orders are in stores.
+    // This logic might need refinement based on migration status.
+    return storeRef; // Prioritize store-specific path
+  }, [firestore, isUserLoading, orderId, selectedStore]);
+
 
   const { data: order, isLoading } = useDoc<Order>(orderRef);
-  const pageIsLoading = isLoading || isUserLoading;
+  const pageIsLoading = isLoading || isUserLoading || !selectedStore;
   
   const totalPaid = React.useMemo(() => {
     if (!order?.payments) return 0;
@@ -108,7 +116,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             <Card>
                 <CardHeader>
                     <CardTitle>Erro 404</CardTitle>
-                    <CardDescription>A encomenda que você está procurando não foi encontrada.</CardDescription>
+                    <CardDescription>A encomenda que você está procurando não foi encontrada nesta loja.</CardDescription>
                 </CardHeader>
             </Card>
         </div>

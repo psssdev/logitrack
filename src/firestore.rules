@@ -25,7 +25,7 @@ service cloud.firestore {
     // Store documents can be read by anyone, but only created/updated by the owner.
     match /stores/{storeId} {
         allow read;
-        allow create, update: if isOwner(get(/databases/$(database)/documents/stores/$(storeId)).data.ownerId);
+        allow create, update: if isOwner(request.resource.data.ownerId);
     }
     
     // Data within a store can be read or written to only by the owner of that store.
