@@ -6,7 +6,7 @@
 // Use getFirestoreServer for database access.
 
 import { getFirestoreServer } from '@/firebase/server-init';
-import { doc, getDoc, collection, query, where, limit } from 'firebase/firestore';
+import { getDocs, collection as adminCollection, query as adminQuery, where as adminWhere, limit as adminLimit } from 'firebase-admin/firestore';
 import type { Order, Company, PixKey } from '@/lib/types';
 
 
@@ -14,19 +14,20 @@ import type { Order, Company, PixKey } from '@/lib/types';
 export { getFirestoreServer };
 
 export async function getPublicPixData(storeId: string, keyId: string): Promise<{ company: Company | null; pixKey: PixKey | null }> {
+  console.log('Fetching public pix data for:', { storeId, keyId });
   if (!storeId || !keyId) return { company: null, pixKey: null };
   try {
     const db = await getFirestoreServer();
-    const companySettingsRef = doc(db, 'stores', storeId, 'companySettings', 'default');
-    const pixKeyRef = doc(db, 'stores', storeId, 'pixKeys', keyId);
+    const companySettingsRef = db.collection('stores').doc(storeId).collection('companySettings').doc('default');
+    const pixKeyRef = db.collection('stores').doc(storeId).collection('pixKeys').doc(keyId);
 
     const [companySnap, pixKeySnap] = await Promise.all([
-        getDoc(companySettingsRef),
-        getDoc(pixKeyRef)
+        companySettingsRef.get(),
+        pixKeyRef.get()
     ]);
     
-    const company = companySnap.exists() ? companySnap.data() as Company : null;
-    const pixKey = pixKeySnap.exists() ? { id: pixKeySnap.id, ...pixKeySnap.data() } as PixKey : null;
+    const company = companySnap.exists ? companySnap.data() as Company : null;
+    const pixKey = pixKeySnap.exists ? { id: pixKeySnap.id, ...pixKeySnap.data() } as PixKey : null;
 
     return { company, pixKey };
 
@@ -38,14 +39,14 @@ export async function getPublicPixData(storeId: string, keyId: string): Promise<
 
 
 export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | null> {
-    const firestore = getFirestoreServer();
+    const firestore = await getFirestoreServer();
     
     // This is tricky because orders are in subcollections. We need to query across all stores.
     const ordersCollectionGroup = firestore.collectionGroup('orders');
-     const q = query(
+     const q = adminQuery(
         ordersCollectionGroup,
-        where("codigoRastreio", "==", codigoRastreio.toUpperCase()),
-        limit(1)
+        adminWhere("codigoRastreio", "==", codigoRastreio.toUpperCase()),
+        adminLimit(1)
     );
     
     try {
@@ -59,11 +60,11 @@ export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Or
     }
   
     // Fallback for legacy orders
-     const legacyOrderRef = collection(firestore, 'orders');
-     const legacyQ = query(
+     const legacyOrderRef = adminCollection(firestore, 'orders');
+     const legacyQ = adminQuery(
         legacyOrderRef,
-        where("codigoRastreio", "==", codigoRastreio.toUpperCase()),
-        limit(1)
+        adminWhere("codigoRastreio", "==", codigoRastreio.toUpperCase()),
+        adminLimit(1)
     );
      try {
         const querySnapshot = await getDocs(legacyQ);
