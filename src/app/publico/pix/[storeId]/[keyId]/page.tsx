@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getPublicPixData } from '@/lib/actions-public';
@@ -15,9 +14,8 @@ import { PixKeyDisplay } from '@/components/pix-key-display';
 
 
 export default async function PublicPixPage({ params }: { params: { storeId: string; keyId: string } }) {
-  const storeId = params.storeId;
-  const keyId = params.keyId;
-  console.log('StoreId e KeyId',{ storeId, keyId });
+  const { storeId, keyId } = params;
+  console.log('Fetching PIX data for:', { storeId, keyId });
   const { company, pixKey } = await getPublicPixData(storeId, keyId);
 
   if (!pixKey) {
