@@ -47,6 +47,7 @@ import {
   Trash2,
   PlusCircle,
   Send,
+  CalendarIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -62,7 +63,7 @@ import {
 } from './ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { addDoc, collection, doc, query, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, query, serverTimestamp, Timestamp } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -73,6 +74,9 @@ import {
   TableRow,
 } from './ui/table';
 import { useStore } from '@/contexts/store-context';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const paymentMethodLabels = {
   pix: 'PIX',
@@ -123,6 +127,7 @@ export function NewOrderForm({
     resolver: zodResolver(newOrderSchema),
     defaultValues: {
       storeId: selectedStore?.id || '',
+      createdAt: new Date(),
       origem: origins.length > 0 ? origins[0].address : '',
       destino: '',
       items: [{ description: 'Pacote', quantity: 1, value: 50 }],
@@ -154,7 +159,7 @@ export function NewOrderForm({
     return query(
       collection(
         firestore,
-        'clients',
+        'stores',
         selectedClientId,
         'addresses'
       )
@@ -166,8 +171,8 @@ export function NewOrderForm({
 
   const { data: drivers, isLoading: loadingDrivers } = useCollection<Driver>(useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    return collection(firestore, 'drivers');
-  }, [firestore, isUserLoading, user]));
+    return query(collection(firestore, 'stores', selectedStore!.id, 'drivers'));
+  }, [firestore, isUserLoading, user, selectedStore]));
 
   // Auto-select destination based on client's addresses
   React.useEffect(() => {
@@ -250,8 +255,11 @@ export function NewOrderForm({
         firestore,
         'stores', selectedStore.id, 'orders'
       );
+      
+      const { createdAt, ...restOfData } = data;
+
       const newOrderData = {
-        ...data,
+        ...restOfData,
         storeId: selectedStore.id,
         motoristaId: data.motoristaId === 'null' ? null : data.motoristaId,
         valorEntrega: totalValue,
@@ -260,10 +268,10 @@ export function NewOrderForm({
         codigoRastreio: trackingCode,
         status: 'PENDENTE',
         pago: false,
-        createdAt: serverTimestamp(),
+        createdAt: createdAt ? Timestamp.fromDate(createdAt) : serverTimestamp(),
         createdBy: user.uid,
         timeline: [
-          { status: 'PENDENTE', at: new Date(), userId: user.uid },
+          { status: 'PENDENTE', at: createdAt ? Timestamp.fromDate(createdAt) : new Date(), userId: user.uid },
         ],
         messages: [],
       };
@@ -317,80 +325,106 @@ export function NewOrderForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
-        <FormField
-          control={form.control}
-          name="clientId"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Cliente *</FormLabel>
-              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className={cn(
-                        'w-full justify-between',
-                        !field.value && 'text-muted-foreground'
-                      )}
-                    >
-                      {field.value
-                        ? clients.find((client) => client.id === field.value)
-                            ?.nome
-                        : 'Selecione um cliente'}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar cliente..." />
-                    <CommandList>
-                      <CommandEmpty>
-                        <div className="p-4 text-center text-sm">
-                          <p>Nenhum cliente encontrado.</p>
-                          <Button variant="link" asChild className="mt-2">
-                            <Link href="/clientes/novo">
-                              Cadastrar novo cliente
-                            </Link>
-                          </Button>
-                        </div>
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {clients.map((client) => (
-                          <CommandItem
-                            value={client.nome}
-                            key={client.id}
-                            onSelect={() => {
-                              form.setValue('clientId', client.id);
-                              setPopoverOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                'mr-2 h-4 w-4',
-                                client.id === field.value
-                                  ? 'opacity-100'
-                                  : 'opacity-0'
-                              )}
-                            />
-                            <div>
-                              <p>{client.nome}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {client.telefone}
-                              </p>
+        <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+            control={form.control}
+            name="clientId"
+            render={({ field }) => (
+                <FormItem className="flex flex-col">
+                <FormLabel>Cliente *</FormLabel>
+                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                            'w-full justify-between',
+                            !field.value && 'text-muted-foreground'
+                        )}
+                        >
+                        {field.value
+                            ? clients.find((client) => client.id === field.value)
+                                ?.nome
+                            : 'Selecione um cliente'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                        <CommandInput placeholder="Buscar cliente..." />
+                        <CommandList>
+                        <CommandEmpty>
+                            <div className="p-4 text-center text-sm">
+                            <p>Nenhum cliente encontrado.</p>
+                            <Button variant="link" asChild className="mt-2">
+                                <Link href="/clientes/novo">
+                                Cadastrar novo cliente
+                                </Link>
+                            </Button>
                             </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                        </CommandEmpty>
+                        <CommandGroup>
+                            {clients.map((client) => (
+                            <CommandItem
+                                value={client.nome}
+                                key={client.id}
+                                onSelect={() => {
+                                form.setValue('clientId', client.id);
+                                setPopoverOpen(false);
+                                }}
+                            >
+                                <Check
+                                className={cn(
+                                    'mr-2 h-4 w-4',
+                                    client.id === field.value
+                                    ? 'opacity-100'
+                                    : 'opacity-0'
+                                )}
+                                />
+                                <div>
+                                <p>{client.nome}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {client.telefone}
+                                </p>
+                                </div>
+                            </CommandItem>
+                            ))}
+                        </CommandGroup>
+                        </CommandList>
+                    </Command>
+                    </PopoverContent>
+                </Popover>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+                control={form.control}
+                name="createdAt"
+                render={({ field }) => (
+                <FormItem className="flex flex-col">
+                    <FormLabel>Data da Encomenda</FormLabel>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <FormControl>
+                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                            </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
+                        </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        </div>
+
 
         <div className="grid gap-4 md:grid-cols-2">
           <FormField

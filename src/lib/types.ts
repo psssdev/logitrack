@@ -116,5 +116,3 @@ export type Company = Omit<z.infer<typeof companySchema>, 'createdAt' | 'updated
     createdAt?: Timestamp;
     updatedAt?: Timestamp;
 }
-
-    

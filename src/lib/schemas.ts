@@ -73,7 +73,6 @@ export const newOrderSchema = orderSchema.omit({
   id: true,
   codigoRastreio: true,
   timeline: true,
-  createdAt: true,
   createdBy: true,
   pago: true,
   status: true,
@@ -84,6 +83,8 @@ export const newOrderSchema = orderSchema.omit({
   notasPagamento: true,
   payments: true,
   messages: true,
+}).extend({
+    createdAt: z.date().optional(),
 });
 
 export const editOrderSchema = newOrderSchema.omit({
@@ -260,5 +261,3 @@ export const companySchema = z.object({
   msgAvisame: z.string().optional(),
   msgEmRota: z.string().optional(),
 });
-
-    
