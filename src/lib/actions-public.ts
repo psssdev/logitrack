@@ -1,10 +1,6 @@
 
 'use server';
 
-// IMPORTANT: This file is for server actions that should be publicly accessible.
-// Do not import from '@/firebase' here, as it contains client-side code.
-// Use adminDb for database access.
-
 import { adminDb } from '@/lib/firebase-admin';
 import type { Order, Company, PixKey } from '@/lib/types';
 
@@ -45,4 +41,25 @@ export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Or
 
 
     return null;
+}
+
+export async function getPublicPixData(storeId: string, keyId: string): Promise<{ company: Company | null; pixKey: PixKey | null; }> {
+    try {
+        const db = adminDb();
+        
+        const companySettingsRef = db.collection('stores').doc(storeId).collection('companySettings').doc('default');
+        const pixKeyRef = db.collection('stores').doc(storeId).collection('pixKeys').doc(keyId);
+
+        const companySnap = await companySettingsRef.get();
+        const pixKeySnap = await pixKeyRef.get();
+
+        const company = companySnap.exists ? { id: companySnap.id, ...companySnap.data() } as Company : null;
+        const pixKey = pixKeySnap.exists ? { id: pixKeySnap.id, ...pixKeySnap.data() } as PixKey : null;
+
+        return { company, pixKey };
+
+    } catch (error) {
+        console.error("Error fetching public pix data:", error);
+        return { company: null, pixKey: null };
+    }
 }
