@@ -2,57 +2,45 @@
 
 import { cert, getApps, initializeApp, App } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { getAuth, Auth } from "firebase-admin/auth";
+import serviceAccount from '@/../service-account-key.json';
 
 // Variáveis para guardar as instâncias em cache
-let app: App | null = null;
-let db: Firestore | null = null;
+let _app: App | null = null;
+let _db: Firestore | null = null;
+let _auth: Auth | null = null;
 
-const APP_NAME = 'logitrack-admin';
+const APP_NAME = 'logitrack-admin-app';
 
-function loadServiceAccount() {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!raw) return null;
+function initializeAdminApp() {
+  if (_app) return _app;
 
-  // Aceita JSON direto (1 linha) OU base64
-  const txt = raw.trim();
-  try {
-    if (txt.startsWith("{")) return JSON.parse(txt);
-    const decoded = Buffer.from(txt, "base64").toString("utf8");
-    return JSON.parse(decoded);
-  } catch {
-    throw new Error("FIREBASE_SERVICE_ACCOUNT inválida (use JSON ou base64).");
+  // Use a name to avoid conflict with client-side app
+  const existingApp = getApps().find(app => app.name === APP_NAME);
+  if (existingApp) {
+    _app = existingApp;
+    return _app;
   }
+  
+  const credential = cert(serviceAccount);
+
+  _app = initializeApp({
+    credential,
+  }, APP_NAME);
+
+  return _app;
 }
 
 export async function adminDb(): Promise<Firestore> {
-  // Se a instância do DB já existe, retorna-a
-  if (db) {
-    return db;
-  }
+  if (_db) return _db;
+  const app = initializeAdminApp();
+  _db = getFirestore(app);
+  return _db;
+}
 
-  // Verifica se a NOSSA app específica já foi inicializada
-  const existingApp = getApps().find(a => a.name === APP_NAME);
-
-  if (existingApp) {
-    app = existingApp;
-  } else {
-    const sa = loadServiceAccount();
-    if (!sa) {
-      throw new Error(
-        "FIREBASE_SERVICE_ACCOUNT não definida. Sem isso o ambiente tenta usar metadata/refresh token."
-      );
-    }
-
-    // Corrige \n no private_key
-    if (typeof sa.private_key === "string") {
-      sa.private_key = sa.private_key.replace(/\\n/g, "\n");
-    }
-
-    // Inicializa a NOSSA app com um nome único
-    app = initializeApp({ credential: cert(sa) }, APP_NAME);
-  }
-
-  // Obtém e guarda em cache a instância do Firestore a partir da nossa app
-  db = getFirestore(app);
-  return db;
+export async function adminAuth(): Promise<Auth> {
+  if (_auth) return _auth;
+  const app = initializeAdminApp();
+  _auth = getAuth(app);
+  return _auth;
 }
