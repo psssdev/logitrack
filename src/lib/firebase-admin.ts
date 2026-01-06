@@ -1,3 +1,4 @@
+
 'use server';
 
 import { cert, getApps, initializeApp, App } from "firebase-admin/app";
@@ -44,3 +45,4 @@ export async function adminAuth(): Promise<Auth> {
   _auth = getAuth(app);
   return _auth;
 }
+
