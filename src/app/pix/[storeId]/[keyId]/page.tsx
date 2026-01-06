@@ -15,8 +15,7 @@ import { PixKeyDisplay } from '@/components/pix-key-display';
 
 
 export default async function PublicPixPage({ params }: { params: { storeId: string; keyId: string } }) {
-  const { storeId, keyId } = params;
-  const { company, pixKey } = await getPublicPixData(storeId, keyId);
+  const { company, pixKey } = await getPublicPixData(params.storeId, params.keyId);
 
   if (!pixKey) {
     return (
