@@ -44,22 +44,23 @@ export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Or
 }
 
 export async function getPublicPixData(storeId: string, keyId: string): Promise<{ company: Company | null; pixKey: PixKey | null; }> {
-    try {
-        const db = adminDb();
-        
-        const companySettingsRef = db.collection('stores').doc(storeId).collection('companySettings').doc('default');
-        const pixKeyRef = db.collection('stores').doc(storeId).collection('pixKeys').doc(keyId);
+  try {
+    const db = adminDb();
 
-        const companySnap = await companySettingsRef.get();
-        const pixKeySnap = await pixKeyRef.get();
+    const companySettingsRef = db.collection('stores').doc(storeId).collection('companySettings').doc('default');
+    const pixKeyRef = db.collection('stores').doc(storeId).collection('pixKeys').doc(keyId);
 
-        const company = companySnap.exists ? { id: companySnap.id, ...companySnap.data() } as Company : null;
-        const pixKey = pixKeySnap.exists ? { id: pixKeySnap.id, ...pixKeySnap.data() } as PixKey : null;
+    const [companySnap, pixKeySnap] = await Promise.all([
+      companySettingsRef.get(),
+      pixKeyRef.get(),
+    ]);
 
-        return { company, pixKey };
+    const company = companySnap.exists ? ({ id: companySnap.id, ...companySnap.data() } as Company) : null;
+    const pixKey = pixKeySnap.exists ? ({ id: pixKeySnap.id, ...pixKeySnap.data() } as PixKey) : null;
 
-    } catch (error) {
-        console.error("Error fetching public pix data:", error);
-        return { company: null, pixKey: null };
-    }
+    return { company, pixKey };
+  } catch (error) {
+    console.error("Error fetching public pix data:", error);
+    return { company: null, pixKey: null };
+  }
 }
