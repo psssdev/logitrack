@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, FirebaseClientProvider } from '@/firebase';
+import { useAuth } from '@/firebase';
 import {
   signInWithEmailAndPassword,
 } from 'firebase/auth';
@@ -37,7 +37,7 @@ function getFriendlyAuthErrorMessage(errorCode: string): string {
 }
 
 
-function AuthForm() {
+export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -178,12 +178,3 @@ const AuthFields = ({
     </div>
   </>
 );
-
-
-export default function LoginPage() {
-  return (
-    <FirebaseClientProvider>
-      <AuthForm />
-    </FirebaseClientProvider>
-  );
-}

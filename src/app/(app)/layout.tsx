@@ -14,11 +14,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { FirebaseClientProvider } from '@/firebase';
 import { AuthGuard } from '@/components/auth-guard';
 import { Logo } from '@/components/logo';
 import { useUser } from '@/firebase';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { StoreProvider } from '@/contexts/store-context';
+
 
 const navItems = [
   { href: '/inicio', icon: Home, label: 'Início' },
@@ -51,8 +52,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [isSidebarOpen]);
 
   return (
-    <FirebaseClientProvider>
-      <AuthGuard>
+    <AuthGuard>
+      <StoreProvider>
           <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
             <aside
               className={cn(
@@ -127,8 +128,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </main>
             </div>
           </div>
-      </AuthGuard>
-    </FirebaseClientProvider>
+      </StoreProvider>
+    </AuthGuard>
   );
 }
 
