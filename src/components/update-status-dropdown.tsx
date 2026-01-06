@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Order, OrderStatus, Company } from '@/lib/types';
 import { Loader2, ChevronDown } from 'lucide-react';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useStore } from '@/contexts/store-context';
 import {
   doc,
   updateDoc,
@@ -48,30 +49,31 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
-  const canQuery = !!firestore && !!user?.uid && !isUserLoading;
-  
+  const canQuery = !!firestore && !!user?.uid && !isUserLoading && !!selectedStore;
+
   const companyRef = useMemoFirebase(() => {
     if (!canQuery) return null;
-    return doc(firestore!, 'companies', '1');
-  }, [canQuery, firestore]);
+    return doc(firestore!, 'stores', selectedStore.id, 'companySettings', 'settings');
+  }, [canQuery, firestore, selectedStore]);
 
-  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
+  const { data: company, isLoading: isLoadingCompany } = useDoc<any>(companyRef);
 
   const handleUpdateStatus = (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
 
     startTransition(async () => {
-      if (!firestore || !user) {
+      if (!firestore || !user || !selectedStore) {
         toast({
           variant: 'destructive',
           title: 'Erro',
-          description: 'Usuário não autenticado.',
+          description: 'Usuário não autenticado ou loja não selecionada.',
         });
         return;
       }
 
-      const orderRef = doc(firestore, 'orders', order.id);
+      const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
 
       try {
         await updateDoc(orderRef, {
@@ -100,7 +102,7 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
             .replace('{cliente}', order.nomeCliente)
             .replace('{codigo}', order.codigoRastreio)
             .replace('{link}', trackingLink);
-          
+
           openWhatsApp(order.telefone, message);
         }
 

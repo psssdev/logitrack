@@ -56,10 +56,12 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+import { useStore } from '@/contexts/store-context';
+
 export default function VendaComprovantePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = React.use(params);
   return <ComprovanteContent entryId={id} />;
@@ -68,20 +70,21 @@ export default function VendaComprovantePage({
 function ComprovanteContent({ entryId }: { entryId: string }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const router = useRouter();
   const { toast } = useToast();
 
   const entryRef = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
-    return doc(firestore, 'financialEntries', entryId);
-  }, [firestore, user, isUserLoading, entryId]);
+    if (!firestore || !user || isUserLoading || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'financialEntries', entryId);
+  }, [firestore, user, isUserLoading, entryId, selectedStore]);
 
   const { data: entry, isLoading } = useDoc<FinancialEntry>(entryRef);
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || !entry?.vehicleId) return null;
-    return doc(firestore, 'vehicles', entry.vehicleId);
-  }, [firestore, entry?.vehicleId]);
+    if (!firestore || !entry?.vehicleId || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'vehicles', entry.vehicleId);
+  }, [firestore, entry?.vehicleId, selectedStore]);
 
   const { data: vehicle } = useDoc<Vehicle>(vehicleRef);
 
@@ -104,9 +107,8 @@ Destino: *${entry.destination}*
 Assento(s): *${seats}*
 --------------------------------
 Valor Total: *${formatCurrency(entry.amount)}*
-Forma de Pagamento: *${
-      paymentMethodLabels[entry.formaPagamento || ''] || 'Não informado'
-    }*
+Forma de Pagamento: *${paymentMethodLabels[entry.formaPagamento || ''] || 'Não informado'
+      }*
 
 Agradecemos a sua preferência!
 `.trim();
@@ -117,8 +119,8 @@ Agradecemos a sua preferência!
 
     const url = `https://wa.me/${mockedPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
-    
-    toast({ title: "Abrindo WhatsApp...", description: "Prepare-se para enviar a mensagem para o cliente."})
+
+    toast({ title: "Abrindo WhatsApp...", description: "Prepare-se para enviar a mensagem para o cliente." })
   };
 
   const pageIsLoading = isLoading || isUserLoading;
@@ -130,14 +132,14 @@ Agradecemos a sua preferência!
   if (!entry) {
     return (
       <div className="mx-auto grid w-full max-w-lg flex-1 auto-rows-max gap-4">
-         <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" className="h-7 w-7" asChild>
             <Link href="/vender-passagem">
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Voltar</span>
+              <ArrowLeft className="h-4 w-4" />
+              <span className="sr-only">Voltar</span>
             </Link>
-            </Button>
-            <h1 className="font-semibold text-xl">Comprovante não encontrado</h1>
+          </Button>
+          <h1 className="font-semibold text-xl">Comprovante não encontrado</h1>
         </div>
         <Card>
           <CardHeader>
@@ -196,7 +198,7 @@ Agradecemos a sua preferência!
               </dt>
               <dd>{entry.origin}</dd>
             </div>
-             <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <dt className="text-muted-foreground flex items-center gap-2">
                 <MapPin className="h-4 w-4" /> Destino
               </dt>
@@ -274,8 +276,8 @@ function ComprovanteSkeleton() {
           </div>
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-2">
-            <Skeleton className="h-11 w-full" />
-            <Skeleton className="h-11 w-full" />
+          <Skeleton className="h-11 w-full" />
+          <Skeleton className="h-11 w-full" />
         </CardFooter>
       </Card>
     </div>

@@ -21,6 +21,8 @@ import type { Destino } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { useStore } from '@/contexts/store-context';
+import { z } from 'zod';
 
 type FormValues = z.infer<typeof newLocationSchema>;
 
@@ -29,6 +31,7 @@ export function EditDestinoForm({ destino }: { destino: Destino }) {
   const router = useRouter();
   const firestore = useFirestore();
   const { user } = useUser();
+  const { selectedStore } = useStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(newLocationSchema),
@@ -51,8 +54,9 @@ export function EditDestinoForm({ destino }: { destino: Destino }) {
     }
 
     try {
-      const destinoRef = doc(firestore, 'destinos', destino.id);
-      
+      if (!selectedStore) throw new Error("Loja não selecionada");
+      const destinoRef = doc(firestore, 'stores', selectedStore.id, 'destinos', destino.id);
+
       await updateDoc(destinoRef, {
         name: data.name,
         // address: fullAddress, // Logic for full address reconstruction needed if fields are editable

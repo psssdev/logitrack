@@ -33,21 +33,22 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { isSameDay, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
+import { useStore } from '@/contexts/store-context';
 
 const statusConfig = {
-    "Ativo": "bg-green-500/80",
-    "Inativo": "bg-gray-500/80",
-    "Em Manutenção": "bg-yellow-500/80",
+  "Ativo": "bg-green-500/80",
+  "Inativo": "bg-gray-500/80",
+  "Em Manutenção": "bg-yellow-500/80",
 }
 
 const iconConfig = {
-    "Ônibus": Bus,
-    "Van": Truck,
-    "Carro": Car,
-    "Caminhão": Truck,
+  "Ônibus": Bus,
+  "Van": Truck,
+  "Carro": Car,
+  "Caminhão": Truck,
 }
 
-export default function VehicleDetailPage({ params }: { params: { id: string } }) {
+export default function VehicleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
   return <VehicleDetailContent vehicleId={id} />;
 }
@@ -58,32 +59,33 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const { selectedStore } = useStore();
 
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date());
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = React.useState(false);
 
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'vehicles', vehicleId);
-  }, [firestore, isUserLoading, vehicleId, user]);
+    if (!firestore || isUserLoading || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'vehicles', vehicleId);
+  }, [firestore, isUserLoading, vehicleId, selectedStore]);
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useDoc<Vehicle>(vehicleRef);
 
   const salesQuery = useMemoFirebase(() => {
-    if (!firestore || !vehicleId) return null;
-    
+    if (!firestore || !vehicleId || !selectedStore) return null;
+
     return query(
-        collection(firestore, 'financialEntries'),
-        where('vehicleId', '==', vehicleId)
+      collection(firestore, 'stores', selectedStore.id, 'financialEntries'),
+      where('vehicleId', '==', vehicleId)
     );
-  }, [firestore, vehicleId]);
+  }, [firestore, vehicleId, selectedStore]);
 
   const { data: sales, isLoading: isLoadingSales } = useCollection<FinancialEntry>(salesQuery);
 
   const occupiedSeatsForDate = React.useMemo(() => {
     if (!sales || !selectedDate) return [];
-    
+
     const salesForDate = sales.filter(sale => {
       if (!sale.travelDate) return false;
       const travelDate = sale.travelDate instanceof Timestamp ? sale.travelDate.toDate() : sale.travelDate;
@@ -99,21 +101,21 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const handleDelete = async () => {
     if (!firestore || !vehicle || !vehicleRef) return;
     try {
-        await deleteDoc(vehicleRef);
-        await triggerRevalidation('/veiculos');
-        toast({
-            title: "Veículo excluído",
-            description: `O veículo "${vehicle.modelo}" foi removido da frota.`,
-        });
-        router.push('/veiculos');
-    } catch(error: any) {
-        toast({
-            variant: "destructive",
-            title: "Erro ao excluir",
-            description: error.message,
-        });
+      await deleteDoc(vehicleRef);
+      await triggerRevalidation('/veiculos');
+      toast({
+        title: "Veículo excluído",
+        description: `O veículo "${vehicle.modelo}" foi removido da frota.`,
+      });
+      router.push('/veiculos');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir",
+        description: error.message,
+      });
     } finally {
-        setIsDeleteAlertOpen(false);
+      setIsDeleteAlertOpen(false);
     }
   }
 
@@ -145,86 +147,86 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
       </div>
     );
   }
-  
+
   const Icon = iconConfig[vehicle.tipo] || Bus;
 
   return (
     <>
-    <div className="mx-auto grid max-w-4xl flex-1 auto-rows-max gap-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href="/veiculos">
-            <ChevronLeft className="h-4 w-4" />
-            <span className="sr-only">Voltar</span>
-          </Link>
-        </Button>
-        <div className="flex-1">
+      <div className="mx-auto grid max-w-4xl flex-1 auto-rows-max gap-6">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+            <Link href="/veiculos">
+              <ChevronLeft className="h-4 w-4" />
+              <span className="sr-only">Voltar</span>
+            </Link>
+          </Button>
+          <div className="flex-1">
             <h1 className="text-2xl font-semibold">
-                {vehicle.modelo}
+              {vehicle.modelo}
             </h1>
             <p className="text-sm text-muted-foreground">{vehicle.placa} - {vehicle.ano}</p>
-        </div>
-        <div className="flex items-center gap-2">
+          </div>
+          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-                <Link href={`/veiculos/${vehicle.id}/editar`}>
-                    <Edit className="mr-2 h-4 w-4" /> Editar
-                </Link>
+              <Link href={`/veiculos/${vehicle.id}/editar`}>
+                <Edit className="mr-2 h-4 w-4" /> Editar
+              </Link>
             </Button>
             <Button variant="destructive" size="sm" onClick={() => setIsDeleteAlertOpen(true)}>
-                <Trash className="mr-2 h-4 w-4" /> Excluir
+              <Trash className="mr-2 h-4 w-4" /> Excluir
             </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Icon className="h-10 w-10 text-muted-foreground" />
-              <div>
-                <CardTitle>{vehicle.modelo}</CardTitle>
-                <CardDescription>{vehicle.tipo}</CardDescription>
+        <div className="grid gap-6">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Icon className="h-10 w-10 text-muted-foreground" />
+                <div>
+                  <CardTitle>{vehicle.modelo}</CardTitle>
+                  <CardDescription>{vehicle.tipo}</CardDescription>
+                </div>
               </div>
-            </div>
-            <Badge className={cn("text-white", statusConfig[vehicle.status])}>
+              <Badge className={cn("text-white", statusConfig[vehicle.status])}>
                 {vehicle.status}
-            </Badge>
-          </CardHeader>
-        </Card>
-        
-        {vehicle.tipo === 'Ônibus' && vehicle.seatLayout && (
+              </Badge>
+            </CardHeader>
+          </Card>
+
+          {vehicle.tipo === 'Ônibus' && vehicle.seatLayout && (
             <>
-             <Card>
+              <Card>
                 <CardHeader>
-                    <CardTitle>Visualização de Assentos</CardTitle>
-                    <CardDescription>Selecione uma data para ver os assentos ocupados.</CardDescription>
+                  <CardTitle>Visualização de Assentos</CardTitle>
+                  <CardDescription>Selecione uma data para ver os assentos ocupados.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <DatePicker date={selectedDate} setDate={setSelectedDate} />
+                  <DatePicker date={selectedDate} setDate={setSelectedDate} />
                 </CardContent>
-             </Card>
-            <BusSeatLayout 
+              </Card>
+              <BusSeatLayout
                 vehicle={vehicle}
                 occupiedSeats={occupiedSeatsForDate}
                 selectedSeats={[]}
-                onSeatSelect={() => {}} // Read-only mode
-            />
+                onSeatSelect={() => { }} // Read-only mode
+              />
             </>
-        )}
+          )}
+        </div>
       </div>
-    </div>
-    <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                <AlertDialogDescription>
-                   Esta ação não pode ser desfeita. Isso excluirá permanentemente o veículo <span className="font-bold">"{vehicle.modelo} - {vehicle.placa}"</span>.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
-            </AlertDialogFooter>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente o veículo <span className="font-bold">"{vehicle.modelo} - {vehicle.placa}"</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

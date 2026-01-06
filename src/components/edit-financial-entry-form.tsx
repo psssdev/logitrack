@@ -45,7 +45,7 @@ import {
 } from '@/components/ui/command';
 import Link from 'next/link';
 
-type EditFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date' | 'travelDate'> & { date?: Date, travelDate?: Date };
+type EditFinancialEntryFormValues = Omit<FinancialEntry, 'id' | 'date' | 'travelDate' | 'storeId'> & { date?: Date, travelDate?: Date };
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
   pix: 'PIX',
@@ -57,10 +57,13 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 };
 
 
+import { useStore } from '@/contexts/store-context';
+
 export function EditFinancialEntryForm({ entry, vehicles, clients, categories, drivers }: { entry: FinancialEntry, vehicles: Vehicle[], clients: Client[], categories: FinancialCategory[], drivers: Driver[] }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
   const [clientPopoverOpen, setClientPopoverOpen] = React.useState(false);
 
   const form = useForm<EditFinancialEntryFormValues>({
@@ -82,22 +85,22 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
   }, [categories]);
 
   async function onSubmit(data: EditFinancialEntryFormValues) {
-    if (!firestore) {
-      toast({ variant: 'destructive', title: 'Erro de conexão' });
+    if (!firestore || !selectedStore) {
+      toast({ variant: 'destructive', title: 'Erro de conexão ou loja não selecionada' });
       return;
     }
 
     try {
-      const entryRef = doc(firestore, 'financialEntries', entry.id);
-      
+      const entryRef = doc(firestore, 'stores', selectedStore.id, 'financialEntries', entry.id);
+
       const client = data.clientId ? clients.find(c => c.id === data.clientId) : null;
       const driver = data.driverId ? drivers.find(d => d.id === data.driverId) : null;
-      
+
       let finalDescription = data.description;
       if (data.categoryId === 'outras-receitas' && data.otherCategoryDescription) {
         finalDescription = data.otherCategoryDescription;
       }
-      
+
       const { notes, ...restOfData } = data;
       const entryData: any = {
         ...restOfData,
@@ -110,9 +113,9 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
         amount: Math.abs(data.amount),
         updatedAt: serverTimestamp(),
       };
-      
+
       if (notes) {
-          entryData.notes = notes;
+        entryData.notes = notes;
       }
 
       await updateDoc(entryRef, entryData);
@@ -137,146 +140,146 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-           <FormField
-                control={form.control}
-                name="amount"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Valor (R$) *</FormLabel>
+          <FormField
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Valor (R$) *</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="date"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Data da Transação</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
                     <FormControl>
-                    <Input type="number" placeholder="0.00" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} />
+                      <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                        {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
                     </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-             <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                <FormItem className="flex flex-col">
-                    <FormLabel>Data da Transação</FormLabel>
-                    <Popover>
-                    <PopoverTrigger asChild>
-                        <FormControl>
-                        <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                            {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                        </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
-                    </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <FormField
-                control={form.control}
-                name="categoryId"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Categoria *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            {sortedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-            {selectedCategoryId === 'venda-passagem' && (
-                 <FormField
-                    control={form.control}
-                    name="travelDate"
-                    render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                        <FormLabel>Data da Viagem</FormLabel>
-                        <Popover>
-                        <PopoverTrigger asChild>
-                            <FormControl>
-                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                            </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
-                        </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
+          <FormField
+            control={form.control}
+            name="categoryId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Categoria *</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {sortedCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
             )}
+          />
+          {selectedCategoryId === 'venda-passagem' && (
+            <FormField
+              control={form.control}
+              name="travelDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Data da Viagem</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                          {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
+          control={form.control}
+          name="description"
+          render={({ field }) => (
             <FormItem>
-                <FormLabel>Descrição *</FormLabel>
-                <FormControl><Input placeholder="Ex: Recebimento de frete" {...field} value={field.value || ''} /></FormControl>
-                <FormMessage />
+              <FormLabel>Descrição *</FormLabel>
+              <FormControl><Input placeholder="Ex: Recebimento de frete" {...field} value={field.value || ''} /></FormControl>
+              <FormMessage />
             </FormItem>
-            )}
+          )}
         />
-        
-         <FormField
-            control={form.control}
-            name="notes"
-            render={({ field }) => (
+
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
             <FormItem>
-            <FormLabel>Notas</FormLabel>
-            <FormControl>
+              <FormLabel>Notas</FormLabel>
+              <FormControl>
                 <Textarea placeholder="Informações adicionais..." className="resize-none" {...field} value={field.value ?? ''} />
-            </FormControl>
-            <FormMessage />
+              </FormControl>
+              <FormMessage />
             </FormItem>
-        )}
+          )}
         />
-        
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-                control={form.control}
-                name="driverId"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Motorista (Opcional)</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || 'null'}>
-                            <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Selecione um motorista" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                <SelectItem value="null">Nenhum</SelectItem>
-                                {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="driverId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Motorista (Opcional)</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || 'null'}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Selecione um motorista" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="null">Nenhum</SelectItem>
+                    {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="ghost" asChild>
-                <Link href="/financeiro">Cancelar</Link>
-            </Button>
-            <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
-            </Button>
+          <Button type="button" variant="ghost" asChild>
+            <Link href="/financeiro">Cancelar</Link>
+          </Button>
+          <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
+          </Button>
         </div>
 
       </form>

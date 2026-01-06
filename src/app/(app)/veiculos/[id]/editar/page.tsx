@@ -17,10 +17,12 @@ import type { Vehicle } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
+import { useStore } from '@/contexts/store-context';
+
 export default function EditVehiclePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = React.use(params);
   return <EditVehicleContent vehicleId={id} />;
@@ -29,11 +31,12 @@ export default function EditVehiclePage({
 function EditVehicleContent({ vehicleId }: { vehicleId: string }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'vehicles', vehicleId);
-  }, [firestore, isUserLoading, vehicleId, user]);
+    if (!firestore || isUserLoading || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'vehicles', vehicleId);
+  }, [firestore, isUserLoading, vehicleId, selectedStore]);
 
   const { data: vehicle, isLoading } = useDoc<Vehicle>(vehicleRef);
 

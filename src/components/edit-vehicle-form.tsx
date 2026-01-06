@@ -19,6 +19,8 @@ import { triggerRevalidation } from '@/lib/actions';
 import { vehicleSchema } from '@/lib/schemas';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { useStore } from '@/contexts/store-context';
+import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 import {
   Select,
@@ -38,6 +40,7 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
   const router = useRouter();
   const firestore = useFirestore();
   const { user } = useUser();
+  const { selectedStore } = useStore();
 
   const form = useForm<EditVehicleFormValues>({
     resolver: zodResolver(vehicleSchema.omit({ id: true })),
@@ -79,7 +82,8 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
     }
 
     try {
-      const vehicleRef = doc(firestore, 'vehicles', vehicle.id);
+      if (!selectedStore) throw new Error("Loja não selecionada");
+      const vehicleRef = doc(firestore, 'stores', selectedStore.id, 'vehicles', vehicle.id);
       await updateDoc(vehicleRef, {
         ...processedData,
         placa: data.placa.toUpperCase(),
@@ -217,16 +221,16 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
         )}
 
         <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="ghost" asChild>
-                <Link href={`/veiculos/${vehicle.id}`}>Cancelar</Link>
-            </Button>
-            <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? (
-                <Loader2 className="animate-spin" />
-                ) : (
-                'Salvar Alterações'
-                )}
-            </Button>
+          <Button type="button" variant="ghost" asChild>
+            <Link href={`/veiculos/${vehicle.id}`}>Cancelar</Link>
+          </Button>
+          <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              'Salvar Alterações'
+            )}
+          </Button>
         </div>
       </form>
     </Form>

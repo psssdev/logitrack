@@ -17,10 +17,12 @@ import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditDestinoForm } from '@/components/edit-destino-form';
 
+import { useStore } from '@/contexts/store-context';
+
 export default function EditDestinoPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = React.use(params);
   return <EditDestinoContent destinoId={id} />;
@@ -29,11 +31,12 @@ export default function EditDestinoPage({
 function EditDestinoContent({ destinoId }: { destinoId: string }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const destinoRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'destinos', destinoId);
-  }, [firestore, isUserLoading, destinoId]);
+    if (!firestore || isUserLoading || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'destinos', destinoId);
+  }, [firestore, isUserLoading, destinoId, selectedStore]);
 
   const { data: destino, isLoading } = useDoc<Destino>(destinoRef);
 

@@ -1,17 +1,6 @@
-// src/lib/nearest-origin.ts
 import { haversine } from './geo';
 import { CITY_COORDS } from './cities';
-import type { Client, Address } from './types';
-
-
-export type Origin = {
-  id: string;
-  name: string;
-  city?: string;
-  lat: number;
-  lng: number;
-  active?: boolean;
-};
+import type { Client, Address, Origin } from './types';
 
 export type ClientLite = {
   id: string;
@@ -22,9 +11,7 @@ export type ClientLite = {
 export type NearestResult = { originId: string; km: number } | null;
 
 function getClientLatLng(c: ClientLite): { lat: number; lng: number } | null {
-  const address =
-    c.addresses?.find(a => a.principal) ??
-    c.addresses?.[0];
+  const address = c.addresses?.[0];
 
   if (!address) return null;
   // prioridade: coordenadas do próprio endereço

@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Order, OrderStatus } from '@/lib/types';
 import { Loader2, ChevronDown } from 'lucide-react';
 import { useFirestore, useUser } from '@/firebase';
+import { useStore } from '@/contexts/store-context';
 import {
   doc,
   updateDoc,
@@ -49,21 +50,22 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const handleUpdateStatus = (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
 
     startTransition(async () => {
-      if (!firestore || !user) {
+      if (!firestore || !user || !selectedStore) {
         toast({
           variant: 'destructive',
           title: 'Erro',
-          description: 'Usuário não autenticado ou empresa não encontrada.',
+          description: 'Usuário não autenticado, empresa ou loja não encontrada.',
         });
         return;
       }
 
-      const orderRef = doc(firestore, 'orders', order.id);
+      const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
 
       try {
         await updateDoc(orderRef, {
@@ -92,7 +94,7 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
             .replace('{cliente}', order.nomeCliente)
             .replace('{codigo}', order.codigoRastreio)
             .replace('{link}', trackingLink);
-          
+
           openWhatsApp(order.telefone, message);
         }
 
