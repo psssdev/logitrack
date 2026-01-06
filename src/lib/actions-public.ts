@@ -44,6 +44,7 @@ export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Or
 }
 
 export async function getPublicPixData(storeId: string, keyId: string): Promise<{ company: Company | null; pixKey: PixKey | null; }> {
+  console.log("HAS_FIREBASE_SA", !!process.env.FIREBASE_SERVICE_ACCOUNT);
   try {
     const db = adminDb();
 

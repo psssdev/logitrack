@@ -1,3 +1,4 @@
+'use server';
 
 import { cert, getApps, initializeApp, App } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
@@ -7,34 +8,40 @@ let _db: Firestore | null = null;
 let _auth: any = null;
 
 function loadServiceAccount() {
-  // Directly import the service account key JSON file.
-  // This is simpler and more reliable in environments where env vars might be tricky.
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!raw) return null;
+
+  // Aceita JSON direto (1 linha) OU base64
+  const txt = raw.trim();
   try {
-    const serviceAccount = require('../../service-account-key.json');
-    return serviceAccount;
-  } catch (e) {
-    console.error("Failed to load service-account-key.json.", e);
-    return null;
+    if (txt.startsWith("{")) return JSON.parse(txt);
+    const decoded = Buffer.from(txt, "base64").toString("utf8");
+    return JSON.parse(decoded);
+  } catch {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT inválida (use JSON ou base64).");
   }
 }
 
 export function adminDb(): Firestore {
-  if (_db) return _db;
-  
   if (!getApps().length) {
-    const sa = loadServiceAccount();
-    if (!sa || !sa.project_id) {
-       throw new Error(
-        "Service account key file is missing, empty, or invalid. Cannot initialize Firebase Admin."
+    const sa: any = loadServiceAccount();
+    if (!sa) {
+      throw new Error(
+        "FIREBASE_SERVICE_ACCOUNT não definida. Sem isso o ambiente tenta usar metadata/refresh token."
       );
     }
 
-    initializeApp({
-        credential: cert(sa)
-    });
+    // Corrige \n no private_key
+    if (typeof sa.private_key === "string") {
+      sa.private_key = sa.private_key.replace(/\\n/g, "\n");
+    }
+
+    initializeApp({ credential: cert(sa) });
   }
 
-  _db = getFirestore();
+  if (!_db) {
+    _db = getFirestore();
+  }
   return _db;
 }
 
