@@ -1,7 +1,9 @@
-
 'use client';
 
-import React, { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
+import { useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import type { Company, PixKey } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -12,90 +14,97 @@ import {
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { PixKeyDisplay } from '@/components/pix-key-display';
-import { doc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
-import type { Company, PixKey } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
-interface PublicPixData {
-  company: Company | null;
-  pixKey: PixKey | null;
-}
 
 function PublicPixPageSkeleton() {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4 animate-pulse">
-             <Card className="w-full max-w-md text-center shadow-lg">
-                <CardHeader>
-                    <Skeleton className="mx-auto h-14 w-14 rounded-full" />
-                    <Skeleton className="mx-auto mt-4 h-8 w-3/4" />
-                    <Skeleton className="mx-auto mt-2 h-4 w-full" />
+            <Card className="w-full max-w-md text-center shadow-lg">
+                 <CardHeader>
+                    <Skeleton className="h-14 w-14 rounded-full mx-auto" />
+                    <Skeleton className="h-7 w-3/4 mx-auto mt-4" />
+                    <Skeleton className="h-4 w-full mx-auto mt-2" />
                 </CardHeader>
-                <CardContent className="flex flex-col items-center gap-6">
-                    <Skeleton className="h-[220px] w-[220px] rounded-lg" />
-                    <div className="w-full space-y-2">
-                        <Skeleton className="h-4 w-1/2" />
-                        <Skeleton className="h-12 w-full" />
+                <CardContent>
+                    <div className="flex flex-col items-center gap-6">
+                        <Skeleton className="h-56 w-56 rounded-lg" />
+                        <div className="w-full space-y-2">
+                             <Skeleton className="h-4 w-1/2" />
+                             <div className="flex gap-2">
+                                <Skeleton className="h-12 w-full" />
+                                <Skeleton className="h-12 w-24" />
+                             </div>
+                        </div>
                     </div>
                 </CardContent>
-             </Card>
+            </Card>
         </div>
     )
 }
 
 
 export default function PublicPixPage({ params }: { params: { storeId: string; keyId: string } }) {
-  const { storeId, keyId } = use(params);
+  const { storeId, keyId } = params;
   const firestore = useFirestore();
-  const [data, setData] = useState<PublicPixData | null>(null);
+
+  const [pixKey, setPixKey] = useState<PixKey | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore || !storeId) return null;
+    return doc(firestore, 'stores', storeId, 'companySettings', 'default');
+  }, [firestore, storeId]);
+
+  const pixKeyRef = useMemoFirebase(() => {
+     if (!firestore || !storeId || !keyId) return null;
+     return doc(firestore, 'stores', storeId, 'pixKeys', keyId);
+  }, [firestore, storeId, keyId]);
+
+
   useEffect(() => {
-    async function fetchPublicPixData() {
-        if (!firestore || !storeId || !keyId) {
-            setError('Dados inválidos para carregar a página.');
+    async function fetchData() {
+        if (!pixKeyRef || !companyRef) {
             setIsLoading(false);
+            setError('Link de pagamento inválido.');
             return;
         }
-        setIsLoading(true);
+
         try {
-            console.log('Fetching PIX data for:', { storeId, keyId });
-            const companySettingsRef = doc(firestore, 'stores', storeId, 'companySettings', 'default');
-            const pixKeyRef = doc(firestore, 'stores', storeId, 'pixKeys', keyId);
-
-            const [companySnap, pixKeySnap] = await Promise.all([
-                getDoc(companySettingsRef),
-                getDoc(pixKeyRef)
+            const [pixKeySnap, companySnap] = await Promise.all([
+                getDoc(pixKeyRef),
+                getDoc(companyRef),
             ]);
-            
-            const company = companySnap.exists() ? companySnap.data() as Company : null;
-            const pixKey = pixKeySnap.exists() ? { id: pixKeySnap.id, ...pixKeySnap.data() } as PixKey : null;
 
-            if (!pixKey) {
-                setError('O link de pagamento que tentou aceder é inválido ou a chave foi removida.');
+            if (!pixKeySnap.exists()) {
+                setError('Chave Pix não encontrada ou removida.');
+            } else {
+                setPixKey({ id: pixKeySnap.id, ...pixKeySnap.data() } as PixKey);
             }
             
-            setData({ company, pixKey });
+            if (companySnap.exists()) {
+                 setCompany({ id: companySnap.id, ...companySnap.data() } as Company);
+            }
 
-        } catch (error: any) {
-            console.error('Error fetching public pix data:', error);
-            setError('Ocorreu um erro ao carregar os dados do pagamento.');
+        } catch (err: any) {
+            console.error("Error fetching public pix data:", err);
+            setError("Ocorreu um erro ao carregar os dados do pagamento.");
         } finally {
             setIsLoading(false);
         }
     }
-    
-    fetchPublicPixData();
 
-  }, [firestore, storeId, keyId]);
+    fetchData();
+  }, [pixKeyRef, companyRef]);
 
 
   if (isLoading) {
     return <PublicPixPageSkeleton />;
   }
 
-  if (error || !data?.pixKey) {
+  if (error || !pixKey) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4 text-center">
         <Card className="w-full max-w-md">
@@ -112,8 +121,6 @@ export default function PublicPixPage({ params }: { params: { storeId: string; k
       </div>
     );
   }
-
-  const { company, pixKey } = data;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
