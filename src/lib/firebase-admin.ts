@@ -1,55 +1,50 @@
-// src/lib/firebase-admin.ts
-import { cert, getApps, initializeApp, App, ServiceAccount } from "firebase-admin/app";
+
+import { cert, getApps, initializeApp, App } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
-import serviceAccountKey from '../../service-account-key.json';
+import { getAuth } from "firebase-admin/auth";
 
-let _app: App | null = null;
-let _auth: any = null; // Use any to avoid Auth import if not always used
 let _db: Firestore | null = null;
+let _auth: any = null;
 
-function getServiceAccount(): ServiceAccount {
-    const { project_id, private_key, client_email } = serviceAccountKey as ServiceAccount;
-    if (!project_id || !private_key || !client_email) {
-        throw new Error(
-        'The service-account-key.json file is missing required fields (project_id, private_key, client_email).'
-        );
-    }
-    return {
-        projectId: project_id,
-        privateKey: private_key.replace(/\\n/g, '\n'),
-        clientEmail: client_email,
-    };
-}
-
-
-export function getAdminApp(): App {
-  if (_app) return _app;
-
-  const apps = getApps();
-  if (apps.length) {
-    _app = apps[0]!;
-    return _app;
+function loadServiceAccount() {
+  // Directly import the service account key JSON file.
+  // This is simpler and more reliable in environments where env vars might be tricky.
+  try {
+    const serviceAccount = require('../../service-account-key.json');
+    return serviceAccount;
+  } catch (e) {
+    console.error("Failed to load service-account-key.json.", e);
+    return null;
   }
-
-  const serviceAccount = getServiceAccount();
-
-  _app = initializeApp({
-    credential: cert(serviceAccount),
-  });
-
-  return _app!;
 }
 
 export function adminDb(): Firestore {
   if (_db) return _db;
-  _db = getFirestore(getAdminApp());
-  return _db!;
+  
+  if (!getApps().length) {
+    const sa = loadServiceAccount();
+    if (!sa || !sa.project_id) {
+       throw new Error(
+        "Service account key file is missing, empty, or invalid. Cannot initialize Firebase Admin."
+      );
+    }
+
+    initializeApp({
+        credential: cert(sa)
+    });
+  }
+
+  _db = getFirestore();
+  return _db;
 }
 
-// Re-export admin auth if needed elsewhere, lazy-initializing it
 export function adminAuth() {
     if (_auth) return _auth;
-    const { getAuth } = require('firebase-admin/auth');
-    _auth = getAuth(getAdminApp());
+
+    if (!getApps().length) {
+        adminDb(); // Ensure app is initialized
+    }
+    
+    _auth = getAuth();
     return _auth;
 }
