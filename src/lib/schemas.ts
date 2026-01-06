@@ -23,16 +23,16 @@ export const paymentMethodSchema = z.enum([
 ]);
 
 export const orderItemSchema = z.object({
-    description: z.string().min(1, 'A descrição do item é obrigatória.'),
-    quantity: z.coerce.number().int().min(1, 'A quantidade mínima é 1.'),
-    value: z.coerce.number().min(0, 'O valor não pode ser negativo.'),
+  description: z.string().min(1, 'A descrição do item é obrigatória.'),
+  quantity: z.coerce.number().int().min(1, 'A quantidade mínima é 1.'),
+  value: z.coerce.number().min(0, 'O valor não pode ser negativo.'),
 });
 
 const paymentSchema = z.object({
-    amount: z.number().positive('O valor do pagamento deve ser positivo.'),
-    method: paymentMethodSchema,
-    date: z.any(),
-    notes: z.string().optional(),
+  amount: z.number().positive('O valor do pagamento deve ser positivo.'),
+  method: paymentMethodSchema,
+  date: z.any(),
+  notes: z.string().optional(),
 });
 
 export const orderSchema = z.object({
@@ -84,12 +84,12 @@ export const newOrderSchema = orderSchema.omit({
   payments: true,
   messages: true,
 }).extend({
-    createdAt: z.date().optional(),
+  createdAt: z.date().optional(),
 });
 
 export const editOrderSchema = newOrderSchema.omit({
-    clientId: true,
-    storeId: true, // storeId is not editable
+  clientId: true,
+  storeId: true, // storeId is not editable
 });
 
 export const driverSchema = z.object({
@@ -102,25 +102,25 @@ export const driverSchema = z.object({
 });
 
 export const newDriverSchema = driverSchema.omit({ id: true, ativo: true }).extend({
-    photoUrl: z.string().optional().nullable(),
+  photoUrl: z.string().optional().nullable(),
 });
 export const editDriverSchema = newDriverSchema.omit({ storeId: true });
 
 
 export const clientSchema = z.object({
-    id: z.string(),
-    storeId: z.string().min(1, "A ID da loja é obrigatória."),
-    nome: z.string().min(1, "O nome do cliente é obrigatório."),
-    telefone: z.string().min(10, "O número de telefone parece inválido."),
-    createdAt: z.any(),
-    defaultDestinoId: z.string().optional(),
+  id: z.string(),
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
+  nome: z.string().min(1, "O nome do cliente é obrigatório."),
+  telefone: z.string().min(10, "O número de telefone parece inválido."),
+  createdAt: z.any(),
+  defaultDestinoId: z.string().optional(),
 });
 
 export const newClientSchema = z.object({
-    storeId: z.string().min(1, "A ID da loja é obrigatória."),
-    nome: z.string().min(1, "O nome do cliente é obrigatório."),
-    telefone: z.string().min(10, "O número de telefone parece inválido."),
-    defaultDestinoId: z.string().optional().nullable(),
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
+  nome: z.string().min(1, "O nome do cliente é obrigatório."),
+  telefone: z.string().min(10, "O número de telefone parece inválido."),
+  defaultDestinoId: z.string().optional().nullable(),
 });
 
 export const editClientSchema = newClientSchema.omit({ storeId: true });
@@ -161,6 +161,7 @@ export const locationSchema = z.object({
   createdAt: z.any().optional(),
   lat: z.coerce.number().optional(),
   lng: z.coerce.number().optional(),
+  active: z.boolean().optional(),
 });
 
 export const newLocationSchema = z.object({
@@ -174,6 +175,7 @@ export const newLocationSchema = z.object({
   cep: z.string().min(8, 'O CEP deve ter pelo menos 8 dígitos.'),
   lat: z.coerce.number().optional(),
   lng: z.coerce.number().optional(),
+  active: z.boolean().optional(),
 });
 
 
@@ -201,7 +203,7 @@ export const baseFinancialEntrySchema = z.object({
   description: z.string().optional(),
   amount: z.coerce.number().positive('O valor deve ser maior que zero.'),
   type: z.enum(["Entrada", "Saída"]),
-  date: z.date({ required_error: "A data da transação é obrigatória."}).optional(),
+  date: z.date({ required_error: "A data da transação é obrigatória." }).optional(),
   categoryId: z.string().min(1, 'A categoria é obrigatória.'),
   otherCategoryDescription: z.string().optional(),
   vehicleId: z.string().optional(),
@@ -218,29 +220,29 @@ export const baseFinancialEntrySchema = z.object({
 });
 
 export const newFinancialEntrySchema = baseFinancialEntrySchema.refine(data => {
-    if (data.categoryId === 'venda-passagem') {
-        return !!data.clientId;
-    }
-    return true;
+  if (data.categoryId === 'venda-passagem') {
+    return !!data.clientId;
+  }
+  return true;
 }, {
-    message: "É necessário selecionar um cliente para vender uma passagem.",
-    path: ["clientId"],
+  message: "É necessário selecionar um cliente para vender uma passagem.",
+  path: ["clientId"],
 }).refine(data => {
-    if(data.categoryId === 'venda-passagem') {
-        return !!data.vehicleId;
-    }
-    return true;
+  if (data.categoryId === 'venda-passagem') {
+    return !!data.vehicleId;
+  }
+  return true;
 }, {
-    message: "É necessário selecionar um ônibus para vender uma passagem.",
-    path: ["vehicleId"],
+  message: "É necessário selecionar um ônibus para vender uma passagem.",
+  path: ["vehicleId"],
 }).refine(data => {
-    if(data.categoryId === 'venda-passagem') {
-        return !!data.origin;
-    }
-    return true;
+  if (data.categoryId === 'venda-passagem') {
+    return !!data.origin;
+  }
+  return true;
 }, {
-    message: "É necessário selecionar um ponto de origem.",
-    path: ["origin"],
+  message: "É necessário selecionar um ponto de origem.",
+  path: ["origin"],
 });
 
 

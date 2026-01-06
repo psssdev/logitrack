@@ -30,19 +30,19 @@ import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import type { Order, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser, useStore } from '@/firebase';
-import { doc, Timestamp, arrayUnion, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc, Timestamp, arrayUnion, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface ClientDebt {
-    clientId: string;
-    nomeCliente: string;
-    telefone?: string;
-    totalPendente: number;
-    orderCount: number;
-    pendingOrders: Order[];
+  clientId: string;
+  nomeCliente: string;
+  telefone?: string;
+  totalPendente: number;
+  orderCount: number;
+  pendingOrders: Order[];
 }
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
@@ -51,7 +51,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
   cartao: 'Cartão',
   boleto: 'Boleto',
   link: 'Link',
-  haver: 'A Haver', 
+  haver: 'A Haver',
 };
 
 interface RecordPaymentDialogProps {
@@ -69,7 +69,6 @@ export function RecordPaymentDialog({
 }: RecordPaymentDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
-  const { selectedStore } = useStore();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -90,7 +89,7 @@ export function RecordPaymentDialog({
   if (!clientDebt) return null;
 
   const handleSave = async () => {
-    if (!firestore || !user || !selectedStore || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0) {
+    if (!firestore || !user || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0) {
       toast({
         variant: 'destructive',
         title: 'Erro de Validação',
@@ -99,48 +98,48 @@ export function RecordPaymentDialog({
       return;
     }
     setIsSaving(true);
-    
+
     const batch = writeBatch(firestore);
     let amountToDistribute = paymentAmount;
 
     try {
-        // Sort orders to pay off oldest first
-        const sortedOrders = [...clientDebt.pendingOrders].sort((a, b) => {
-            const dateA = a.createdAt instanceof Timestamp ? a.createdAt.toDate() : new Date(a.createdAt);
-            const dateB = b.createdAt instanceof Timestamp ? b.createdAt.toDate() : new Date(b.createdAt);
-            return dateA.getTime() - dateB.getTime();
+      // Sort orders to pay off oldest first
+      const sortedOrders = [...clientDebt.pendingOrders].sort((a, b) => {
+        const dateA = a.createdAt instanceof Timestamp ? a.createdAt.toDate() : new Date(a.createdAt);
+        const dateB = b.createdAt instanceof Timestamp ? b.createdAt.toDate() : new Date(b.createdAt);
+        return dateA.getTime() - dateB.getTime();
+      });
+
+      for (const order of sortedOrders) {
+        if (amountToDistribute <= 0) break;
+
+        const paidOnOrder = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+        const pendingOnOrder = order.valorEntrega - paidOnOrder;
+        if (pendingOnOrder <= 0) continue;
+
+        const amountToPayOnThisOrder = Math.min(amountToDistribute, pendingOnOrder);
+
+        const paymentRecord = {
+          amount: amountToPayOnThisOrder,
+          method: paymentMethod,
+          date: Timestamp.fromDate(paymentDate),
+          notes: paymentNotes || `Pagamento parcial de ${clientDebt.nomeCliente}`
+        };
+
+        const orderRef = doc(firestore, order.storeId ? `stores/${order.storeId}/orders` : 'orders', order.id);
+
+        const newTotalPaid = paidOnOrder + amountToPayOnThisOrder;
+        const isOrderFullyPaid = newTotalPaid >= order.valorEntrega;
+
+        batch.update(orderRef, {
+          payments: arrayUnion(paymentRecord),
+          pago: isOrderFullyPaid,
+          ...(isOrderFullyPaid && { dataPagamento: Timestamp.fromDate(paymentDate) }),
+          updatedAt: serverTimestamp(),
         });
 
-        for (const order of sortedOrders) {
-            if (amountToDistribute <= 0) break;
-
-            const paidOnOrder = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-            const pendingOnOrder = order.valorEntrega - paidOnOrder;
-            if (pendingOnOrder <= 0) continue;
-
-            const amountToPayOnThisOrder = Math.min(amountToDistribute, pendingOnOrder);
-            
-            const paymentRecord = {
-                amount: amountToPayOnThisOrder,
-                method: paymentMethod,
-                date: Timestamp.fromDate(paymentDate),
-                notes: paymentNotes || `Pagamento parcial de ${clientDebt.nomeCliente}`
-            };
-
-            const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
-
-            const newTotalPaid = paidOnOrder + amountToPayOnThisOrder;
-            const isOrderFullyPaid = newTotalPaid >= order.valorEntrega;
-
-            batch.update(orderRef, {
-                payments: arrayUnion(paymentRecord),
-                pago: isOrderFullyPaid,
-                ...(isOrderFullyPaid && { dataPagamento: Timestamp.fromDate(paymentDate) }),
-                updatedAt: serverTimestamp(),
-            });
-
-            amountToDistribute -= amountToPayOnThisOrder;
-        }
+        amountToDistribute -= amountToPayOnThisOrder;
+      }
 
       await batch.commit();
 
@@ -176,10 +175,10 @@ export function RecordPaymentDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
-           <div className="p-4 bg-muted/50 rounded-md">
-                <p className="text-sm text-muted-foreground">Valor total pendente</p>
-                <p className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(clientDebt.totalPendente)}</p>
-           </div>
+          <div className="p-4 bg-muted/50 rounded-md">
+            <p className="text-sm text-muted-foreground">Valor total pendente</p>
+            <p className="text-2xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(clientDebt.totalPendente)}</p>
+          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="amount" className="text-right">
               Valor Pago

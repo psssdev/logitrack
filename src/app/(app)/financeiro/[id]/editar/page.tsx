@@ -17,12 +17,13 @@ import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@
 import type { FinancialEntry, Vehicle, Client, Driver, FinancialCategory } from '@/lib/types';
 import { collection, doc, query, orderBy, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+
 import { useStore } from '@/contexts/store-context';
 
 export default function EditFinancialEntryPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = React.use(params);
   return <EditFinancialEntryContent entryId={id} />;
@@ -31,47 +32,47 @@ export default function EditFinancialEntryPage({
 
 function EditFinancialEntryContent({ entryId }: { entryId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const { selectedStore } = useStore();
 
   const entryRef = useMemoFirebase(() => {
-    if (!firestore || !selectedStore) return null;
+    if (!firestore || !user || !selectedStore) return null;
     return doc(firestore, 'stores', selectedStore.id, 'financialEntries', entryId);
-  }, [firestore, selectedStore, entryId]);
+  }, [firestore, user, entryId, selectedStore]);
 
   const { data: entry, isLoading: isLoadingEntry } = useDoc<FinancialEntry>(entryRef);
-  
-  const canQuery = firestore && selectedStore && entry;
+
+  const canQuery = firestore && user && entry && selectedStore;
 
   const vehiclesQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore, 'stores', selectedStore.id, 'vehicles'),
-        orderBy('modelo', 'asc')
+      collection(firestore, 'stores', selectedStore.id, 'vehicles'),
+      orderBy('modelo', 'asc')
     );
   }, [canQuery, firestore, selectedStore]);
-  
+
   const clientsQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore, 'stores', selectedStore.id, 'clients'),
-        orderBy('nome', 'asc')
+      collection(firestore, 'stores', selectedStore.id, 'clients'),
+      orderBy('nome', 'asc')
     );
   }, [canQuery, firestore, selectedStore]);
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore, 'stores', selectedStore.id, 'financialCategories'),
-        where('type', '==', entry.type)
+      collection(firestore, 'stores', selectedStore.id, 'financialCategories'),
+      where('type', '==', entry.type)
     );
   }, [canQuery, firestore, selectedStore, entry?.type]);
 
   const driversQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore, 'stores', selectedStore.id, 'drivers'),
-        orderBy('nome', 'asc')
+      collection(firestore, 'stores', selectedStore.id, 'drivers'),
+      orderBy('nome', 'asc')
     );
   }, [canQuery, firestore, selectedStore]);
 
@@ -80,7 +81,7 @@ function EditFinancialEntryContent({ entryId }: { entryId: string }) {
   const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
-  const isLoading = isLoadingEntry || isLoadingVehicles || isLoadingClients || isLoadingCategories || isLoadingDrivers || isUserLoading || !selectedStore;
+  const isLoading = isLoadingEntry || isLoadingVehicles || isLoadingClients || isLoadingCategories || isLoadingDrivers || isUserLoading;
 
   if (isLoading) {
     return (
@@ -150,12 +151,12 @@ function EditFinancialEntryContent({ entryId }: { entryId: string }) {
         </CardHeader>
         <CardContent>
           {entry && vehicles && clients && categories && drivers && (
-            <EditFinancialEntryForm 
-                entry={entry} 
-                vehicles={vehicles} 
-                clients={clients}
-                categories={categories}
-                drivers={drivers}
+            <EditFinancialEntryForm
+              entry={entry}
+              vehicles={vehicles}
+              clients={clients}
+              categories={categories}
+              drivers={drivers}
             />
           )}
         </CardContent>

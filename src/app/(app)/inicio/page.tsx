@@ -35,12 +35,10 @@ import {
 } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMemo } from 'react';
-import type { Client, Order, OrderStatus } from '@/lib/types';
+import type { Client, Order } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import { useStore } from '@/contexts/store-context';
-import { Timestamp } from 'firebase/firestore';
-
 
 interface TopClient extends Client {
   orderCount: number;
@@ -57,63 +55,25 @@ const formatCurrency = (value: number) => {
 
 export default function InicioPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
   const { selectedStore } = useStore();
 
-  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
-
-  const storeOrdersQuery = useMemoFirebase(() => {
+  const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !selectedStore) return null;
     return query(collection(firestore, 'stores', selectedStore.id, 'orders'));
   }, [firestore, selectedStore]);
 
-  const legacyOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !isSpecialUser) return null;
-    return query(collection(firestore, 'orders'));
-  }, [firestore, isSpecialUser]);
-  
-  const storeClientsQuery = useMemoFirebase(() => {
+  const clientsQuery = useMemoFirebase(() => {
     if (!firestore || !selectedStore) return null;
     return query(collection(firestore, 'stores', selectedStore.id, 'clients'));
   }, [firestore, selectedStore]);
 
-  const legacyClientsQuery = useMemoFirebase(() => {
-    if (!firestore || !isSpecialUser) return null;
-    return query(collection(firestore, 'clients'));
-  }, [firestore, isSpecialUser]);
+  const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
-  const { data: storeOrders, isLoading: isLoadingStoreOrders } = useCollection<Order>(storeOrdersQuery);
-  const { data: legacyOrders, isLoading: isLoadingLegacyOrders } = useCollection<Order>(legacyOrdersQuery);
-  const { data: storeClients, isLoading: isLoadingStoreClients } = useCollection<Client>(storeClientsQuery);
-  const { data: legacyClients, isLoading: isLoadingLegacyClients } = useCollection<Client>(legacyClientsQuery);
-  
-  const isLoading = (isSpecialUser && (isLoadingLegacyOrders || isLoadingLegacyClients)) || isLoadingStoreOrders || isLoadingStoreClients || isUserLoading || !selectedStore;
+  const isLoading = isLoadingOrders || isLoadingClients || isUserLoading || !selectedStore;
 
   const { summary, topClients } = useMemo(() => {
-    
-    const combinedOrders = new Map<string, Order>();
-    if (isSpecialUser && legacyOrders) {
-      legacyOrders.forEach(order => {
-        if (!order.storeId) combinedOrders.set(order.id, order);
-      });
-    }
-    if (storeOrders) {
-      storeOrders.forEach(order => combinedOrders.set(order.id, order));
-    }
-    const orders = Array.from(combinedOrders.values());
-
-    const combinedClients = new Map<string, Client>();
-     if (isSpecialUser && legacyClients) {
-      legacyClients.forEach(client => {
-        if (!client.storeId) combinedClients.set(client.id, client);
-      });
-    }
-    if (storeClients) {
-      storeClients.forEach(client => combinedClients.set(client.id, client));
-    }
-    const clients = Array.from(combinedClients.values());
-
-
     if (!orders || !clients) {
       return {
         summary: { total: 0, pendentes: 0, emRota: 0, entregues: 0, canceladas: 0 },
@@ -132,7 +92,7 @@ export default function InicioPage() {
       },
       { total: 0, pendentes: 0, emRota: 0, entregues: 0, canceladas: 0 }
     );
-    
+
     const clientPerformance = clients.map(client => {
       const clientOrders = orders.filter(o => o.clientId === client.id);
       const totalValue = clientOrders.reduce((sum, o) => sum + o.valorEntrega, 0);
@@ -141,11 +101,10 @@ export default function InicioPage() {
         orderCount: clientOrders.length,
         totalValue
       }
-    }).sort((a,b) => b.totalValue - a.totalValue).slice(0, 5); // Get top 5
+    }).sort((a, b) => b.totalValue - a.totalValue).slice(0, 5);
 
     return { summary: summaryData, topClients: clientPerformance };
-  }, [storeOrders, legacyOrders, storeClients, legacyClients, isSpecialUser]);
-
+  }, [orders, clients]);
 
   const chartData = useMemo(
     () =>

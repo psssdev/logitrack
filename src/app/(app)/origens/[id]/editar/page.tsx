@@ -16,12 +16,13 @@ import type { Origin } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditOriginForm } from '@/components/edit-origin-form';
+
 import { useStore } from '@/contexts/store-context';
 
 export default function EditOriginPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = React.use(params);
   return <EditOriginContent originId={id} />;
@@ -29,17 +30,17 @@ export default function EditOriginPage({
 
 function EditOriginContent({ originId }: { originId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const { selectedStore } = useStore();
 
   const originRef = useMemoFirebase(() => {
-    if (!firestore || !selectedStore) return null;
+    if (!firestore || isUserLoading || !selectedStore) return null;
     return doc(firestore, 'stores', selectedStore.id, 'origins', originId);
-  }, [firestore, selectedStore, originId]);
+  }, [firestore, isUserLoading, originId, selectedStore]);
 
   const { data: origin, isLoading } = useDoc<Origin>(originRef);
 
-  const pageIsLoading = isLoading || isUserLoading || !selectedStore;
+  const pageIsLoading = isLoading || isUserLoading;
 
   if (pageIsLoading) {
     return (

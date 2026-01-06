@@ -13,15 +13,16 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import type { Order, OrderStatus, Company } from '@/lib/types';
 import { Loader2, ChevronDown } from 'lucide-react';
-import { useFirestore, useUser, useStore } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useStore } from '@/contexts/store-context';
 import {
   doc,
   updateDoc,
   arrayUnion,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { triggerRevalidation } from '@/lib/actions';
 import { OrderStatusBadge } from './status-badge';
-import { useCompany } from './providers/company-provider';
 
 const openWhatsApp = (phone: string, message: string) => {
   const cleanedPhone = phone.replace(/\D/g, '');
@@ -49,7 +50,15 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { selectedStore } = useStore();
-  const { company, isLoading: isLoadingCompany } = useCompany();
+
+  const canQuery = !!firestore && !!user?.uid && !isUserLoading && !!selectedStore;
+
+  const companyRef = useMemoFirebase(() => {
+    if (!canQuery) return null;
+    return doc(firestore!, 'stores', selectedStore.id, 'companySettings', 'settings');
+  }, [canQuery, firestore, selectedStore]);
+
+  const { data: company, isLoading: isLoadingCompany } = useDoc<any>(companyRef);
 
   const handleUpdateStatus = (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
@@ -93,7 +102,7 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
             .replace('{cliente}', order.nomeCliente)
             .replace('{codigo}', order.codigoRastreio)
             .replace('{link}', trackingLink);
-          
+
           openWhatsApp(order.telefone, message);
         }
 

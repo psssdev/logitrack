@@ -16,12 +16,13 @@ import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Vehicle } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+
 import { useStore } from '@/contexts/store-context';
 
 export default function EditVehiclePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = React.use(params);
   return <EditVehicleContent vehicleId={id} />;
@@ -29,17 +30,17 @@ export default function EditVehiclePage({
 
 function EditVehicleContent({ vehicleId }: { vehicleId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const { selectedStore } = useStore();
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || !selectedStore) return null;
+    if (!firestore || isUserLoading || !selectedStore) return null;
     return doc(firestore, 'stores', selectedStore.id, 'vehicles', vehicleId);
-  }, [firestore, selectedStore, vehicleId]);
+  }, [firestore, isUserLoading, vehicleId, selectedStore]);
 
   const { data: vehicle, isLoading } = useDoc<Vehicle>(vehicleRef);
 
-  const pageIsLoading = isLoading || isUserLoading || !selectedStore;
+  const pageIsLoading = isLoading || isUserLoading;
 
   if (pageIsLoading) {
     return (

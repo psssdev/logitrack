@@ -57,15 +57,15 @@ const formatDate = (date: Date | Timestamp | undefined, includeTime = false) => 
 };
 
 const formatCurrency = (value: number | undefined) => {
-    if (typeof value !== 'number') return 'R$ 0,00';
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-    }).format(value);
+  if (typeof value !== 'number') return 'R$ 0,00';
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
 };
 
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
+export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
   return <OrderDetailContent orderId={id} />;
 }
@@ -78,18 +78,13 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
   const orderRef = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !selectedStore) return null;
-    // Check both legacy and new path
-    const legacyRef = doc(firestore, 'orders', orderId);
-    const storeRef = doc(firestore, 'stores', selectedStore.id, 'orders', orderId);
-    // In a real scenario, you might check which one exists, but for now we assume new orders are in stores.
-    // This logic might need refinement based on migration status.
-    return storeRef; // Prioritize store-specific path
+    return doc(firestore, 'stores', selectedStore.id, 'orders', orderId);
   }, [firestore, isUserLoading, orderId, selectedStore]);
 
 
   const { data: order, isLoading } = useDoc<Order>(orderRef);
   const pageIsLoading = isLoading || isUserLoading || !selectedStore;
-  
+
   const totalPaid = React.useMemo(() => {
     if (!order?.payments) return 0;
     return order.payments.reduce((acc, p) => acc + p.amount, 0);
@@ -102,25 +97,25 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   }
 
   if (!order) {
-     return (
-        <div className="mx-auto grid max-w-6xl flex-1 auto-rows-max gap-4">
-            <div className="flex items-center gap-4">
-                 <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-                    <Link href="/encomendas">
-                        <ChevronLeft className="h-4 w-4" />
-                        <span className="sr-only">Voltar</span>
-                    </Link>
-                </Button>
-                <h1 className="font-semibold text-xl">Encomenda não encontrada</h1>
-            </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Erro 404</CardTitle>
-                    <CardDescription>A encomenda que você está procurando não foi encontrada nesta loja.</CardDescription>
-                </CardHeader>
-            </Card>
+    return (
+      <div className="mx-auto grid max-w-6xl flex-1 auto-rows-max gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+            <Link href="/encomendas">
+              <ChevronLeft className="h-4 w-4" />
+              <span className="sr-only">Voltar</span>
+            </Link>
+          </Button>
+          <h1 className="font-semibold text-xl">Encomenda não encontrada</h1>
         </div>
-     )
+        <Card>
+          <CardHeader>
+            <CardTitle>Erro 404</CardTitle>
+            <CardDescription>A encomenda que você está procurando não foi encontrada nesta loja.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -144,7 +139,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-           <UpdateStatusDropdown order={order} />
+          <UpdateStatusDropdown order={order} />
         </div>
       </div>
 
@@ -200,7 +195,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                           <TableCell className="text-right">
                             {formatCurrency(item.value)}
                           </TableCell>
-                           <TableCell className="text-right">
+                          <TableCell className="text-right">
                             {formatCurrency(item.value * item.quantity)}
                           </TableCell>
                         </TableRow>
@@ -238,55 +233,55 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
               </div>
             </CardContent>
           </Card>
-          
-           <Card>
+
+          <Card>
             <CardHeader>
-                <CardTitle>Histórico de Pagamentos</CardTitle>
-                 <CardDescription>Resumo financeiro e pagamentos realizados.</CardDescription>
+              <CardTitle>Histórico de Pagamentos</CardTitle>
+              <CardDescription>Resumo financeiro e pagamentos realizados.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid gap-4">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total da Encomenda</p>
-                            <p className="font-semibold">{formatCurrency(order.valorEntrega)}</p>
-                        </div>
-                         <div>
-                            <p className="text-sm text-muted-foreground">Total Pago</p>
-                            <p className="font-semibold text-green-600">{formatCurrency(totalPaid)}</p>
-                        </div>
-                         <div>
-                            <p className="text-sm text-muted-foreground">Saldo Devedor</p>
-                            <p className={`font-semibold ${balanceDue > 0 ? 'text-destructive' : 'text-foreground'}`}>{formatCurrency(balanceDue)}</p>
-                        </div>
-                    </div>
-
-                    {order.payments && order.payments.length > 0 && (
-                        <>
-                        <Separator />
-                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Data</TableHead>
-                                    <TableHead>Método</TableHead>
-                                    <TableHead className="text-right">Valor</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {order.payments.map((payment, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell>{formatDate(payment.date)}</TableCell>
-                                        <TableCell>{paymentMethodLabels[payment.method] || payment.method}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(payment.amount)}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                         </Table>
-                        </>
-                    )}
+              <div className="grid gap-4">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total da Encomenda</p>
+                    <p className="font-semibold">{formatCurrency(order.valorEntrega)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Pago</p>
+                    <p className="font-semibold text-green-600">{formatCurrency(totalPaid)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Saldo Devedor</p>
+                    <p className={`font-semibold ${balanceDue > 0 ? 'text-destructive' : 'text-foreground'}`}>{formatCurrency(balanceDue)}</p>
+                  </div>
                 </div>
+
+                {order.payments && order.payments.length > 0 && (
+                  <>
+                    <Separator />
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Método</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {order.payments.map((payment, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{formatDate(payment.date)}</TableCell>
+                            <TableCell>{paymentMethodLabels[payment.method] || payment.method}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(payment.amount)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </>
+                )}
+              </div>
             </CardContent>
-           </Card>
+          </Card>
 
           <Card>
             <CardHeader>

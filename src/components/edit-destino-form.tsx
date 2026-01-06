@@ -19,8 +19,10 @@ import { triggerRevalidation } from '@/lib/actions';
 import { newLocationSchema } from '@/lib/schemas';
 import type { Destino } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { useFirestore, useStore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { useStore } from '@/contexts/store-context';
+import { z } from 'zod';
 
 type FormValues = z.infer<typeof newLocationSchema>;
 
@@ -28,6 +30,7 @@ export function EditDestinoForm({ destino }: { destino: Destino }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { user } = useUser();
   const { selectedStore } = useStore();
 
   const form = useForm<FormValues>({
@@ -45,14 +48,15 @@ export function EditDestinoForm({ destino }: { destino: Destino }) {
   });
 
   async function onSubmit(data: FormValues) {
-    if (!firestore || !selectedStore) {
+    if (!firestore || !user) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
+      if (!selectedStore) throw new Error("Loja não selecionada");
       const destinoRef = doc(firestore, 'stores', selectedStore.id, 'destinos', destino.id);
-      
+
       await updateDoc(destinoRef, {
         name: data.name,
         // address: fullAddress, // Logic for full address reconstruction needed if fields are editable

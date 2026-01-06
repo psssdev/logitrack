@@ -13,7 +13,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import type { Order, OrderStatus } from '@/lib/types';
 import { Loader2, ChevronDown } from 'lucide-react';
-import { useFirestore, useUser, useStore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
+import { useStore } from '@/contexts/store-context';
 import {
   doc,
   updateDoc,
@@ -23,7 +24,6 @@ import {
 import { triggerRevalidation } from '@/lib/actions';
 import { OrderStatusBadge } from './status-badge';
 import { cn } from '@/lib/utils';
-import { useCompany } from './providers/company-provider';
 
 const openWhatsApp = (phone: string, message: string) => {
   const cleanedPhone = phone.replace(/\D/g, '');
@@ -51,7 +51,6 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { selectedStore } = useStore();
-  const { company, isLoading: isLoadingCompany } = useCompany();
 
   const handleUpdateStatus = (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
@@ -61,7 +60,7 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
         toast({
           variant: 'destructive',
           title: 'Erro',
-          description: 'Usuário não autenticado ou loja não selecionada.',
+          description: 'Usuário não autenticado, empresa ou loja não encontrada.',
         });
         return;
       }
@@ -82,7 +81,7 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
         let notificationTitle = 'Status Atualizado';
 
         if (newStatus === 'EM_ROTA') {
-          messageTemplate = company?.msgEmRota || "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
+          messageTemplate = "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
           notificationTitle = 'Encomenda em rota!';
         } else if (newStatus === 'ENTREGUE') {
           messageTemplate = "Olá {cliente}! Sua encomenda {codigo} foi entregue com sucesso! Obrigado por confiar em nossos serviços.";
@@ -90,12 +89,12 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
         }
 
         if (messageTemplate) {
-          const trackingLink = `${company?.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
+          const trackingLink = `https://seusite.com/rastreio/${order.codigoRastreio}`;
           let message = messageTemplate
             .replace('{cliente}', order.nomeCliente)
             .replace('{codigo}', order.codigoRastreio)
             .replace('{link}', trackingLink);
-          
+
           openWhatsApp(order.telefone, message);
         }
 
@@ -121,7 +120,7 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="p-1 h-auto" disabled={isPending || isUserLoading || isLoadingCompany}>
+        <Button variant="ghost" size="sm" className="p-1 h-auto" disabled={isPending || isUserLoading}>
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (

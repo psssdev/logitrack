@@ -60,6 +60,7 @@ import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
 import { format, isWithinInterval } from 'date-fns';
+import { type DateRange } from 'react-day-picker';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { DatePickerWithRange } from '@/components/date-range-picker';
 import { useStore } from '@/contexts/store-context';
@@ -78,7 +79,7 @@ function EncomendasContent() {
   const { toast } = useToast();
   const [isUpdating, startTransition] = useTransition();
   const searchParams = useSearchParams();
-  
+
   const activeTab = (searchParams.get('status') as OrderStatus) || 'TODAS';
   const clientFilter = searchParams.get('cliente');
 
@@ -88,8 +89,6 @@ function EncomendasContent() {
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
-
   const statuses: OrderStatus[] = [
     'PENDENTE',
     'EM_ROTA',
@@ -97,79 +96,52 @@ function EncomendasContent() {
     'CANCELADA',
   ];
 
-  const storeOrdersQuery = useMemoFirebase(() => {
+  const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !selectedStore) return null;
     return query(collection(firestore, 'stores', selectedStore.id, 'orders'), orderBy('createdAt', 'desc'));
   }, [firestore, selectedStore]);
 
-  const legacyOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !isSpecialUser) return null;
-    return query(collection(firestore, 'orders'), orderBy('createdAt', 'desc'));
-  }, [firestore, isSpecialUser]);
+  const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
 
-  const { data: storeOrders, isLoading: isLoadingStoreOrders } = useCollection<Order>(storeOrdersQuery);
-  const { data: legacyOrders, isLoading: isLoadingLegacyOrders } = useCollection<Order>(legacyOrdersQuery);
+  const pageIsLoading = isLoadingOrders || isUserLoading || !selectedStore;
 
-  const combinedOrders = useMemo(() => {
-    const allOrders = new Map<string, Order>();
-
-    // Only add legacy orders if the user is the special user
-    if (isSpecialUser && legacyOrders) {
-      legacyOrders.forEach(order => {
-        if (!order.storeId) { // Ensure we don't double-add migrated data
-            allOrders.set(order.id, order);
-        }
-      });
-    }
-
-    // Always add store-specific orders
-    if (storeOrders) {
-      storeOrders.forEach(order => allOrders.set(order.id, order));
-    }
-    
-    return Array.from(allOrders.values()).sort((a,b) => (b.createdAt as Timestamp).toMillis() - (a.createdAt as Timestamp).toMillis());
-  }, [storeOrders, legacyOrders, isSpecialUser]);
-
-
-  const pageIsLoading = isLoadingStoreOrders || (isSpecialUser && isLoadingLegacyOrders) || isUserLoading || !selectedStore;
-  
 
   const filteredOrdersForTab = useMemo(() => {
-    if (!combinedOrders) return [];
-    
-    let filtered = combinedOrders;
-    
+    if (!orders) return [];
+
+    let filtered = [...orders];
+
     if (activeTab !== 'TODAS') {
-        filtered = filtered.filter((order) => order.status === activeTab);
+      filtered = filtered.filter((order) => order.status === activeTab);
     }
-    
+
     if (clientFilter) {
-        filtered = filtered.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()));
+      filtered = filtered.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()));
     }
-    
+
     if (dateRange?.from && dateRange?.to) {
-        filtered = filtered.filter(order => {
-            const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
-            return isWithinInterval(orderDate, { start: dateRange.from!, end: dateRange.to! });
-        })
+      filtered = filtered.filter(order => {
+        const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+        return isWithinInterval(orderDate, { start: dateRange.from!, end: dateRange.to! });
+      })
     }
 
     return filtered;
-  }, [combinedOrders, activeTab, clientFilter, dateRange]);
+  }, [orders, activeTab, clientFilter, dateRange]);
 
   const statusCounts = useMemo(() => {
-    if (!combinedOrders)
+    if (!orders)
       return { TODAS: 0, PENDENTE: 0, EM_ROTA: 0, ENTREGUE: 0, CANCELADA: 0 };
-      
-    let ordersToCount = combinedOrders;
-     if (clientFilter) {
-        ordersToCount = combinedOrders.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()));
+
+    let ordersToCount = orders;
+    if (clientFilter) {
+      ordersToCount = orders.filter(order => order.nomeCliente.toLowerCase().includes(clientFilter.toLowerCase()));
     }
-     if (dateRange?.from && dateRange?.to) {
-        ordersToCount = ordersToCount.filter(order => {
-            const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
-            return isWithinInterval(orderDate, { start: dateRange.from!, end: dateRange.to! });
-        })
+    if (dateRange?.from && dateRange?.to) {
+      ordersToCount = ordersToCount.filter(order => {
+        const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+        return isWithinInterval(orderDate, { start: dateRange.from!, end: dateRange.to! });
+      })
     }
 
     const counts = ordersToCount.reduce(
@@ -187,7 +159,7 @@ function EncomendasContent() {
       ENTREGUE: counts.ENTREGUE || 0,
       CANCELADA: counts.CANCELADA || 0,
     };
-  }, [combinedOrders, clientFilter, dateRange]);
+  }, [orders, clientFilter, dateRange]);
 
   const allStatuses = ['TODAS', ...statuses] as const;
 
@@ -199,9 +171,9 @@ function EncomendasContent() {
       const updatedOrders: Order[] = [];
 
       selectedOrderIds.forEach((id) => {
-        const order = combinedOrders?.find((o) => o.id === id);
-        // Determine the correct path
-        const orderRef = doc(firestore, order?.storeId ? `stores/${order.storeId}/orders` : 'orders', id);
+        const order = orders?.find((o) => o.id === id);
+        if (!order || !selectedStore) return;
+        const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', id);
 
         if (order && order.status !== newStatus) {
           batch.update(orderRef, {
@@ -241,14 +213,9 @@ function EncomendasContent() {
   };
 
   const confirmDelete = async () => {
-    if (!firestore || !orderToDelete) return;
+    if (!firestore || !orderToDelete || !selectedStore) return;
     try {
-      // Use the storeId from the order to build the correct path
-      const docPath = orderToDelete.storeId 
-          ? `stores/${orderToDelete.storeId}/orders/${orderToDelete.id}`
-          : `orders/${orderToDelete.id}`;
-          
-      const orderRef = doc(firestore, docPath);
+      const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', orderToDelete.id);
 
       await deleteDoc(orderRef);
       await triggerRevalidation('/encomendas');
@@ -257,15 +224,15 @@ function EncomendasContent() {
         title: 'Encomenda excluída',
         description: `A encomenda "${orderToDelete.codigoRastreio}" foi removida.`,
       });
-    } catch(error: any) {
-        toast({
-            variant: "destructive",
-            title: "Erro ao excluir",
-            description: error.message,
-        });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir",
+        description: error.message,
+      });
     } finally {
-        setOrderToDelete(null);
-        setShowDeleteAlert(false);
+      setOrderToDelete(null);
+      setShowDeleteAlert(false);
     }
   }
 
@@ -356,7 +323,7 @@ function EncomendasContent() {
             <h1 className="text-2xl font-semibold md:text-3xl">
               Encomendas
             </h1>
-              {clientFilter && <span className="text-base text-muted-foreground font-normal">(Filtrando por cliente: {clientFilter})</span>}
+            {clientFilter && <span className="text-base text-muted-foreground font-normal">(Filtrando por cliente: {clientFilter})</span>}
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <Button
@@ -383,32 +350,32 @@ function EncomendasContent() {
         <Tabs value={activeTab}>
           <ScrollArea className="w-full whitespace-nowrap rounded-md">
             <div className="flex items-center gap-2 pb-2">
-                 <TabsList className="flex-1 sm:flex-initial h-auto">
-                    {allStatuses.map((status) => {
-                        const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];
-                        const count = pageIsLoading ? '' : `(${statusCounts[status]})`;
-                        return (
-                        <Link
-                            key={status}
-                            href={status === 'TODAS' ? '/encomendas' : `/encomendas?status=${status}`}
-                            scroll={false}
-                        >
-                            <TabsTrigger value={status}>
-                            {label} {count}
-                            </TabsTrigger>
-                        </Link>
-                        );
-                    })}
-                 </TabsList>
-                 <div className="hidden sm:block">
-                    <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-                 </div>
+              <TabsList className="flex-1 sm:flex-initial h-auto">
+                {allStatuses.map((status) => {
+                  const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];
+                  const count = pageIsLoading ? '' : `(${statusCounts[status]})`;
+                  return (
+                    <Link
+                      key={status}
+                      href={status === 'TODAS' ? '/encomendas' : `/encomendas?status=${status}`}
+                      scroll={false}
+                    >
+                      <TabsTrigger value={status}>
+                        {label} {count}
+                      </TabsTrigger>
+                    </Link>
+                  );
+                })}
+              </TabsList>
+              <div className="hidden sm:block">
+                <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+              </div>
             </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
-           <div className="sm:hidden mt-2">
-                <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-            </div>
+          <div className="sm:hidden mt-2">
+            <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+          </div>
 
           {pageIsLoading && (
             <Card>
@@ -418,10 +385,10 @@ function EncomendasContent() {
             </Card>
           )}
 
-          {combinedOrders &&
+          {orders &&
             !pageIsLoading &&
             allStatuses.map((status) => {
-               const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];
+              const label = status === 'TODAS' ? 'Todas' : statusLabels[status as OrderStatus];
 
               return (
                 <TabsContent key={status} value={status}>
@@ -475,16 +442,16 @@ function EncomendasContent() {
       </div>
       <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
         <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                <AlertDialogDescription>
-                   Esta ação não pode ser desfeita. Isso excluirá permanentemente a encomenda <span className="font-bold font-mono">"{orderToDelete?.codigoRastreio}"</span>.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDelete}>Excluir</AlertDialogAction>
-            </AlertDialogFooter>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente a encomenda <span className="font-bold font-mono">"{orderToDelete?.codigoRastreio}"</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

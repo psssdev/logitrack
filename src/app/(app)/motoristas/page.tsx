@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   Card,
   CardContent,
@@ -46,21 +46,16 @@ export default function MotoristasPage() {
   const { isUserLoading } = useUser();
   const { selectedStore } = useStore();
   const { toast } = useToast();
-  const [deletingDriver, setDeletingDriver] = React.useState<Driver | null>(
-    null
-  );
+  const [deletingDriver, setDeletingDriver] = React.useState<Driver | null>(null);
 
-
-  const storeDriversQuery = useMemoFirebase(() => {
+  const driversQuery = useMemoFirebase(() => {
     if (!firestore || !selectedStore) return null;
     return query(collection(firestore, 'stores', selectedStore.id, 'drivers'), orderBy('nome', 'asc'));
   }, [firestore, selectedStore]);
 
+  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
-  const { data: storeDrivers, isLoading: isLoadingStoreDrivers } = useCollection<Driver>(storeDriversQuery);
-  
-
-  const pageIsLoading = isLoadingStoreDrivers || isUserLoading || !selectedStore;
+  const pageIsLoading = isLoadingDrivers || isUserLoading;
 
   const handleDeleteClick = (driver: Driver) => {
     setDeletingDriver(driver);
@@ -117,18 +112,18 @@ export default function MotoristasPage() {
                 <Card key={i}>
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
-                        <Skeleton className="h-12 w-12 rounded-full" />
-                        <div className="space-y-2">
-                           <Skeleton className="h-4 w-32" />
-                           <Skeleton className="h-3 w-24" />
-                        </div>
+                      <Skeleton className="h-12 w-12 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
             {!pageIsLoading &&
-              storeDrivers &&
-              storeDrivers.map((driver) => (
+              drivers &&
+              drivers.map((driver) => (
                 <Card
                   key={driver.id}
                   className="hover:shadow-md transition-shadow flex flex-col"
@@ -166,10 +161,10 @@ export default function MotoristasPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuItem asChild>
-                             <Link href={`/motoristas/${driver.id}/editar`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Editar
-                             </Link>
+                            <Link href={`/motoristas/${driver.id}/editar`}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -185,7 +180,7 @@ export default function MotoristasPage() {
                   </CardContent>
                 </Card>
               ))}
-            {!pageIsLoading && (!storeDrivers || storeDrivers.length === 0) && (
+            {!pageIsLoading && (!drivers || drivers.length === 0) && (
               <div className="col-span-full text-center p-8 border-2 border-dashed rounded-md">
                 <p className="text-muted-foreground">
                   Nenhum motorista cadastrado.

@@ -14,7 +14,6 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebas
 import { collection, orderBy, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStore } from '@/contexts/store-context';
-import { useMemo } from 'react';
 import type { Client } from '@/lib/types';
 
 export default function ClientesPage() {
@@ -22,8 +21,7 @@ export default function ClientesPage() {
   const { isUserLoading } = useUser();
   const { selectedStore } = useStore();
 
-
-  const storeClientsQuery = useMemoFirebase(() => {
+  const clientsQuery = useMemoFirebase(() => {
     if (!firestore || !selectedStore) return null;
     return query(
       collection(firestore, 'stores', selectedStore.id, 'clients'),
@@ -31,11 +29,9 @@ export default function ClientesPage() {
     );
   }, [firestore, selectedStore]);
 
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
-  const { data: storeClients, isLoading: isLoadingStoreClients } = useCollection<Client>(storeClientsQuery);
-  
-
-  const pageIsLoading = isLoadingStoreClients || isUserLoading || !selectedStore;
+  const pageIsLoading = isLoadingClients || isUserLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -61,7 +57,7 @@ export default function ClientesPage() {
         </CardHeader>
         <CardContent>
           {pageIsLoading && <Skeleton className="h-48 w-full" />}
-          {storeClients && !pageIsLoading && <ClientTable clients={storeClients} />}
+          {clients && !pageIsLoading && <ClientTable clients={clients} />}
         </CardContent>
       </Card>
     </div>

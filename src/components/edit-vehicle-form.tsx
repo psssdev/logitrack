@@ -17,8 +17,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { vehicleSchema } from '@/lib/schemas';
-import { useFirestore, useStore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { useStore } from '@/contexts/store-context';
+import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 import {
   Select,
@@ -37,12 +39,12 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { user } = useUser();
   const { selectedStore } = useStore();
 
   const form = useForm<EditVehicleFormValues>({
     resolver: zodResolver(vehicleSchema.omit({ id: true })),
     defaultValues: {
-      storeId: vehicle.storeId,
       placa: vehicle.placa,
       modelo: vehicle.modelo,
       ano: vehicle.ano,
@@ -56,7 +58,7 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
   const vehicleType = form.watch('tipo');
 
   async function onSubmit(data: EditVehicleFormValues) {
-    if (!firestore || !selectedStore) {
+    if (!firestore || !user) {
       toast({
         variant: 'destructive',
         title: 'Erro de Conexão',
@@ -80,6 +82,7 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
     }
 
     try {
+      if (!selectedStore) throw new Error("Loja não selecionada");
       const vehicleRef = doc(firestore, 'stores', selectedStore.id, 'vehicles', vehicle.id);
       await updateDoc(vehicleRef, {
         ...processedData,
@@ -218,16 +221,16 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
         )}
 
         <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="ghost" asChild>
-                <Link href={`/veiculos/${vehicle.id}`}>Cancelar</Link>
-            </Button>
-            <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? (
-                <Loader2 className="animate-spin" />
-                ) : (
-                'Salvar Alterações'
-                )}
-            </Button>
+          <Button type="button" variant="ghost" asChild>
+            <Link href={`/veiculos/${vehicle.id}`}>Cancelar</Link>
+          </Button>
+          <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              'Salvar Alterações'
+            )}
+          </Button>
         </div>
       </form>
     </Form>

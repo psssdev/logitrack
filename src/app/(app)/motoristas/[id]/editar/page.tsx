@@ -16,12 +16,13 @@ import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Driver } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+
 import { useStore } from '@/contexts/store-context';
 
 export default function EditDriverPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = React.use(params);
   return <EditDriverContent driverId={id} />;
@@ -29,17 +30,17 @@ export default function EditDriverPage({
 
 function EditDriverContent({ driverId }: { driverId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   const { selectedStore } = useStore();
 
   const driverRef = useMemoFirebase(() => {
-    if (!firestore || !selectedStore) return null;
+    if (!firestore || isUserLoading || !selectedStore) return null;
     return doc(firestore, 'stores', selectedStore.id, 'drivers', driverId);
-  }, [firestore, selectedStore, driverId]);
+  }, [firestore, isUserLoading, driverId, selectedStore]);
 
   const { data: driver, isLoading } = useDoc<Driver>(driverRef);
 
-  const pageIsLoading = isLoading || isUserLoading || !selectedStore;
+  const pageIsLoading = isLoading || isUserLoading;
 
   if (pageIsLoading) {
     return (

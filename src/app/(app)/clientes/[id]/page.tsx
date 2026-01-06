@@ -21,31 +21,31 @@ import { useStore } from '@/contexts/store-context';
 export default function ClientDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-    const { id } = React.use(params);
-    return <ClientDetailContent clientId={id} />
+  const { id } = React.use(params);
+  return <ClientDetailContent clientId={id} />
 }
 
 function ClientDetailContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading }- useUser();
+  const { user, isUserLoading } = useUser();
   const { selectedStore } = useStore();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || !selectedStore) return null;
+    if (!firestore || !selectedStore || isUserLoading) return null;
     return doc(firestore, 'stores', selectedStore.id, 'clients', clientId);
-  }, [firestore, selectedStore, clientId]);
-  
+  }, [firestore, isUserLoading, selectedStore, clientId]);
+
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedStore) return null;
+    if (!firestore || !selectedStore || isUserLoading) return null;
     return collection(firestore, 'stores', selectedStore.id, 'clients', clientId, 'addresses');
-  }, [firestore, selectedStore, clientId]);
+  }, [firestore, isUserLoading, selectedStore, clientId]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: addresses, isLoading: isLoadingAddresses } = useCollection<Address>(addressesQuery);
-  
-  const isLoading = isLoadingClient || isLoadingAddresses || isUserLoading || !selectedStore;
+
+  const isLoading = isLoadingClient || isLoadingAddresses || isUserLoading;
 
   const formatDate = (date: Date | Timestamp | undefined) => {
     if (!date) return 'Data desconhecida';
@@ -58,27 +58,27 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   }
 
   if (!client) {
-     return (
-        <div className="mx-auto grid max-w-4xl flex-1 auto-rows-max gap-4">
-             <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-                <Link href="/clientes">
-                    <ChevronLeft className="h-4 w-4" />
-                    <span className="sr-only">Voltar</span>
-                </Link>
-                </Button>
-                <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-                Cliente não encontrado
-                </h1>
-            </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Erro 404</CardTitle>
-                    <CardDescription>O cliente que você está procurando não foi encontrado.</CardDescription>
-                </CardHeader>
-            </Card>
+    return (
+      <div className="mx-auto grid max-w-4xl flex-1 auto-rows-max gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+            <Link href="/clientes">
+              <ChevronLeft className="h-4 w-4" />
+              <span className="sr-only">Voltar</span>
+            </Link>
+          </Button>
+          <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
+            Cliente não encontrado
+          </h1>
         </div>
-     )
+        <Card>
+          <CardHeader>
+            <CardTitle>Erro 404</CardTitle>
+            <CardDescription>O cliente que você está procurando não foi encontrado.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -139,7 +139,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
 function ClientDetailSkeleton() {
   return (
     <div className="mx-auto grid max-w-4xl flex-1 auto-rows-max gap-4">
-       <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4">
         <Skeleton className="h-7 w-7" />
         <Skeleton className="h-6 w-1/3" />
       </div>

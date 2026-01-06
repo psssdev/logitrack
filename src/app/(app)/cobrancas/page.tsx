@@ -106,42 +106,18 @@ export default function CobrancasPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState<'all' | string>('all');
   const [payingClient, setPayingClient] = useState<ClientDebt | null>(null);
-  
-  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
 
-  const storePendingOrdersQuery = useMemoFirebase(() => {
+
+
+  const pendingOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !selectedStore) return null;
     return query(
       collection(firestore, 'stores', selectedStore.id, 'orders'),
       where('pago', '==', false)
     );
   }, [firestore, selectedStore]);
-  
-  const legacyPendingOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !isSpecialUser) return null;
-    return query(
-      collection(firestore, 'orders'),
-      where('pago', '==', false)
-    );
-  }, [firestore, isSpecialUser]);
 
-  const { data: storePendingOrders, isLoading: isLoadingStoreOrders } = useCollection<Order>(storePendingOrdersQuery);
-  const { data: legacyPendingOrders, isLoading: isLoadingLegacyOrders } = useCollection<Order>(legacyPendingOrdersQuery);
-
-  const allPendingOrders = useMemo(() => {
-    const allOrders = new Map<string, Order>();
-    if (isSpecialUser && legacyPendingOrders) {
-        legacyPendingOrders.forEach(order => {
-            if(!order.storeId) {
-                allOrders.set(order.id, order);
-            }
-        });
-    }
-    if (storePendingOrders) {
-      storePendingOrders.forEach(order => allOrders.set(order.id, order));
-    }
-    return Array.from(allOrders.values());
-  }, [storePendingOrders, legacyPendingOrders, isSpecialUser]);
+  const { data: pendingOrders, isLoading: isLoadingPendingOrders } = useCollection<Order>(pendingOrdersQuery);
 
 
   const companyRef = useMemoFirebase(() => {
@@ -153,13 +129,13 @@ export default function CobrancasPage() {
   const { data: company, isLoading: isLoadingCompany } =
     useDoc<Company>(companyRef);
 
-  const isLoading = isUserLoading || isLoadingStoreOrders || (isSpecialUser && isLoadingLegacyOrders) || isLoadingCompany;
+  const isLoading = isUserLoading || isLoadingPendingOrders || isLoadingCompany;
 
   const cities = useMemo(() => {
-    if (!allPendingOrders) return [];
+    if (!pendingOrders) return [];
     const citySet = new Set<string>();
 
-    allPendingOrders.forEach((order) => {
+    pendingOrders.forEach((order) => {
       if (typeof order.destino === 'string') {
         const parts = order.destino.split(',').map((p) => p.trim());
         if (parts.length >= 2) {
@@ -172,10 +148,10 @@ export default function CobrancasPage() {
     });
 
     return Array.from(citySet).sort();
-  }, [allPendingOrders]);
+  }, [pendingOrders]);
 
   const { clientDebts, summary } = useMemo(() => {
-    if (!allPendingOrders) {
+    if (!pendingOrders) {
       return {
         clientDebts: [] as ClientDebt[],
         summary: {
@@ -186,16 +162,16 @@ export default function CobrancasPage() {
       };
     }
 
-    const filteredByDateAndCity = allPendingOrders.filter((order) => {
+    const filteredByDateAndCity = pendingOrders.filter((order) => {
       const orderDate = toDate(order.createdAt);
 
       const isDateInRange =
         !dateRange?.from || !dateRange?.to || !orderDate
           ? true
           : isWithinInterval(orderDate, {
-              start: dateRange.from,
-              end: dateRange.to,
-            });
+            start: dateRange.from,
+            end: dateRange.to,
+          });
 
       const orderCityParts =
         typeof order.destino === 'string'
@@ -255,10 +231,10 @@ export default function CobrancasPage() {
 
     const filteredByName = searchTerm
       ? debtList.filter((client) =>
-          (client.nomeCliente || '')
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
-        )
+        (client.nomeCliente || '')
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      )
       : debtList;
 
     const summaryData = {
@@ -274,7 +250,7 @@ export default function CobrancasPage() {
     };
 
     return { clientDebts: filteredByName, summary: summaryData };
-  }, [allPendingOrders, dateRange, selectedCity, searchTerm]);
+  }, [pendingOrders, dateRange, selectedCity, searchTerm]);
 
   const handleCharge = (client: ClientDebt) => {
     if (!client.telefone) {
@@ -465,7 +441,7 @@ export default function CobrancasPage() {
 
             {/* Table */}
             {isLoading && <Skeleton className="h-64 w-full" />}
-            {!isLoading && allPendingOrders && (
+            {!isLoading && pendingOrders && (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -532,7 +508,7 @@ export default function CobrancasPage() {
                                 <Link
                                   href={`/encomendas?status=PENDENTE&pago=false&cliente=${encodeURIComponent(
                                     client.nomeCliente ||
-                                      ''
+                                    ''
                                   )}`}
                                 >
                                   <ArrowRight className="h-4 w-4" />
@@ -557,7 +533,7 @@ export default function CobrancasPage() {
                 </Table>
               </div>
             )}
-            {!isLoading && !allPendingOrders && (
+            {!isLoading && !pendingOrders && (
               <div className="flex flex-col items-center gap-2 rounded-md border-2 border-dashed p-8 text-center">
                 <AlertCircle className="h-8 w-8 text-destructive" />
                 <p className="font-semibold text-destructive">
