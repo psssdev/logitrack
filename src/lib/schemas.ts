@@ -252,6 +252,7 @@ export const companySchema = z.object({
   nomeFantasia: z.string().min(1, 'O nome fantasia é obrigatório.'),
   razaoSocial: z.string().min(1, 'A razão social é obrigatória.'),
   cnpj: z.string().min(14, 'O CNPJ deve ter 14 dígitos.').max(18, 'O CNPJ parece longo demais.'),
+  chavePix: z.string().min(1, 'A chave Pix é obrigatória.').optional(),
   endereco: z.string().optional(),
   telefone: z.string().optional(),
   codigoPrefixo: z.string().min(2, 'O prefixo deve ter pelo menos 2 caracteres.').max(5, 'O prefixo deve ter no máximo 5 caracteres.'),

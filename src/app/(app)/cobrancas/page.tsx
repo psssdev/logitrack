@@ -294,7 +294,9 @@ export default function CobrancasPage() {
     const message = messageTemplate
       .replace('{cliente}', client.nomeCliente || 'cliente')
       .replace('{valor}', formatCurrency(client.totalPendente))
-      .replace('{quantidade}', client.orderCount.toString());
+      .replace('{quantidade}', client.orderCount.toString())
+      .replace('{nomeEmpresa}', company?.nomeFantasia || '')
+      .replace('{chavePix}', company?.chavePix || '');
 
     openWhatsApp(client.telefone, message);
   };

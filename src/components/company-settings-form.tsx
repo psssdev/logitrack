@@ -36,11 +36,12 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
       nomeFantasia: company?.nomeFantasia || '',
       razaoSocial: company?.razaoSocial || '',
       cnpj: company?.cnpj || '',
+      chavePix: company?.chavePix || '',
       endereco: company?.endereco || '',
       telefone: company?.telefone || '',
       codigoPrefixo: company?.codigoPrefixo || 'TR',
       linkBaseRastreio: company?.linkBaseRastreio || 'https://seusite.com/rastreio/',
-      msgCobranca: company?.msgCobranca || 'Olá {cliente}, tudo bem? Verificamos que há uma pendência de {valor} referente a {quantidade} encomenda(s). Poderia nos dar um retorno sobre o pagamento? Obrigado!',
+      msgCobranca: company?.msgCobranca || 'Olá {cliente}! Segue o valor do seu frete de {valor}, referente a {quantidade} encomenda(s).\n\nChave pix para pagamento: {chavePix} ({nomeEmpresa})\n\nFavor enviar o comprovante. Obrigado!',
       msgRecebido: company?.msgRecebido || 'Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}',
       msgAvisame: company?.msgAvisame || 'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!',
       msgEmRota: company?.msgEmRota || 'Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}',
@@ -191,6 +192,21 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                 </FormItem>
             )}
           />
+          
+        <div className="border-t pt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+             <FormField
+                control={form.control}
+                name="chavePix"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Chave Pix</FormLabel>
+                    <FormControl><Input placeholder="CNPJ, email, telefone..." {...field} /></FormControl>
+                     <FormDescription>Esta chave será incluída nas mensagens de cobrança.</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
 
         <div className="border-t pt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             <FormField
@@ -220,6 +236,20 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
         </div>
 
         <div className="border-t pt-6 space-y-6">
+             <FormField
+                control={form.control}
+                name="msgCobranca"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Mensagem de Cobrança</FormLabel>
+                    <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
+                    <FormDescription>
+                        Variáveis disponíveis: `'{cliente}'`, `'{valor}'`, `'{quantidade}'`, `'{chavePix}'`, `'{nomeEmpresa}'`.
+                    </FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
             <FormField
             control={form.control}
             name="msgRecebido"
@@ -228,7 +258,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                 <FormLabel>Mensagem de Encomenda Recebida</FormLabel>
                 <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                 <FormDescription>
-                    Variáveis disponíveis: `'{'{cliente}'}'`, `'{'{volumes}'}'`, `'{'{codigo}'}'`, `'{'{valor}'}'`, `'{'{link}'}'`.
+                    Variáveis disponíveis: `'{cliente}'`, `'{volumes}'}'`, `'{codigo}'`, `'{valor}'`, `'{link}'`.
                 </FormDescription>
                 <FormMessage />
                 </FormItem>
@@ -242,7 +272,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                     <FormLabel>Mensagem de 'Em Rota'</FormLabel>
                     <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                     <FormDescription>
-                        Variáveis disponíveis: `'{'{cliente}'}'`, `'{'{codigo}'}'`, `'{'{link}'}'`.
+                        Variáveis disponíveis: `'{cliente}'`, `'{codigo}'`, `'{link}'`.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
@@ -256,25 +286,11 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                     <FormLabel>Mensagem do Avisa-me</FormLabel>
                     <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                     <FormDescription>
-                        Variáveis disponíveis: `'{'{nome}'}'`, `'{'{cidade}'}'`, `'{'{codigo}'}'`.
+                        Variáveis disponíveis: `'{nome}'`, `'{cidade}'`, `'{codigo}'`.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
                 )}
-            />
-            <FormField
-            control={form.control}
-            name="msgCobranca"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Mensagem de Cobrança</FormLabel>
-                <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
-                <FormDescription>
-                    Variáveis disponíveis: `'{'{cliente}'}'`, `'{'{valor}'}'`, `'{'{quantidade}'}'`.
-                </FormDescription>
-                <FormMessage />
-                </FormItem>
-            )}
             />
         </div>
 
