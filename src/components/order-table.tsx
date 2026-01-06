@@ -1,0 +1,229 @@
+'use client';
+
+import * as React from 'react';
+import Link from 'next/link';
+import { MoreHorizontal, ArrowRight, Trash } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import type { Order } from '@/lib/types';
+import { Input } from './ui/input';
+import { Timestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { CompactUpdateStatusDropdown } from './compact-update-status-dropdown';
+import { Checkbox } from './ui/checkbox';
+
+const paymentMethodLabels: Record<string, string> = {
+  pix: 'PIX',
+  dinheiro: 'Dinheiro',
+  cartao: 'Cartão',
+  boleto: 'Boleto',
+  link: 'Link',
+  haver: 'A Haver',
+};
+
+interface OrderTableProps {
+  orders: Order[];
+  selectedOrderIds: string[];
+  setSelectedOrderIds: React.Dispatch<React.SetStateAction<string[]>>;
+  initialFilter?: string;
+  onDeleteClick: (order: Order) => void;
+}
+
+export function OrderTable({ orders, selectedOrderIds, setSelectedOrderIds, initialFilter = '', onDeleteClick }: OrderTableProps) {
+  const [filter, setFilter] = React.useState(initialFilter);
+  const { toast } = useToast();
+  
+  React.useEffect(() => {
+    setFilter(initialFilter);
+  }, [initialFilter]);
+
+  const filteredOrders = orders.filter(
+    (order) =>
+      order.nomeCliente.toLowerCase().includes(filter.toLowerCase()) ||
+      order.codigoRastreio.toLowerCase().includes(filter.toLowerCase()) ||
+      order.telefone.includes(filter)
+  );
+
+  const formatDate = (date: Date | Timestamp) => {
+    if (date instanceof Timestamp) {
+      return date.toDate().toLocaleDateString('pt-BR');
+    }
+    return new Date(date).toLocaleDateString('pt-BR');
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedOrderIds(filteredOrders.map(o => o.id));
+    } else {
+      setSelectedOrderIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedOrderIds((prev) => [...prev, id]);
+    } else {
+      setSelectedOrderIds((prev) => prev.filter(orderId => orderId !== id));
+    }
+  };
+  
+  const isAllSelected = filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length;
+
+
+  const handleSendReceipt = (order: Order) => {
+    const message = `WHATSAPP: Enviando comprovante de dívida no valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.valorEntrega)} para ${order.nomeCliente}.`;
+    console.log(message);
+    toast({
+      title: 'Ação Simulada',
+      description: 'Comprovante de dívida enviado para o cliente.',
+    });
+  };
+
+  const handleResendNotification = (order: Order) => {
+     const message = `WHATSAPP: Reenviando notificação de "recebido" para ${order.nomeCliente}.`;
+    console.log(message);
+    toast({
+      title: 'Ação Simulada',
+      description: 'Notificação de recebimento reenviada para o cliente.',
+    });
+  }
+
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="w-full max-w-sm">
+        <Input 
+          placeholder="Buscar por cliente, código ou telefone..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      </div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Selecionar todos"
+                />
+              </TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead className="hidden lg:table-cell">Código</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="hidden md:table-cell">Pagamento</TableHead>
+              <TableHead className="hidden lg:table-cell">Data</TableHead>
+              <TableHead>
+                <span className="sr-only">Ações</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredOrders.length > 0 ? (
+              filteredOrders.map((order) => (
+                <TableRow 
+                  key={order.id}
+                  data-state={selectedOrderIds.includes(order.id) && "selected"}
+                >
+                  <TableCell>
+                     <Checkbox
+                        checked={selectedOrderIds.includes(order.id)}
+                        onCheckedChange={(checked) => handleSelectRow(order.id, !!checked)}
+                        aria-label={`Selecionar encomenda ${order.codigoRastreio}`}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{order.nomeCliente}</div>
+                    <div className="text-sm text-muted-foreground">{order.telefone}</div>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <Badge variant="outline">{order.codigoRastreio}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <CompactUpdateStatusDropdown order={order} />
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <div className="flex flex-col">
+                      <span>
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(order.valorEntrega)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {paymentMethodLabels[order.formaPagamento]}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    {formatDate(order.createdAt)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="icon" asChild>
+                           <Link href={`/encomendas/${order.id}`}>
+                             <ArrowRight className="h-4 w-4" />
+                           </Link>
+                        </Button>
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}`}>Ver Detalhes</Link></DropdownMenuItem>
+                            <DropdownMenuItem asChild><Link href={`/encomendas/${order.id}/editar`}>Editar</Link></DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                             <DropdownMenuItem onClick={() => handleResendNotification(order)}>
+                              Reenviar Notificação
+                            </DropdownMenuItem>
+                            {order.formaPagamento === 'haver' && !order.pago && (
+                                <DropdownMenuItem onClick={() => handleSendReceipt(order)}>
+                                Enviar Comprovante de Dívida
+                                </DropdownMenuItem>
+                            )}
+                             <DropdownMenuSeparator />
+                             <DropdownMenuItem className="text-destructive" onClick={() => onDeleteClick(order)}>
+                                <Trash className="mr-2 h-4 w-4" />
+                                Excluir
+                             </DropdownMenuItem>
+                            
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  Nenhuma encomenda encontrada.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}

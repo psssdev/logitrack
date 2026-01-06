@@ -1,0 +1,488 @@
+
+{
+  "entities": {
+    "Store": {
+      "title": "Store",
+      "description": "Represents a single store or branch in the multi-tenant system.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the store."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user who owns the store."
+        }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role (e.g., 'admin', 'member').",
+          "enum": ["admin", "member"]
+        }
+      },
+      "required": ["displayName", "email", "role"]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft_07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents an order in the transport system.",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this order belongs to." },
+        "codigoRastreio": {
+          "type": "string",
+          "description": "Unique tracking code for the order (e.g., TR-ABC123)."
+        },
+        "nomeCliente": {
+          "type": "string",
+          "description": "Name of the customer."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to the client who placed the order."
+        },
+        "telefone": {
+          "type": "string",
+          "description": "Customer's phone number (E.164 format)."
+        },
+        "origem": {
+          "type": "string",
+          "description": "Origin of the shipment."
+        },
+        "destino": {
+          "type": "string",
+          "description": "Destination of the shipment."
+        },
+        "valorEntrega": {
+          "type": "number",
+          "description": "Total delivery value, can be updated with partial payments."
+        },
+        "items": {
+            "type": "array",
+            "description": "Array of items in the order.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "description": { "type": "string" },
+                    "quantity": { "type": "number" },
+                    "value": { "type": "number" }
+                },
+                "required": ["description", "quantity", "value"]
+            }
+        },
+        "formaPagamento": {
+          "type": "string",
+          "description": "Payment method (pix, dinheiro, cartao, boleto, link).",
+          "enum": ["pix", "dinheiro", "cartao", "boleto", "link", "haver"]
+        },
+        "pago": {
+          "type": "boolean",
+          "description": "Indicates if the order is fully paid."
+        },
+        "dataPagamento": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of when the order was fully paid."
+        },
+        "notasPagamento": {
+            "type": "string",
+            "description": "Optional notes about the payment."
+        },
+         "payments": {
+          "type": "array",
+          "description": "A list of all partial or full payments made for the order.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "amount": { "type": "number" },
+              "method": { "type": "string" },
+              "date": { "type": "string", "format": "date-time" },
+              "notes": { "type": "string" }
+            },
+            "required": ["amount", "method", "date"]
+          }
+        },
+        "status": {
+          "type": "string",
+          "description": "Order status (PENDENTE, EM_ROTA, ENTREGUE, CANCELADA).",
+          "enum": ["PENDENTE", "EM_ROTA", "ENTREGUE", "CANCELADA"]
+        },
+        "motoristaId": {
+          "type": "string",
+          "description": "Reference to Driver. (Relationship: Driver 1:N Order) (Optional)",
+          "format": "uuid"
+        },
+        "observacao": {
+          "type": "string",
+          "description": "Optional notes about the order."
+        },
+        "numeroNota": {
+            "type": "string",
+            "description": "The invoice number for the manifest."
+        },
+        "timeline": {
+          "type": "array",
+          "description": "Array of status changes with timestamps and user references.",
+          "items": {
+            "type": "object",
+            "properties": {
+                "status": { "type": "string" },
+                "at": { "type": "string", "format": "date-time" },
+                "userId": { "type": "string" }
+            }
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of when the order was created.",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "User who created the order."
+        }
+      },
+      "required": [
+        "storeId",
+        "codigoRastreio",
+        "nomeCliente",
+        "clientId",
+        "telefone",
+        "origem",
+        "destino",
+        "valorEntrega",
+        "items",
+        "formaPagamento",
+        "pago",
+        "status",
+        "timeline",
+        "createdAt",
+        "createdBy"
+      ]
+    },
+    "Driver": {
+      "$schema": "http://json-schema.org/draft_07/schema#",
+      "title": "Driver",
+      "type": "object",
+      "description": "Represents a driver.",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this driver belongs to." },
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the driver."
+        },
+        "nome": {
+          "type": "string",
+          "description": "Driver's name."
+        },
+        "telefone": {
+          "type": "string",
+          "description": "Driver's phone number."
+        },
+        "photoUrl": {
+            "type": "string",
+            "description": "URL of the driver's photo."
+        },
+        "ativo": {
+          "type": "boolean",
+          "description": "Indicates if the driver is active."
+        }
+      },
+      "required": [
+        "storeId",
+        "id",
+        "nome",
+        "telefone",
+        "ativo"
+      ]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Represents a customer who places orders.",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this client belongs to." },
+        "nome": {
+          "type": "string",
+          "description": "The full name of the client."
+        },
+        "telefone": {
+          "type": "string",
+          "description": "The client's phone number, preferably in E.164 format."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the client was created."
+        },
+        "defaultDestinoId": {
+            "type": "string",
+            "description": "The ID of the default destination for this client."
+        }
+      },
+      "required": ["storeId", "nome", "telefone", "createdAt"]
+    },
+    "Origin": {
+      "title": "Origin",
+      "description": "Represents a shipment origin point.",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this origin belongs to." },
+        "name": {
+          "type": "string",
+          "description": "A friendly name for the origin, e.g., 'Warehouse A'."
+        },
+        "address": {
+          "type": "string",
+          "description": "The full, concatenated address of the origin."
+        },
+        "city": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "active": { "type": "boolean" },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the origin was created."
+        }
+      },
+      "required": ["storeId", "name", "address", "createdAt"]
+    },
+    "Destino": {
+      "title": "Destino",
+      "description": "Represents a shipment destination point.",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this destination belongs to." },
+        "name": {
+          "type": "string",
+          "description": "A friendly name for the destination, e.g., 'Shopping Center'."
+        },
+        "address": {
+          "type": "string",
+          "description": "The full, concatenated address of the destination."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the destination was created."
+        }
+      },
+      "required": ["storeId", "name", "address", "createdAt"]
+    },
+    "Address": {
+      "title": "Address",
+      "description": "Represents a client's address.",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this address belongs to." },
+        "label": { "type": "string", "description": "A label for the address, e.g., 'Casa', 'Trabalho'." },
+        "logradouro": { "type": "string" },
+        "numero": { "type": "string" },
+        "bairro": { "type": "string" },
+        "cidade": { "type": "string" },
+        "estado": { "type": "string" },
+        "cep": { "type": "string" },
+        "fullAddress": { "type": "string", "description": "The complete, concatenated address string." },
+        "lat": { "type": "number", "description": "Latitude of the address." },
+        "lng": { "type": "number", "description": "Longitude of the address." },
+        "principal": { "type": "boolean", "description": "Whether this is the client's primary address." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["storeId", "label", "logradouro", "numero", "bairro", "cidade", "estado", "cep", "fullAddress"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Represents a company vehicle, such as a bus, van, or car.",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this vehicle belongs to." },
+        "placa": { "type": "string", "description": "License plate of the vehicle." },
+        "modelo": { "type": "string", "description": "Model of the vehicle (e.g., 'Marcopolo G8')." },
+        "ano": { "type": "number", "description": "Manufacturing year of the vehicle." },
+        "tipo": { "type": "string", "description": "Type of vehicle.", "enum": ["Ônibus", "Van", "Carro", "Caminhão"] },
+        "status": { "type": "string", "description": "Current operational status.", "enum": ["Ativo", "Inativo", "Em Manutenção"] },
+        "seatLayout": {
+          "type": "object",
+          "description": "Defines the seat configuration for buses, using objects for rows.",
+          "properties": {
+            "lowerDeck": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            },
+            "upperDeck": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        },
+        "occupiedSeats": {
+          "type": "array",
+          "description": "List of seat IDs that are currently occupied.",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["storeId", "placa", "modelo", "ano", "tipo", "status"]
+    },
+    "FinancialCategory": {
+      "title": "Financial Category",
+      "description": "Represents a category for financial entries.",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this category belongs to." },
+        "name": { "type": "string", "description": "Name of the category (e.g., 'Receita de Passagem', 'Combustível')." },
+        "type": { "type": "string", "description": "The type of the category.", "enum": ["Entrada", "Saída"] }
+      },
+      "required": ["storeId", "name", "type"]
+    },
+    "FinancialEntry": {
+      "title": "Financial Entry",
+      "description": "Represents a single financial transaction (income or expense).",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this entry belongs to." },
+        "description": { "type": "string", "description": "A brief description of the transaction." },
+        "amount": { "type": "number", "description": "Value of the transaction. Positive for income, negative for expenses." },
+        "type": { "type": "string", "description": "Type of transaction.", "enum": ["Entrada", "Saída"] },
+        "date": { "type": "string", "format": "date-time", "description": "Date of the transaction." },
+        "travelDate": { "type": "string", "format": "date-time", "description": "Date of the trip, if applicable." },
+        "categoryId": { "type": "string", "description": "Reference to the FinancialCategory." },
+        "vehicleId": { "type": "string", "description": "Optional reference to a Vehicle." },
+        "driverId": { "type": "string", "description": "Optional reference to a Driver." },
+        "driverName": { "type": "string", "description": "Denormalized driver name for display." },
+        "clientId": { "type": "string", "description": "Optional reference to a Client for income entries." },
+        "clientName": { "type": "string", "description": "Denormalized client name for display." },
+        "notes": { "type": "string", "description": "Additional notes." },
+        "origin": { "type": "string", "description": "Origin of the trip, if applicable." },
+        "destination": { "type": "string", "description": "Destination of the trip, if applicable." },
+        "selectedSeats": { "type": "array", "items": { "type": "string" }, "description": "Seats selected for a ticket sale." },
+        "formaPagamento": {
+            "type": "string",
+            "description": "Payment method used for the transaction.",
+            "enum": ["pix", "dinheiro", "cartao", "boleto", "link", "haver"]
+        }
+      },
+      "required": ["storeId", "description", "amount", "type", "date", "categoryId"]
+    },
+     "Company": {
+      "title": "Company",
+      "description": "Represents the company settings for the application, specific to a store.",
+      "type": "object",
+      "properties": {
+        "nomeFantasia": { "type": "string", "description": "The trading name of the company." },
+        "razaoSocial": { "type": "string", "description": "The legal name of the company." },
+        "cnpj": { "type": "string", "description": "The company's tax ID (CNPJ)." },
+        "chavePix": { "type": "string", "description": "The company's PIX key for payments." },
+        "endereco": { "type": "string", "description": "The company's full address." },
+        "telefone": { "type": "string", "description": "The company's contact phone number." },
+        "codigoPrefixo": { "type": "string", "description": "The prefix for tracking codes, e.g., 'TR'." },
+        "linkBaseRastreio": { "type": "string", "description": "The base URL for the tracking page, e.g., 'https://seusite.com/rastreio/'." },
+        "msgCobranca": { "type": "string", "description": "The default template for payment reminder messages." },
+        "msgRecebido": { "type": "string", "description": "The default template for new order received notifications." },
+        "msgAvisame": { "type": "string", "description": "The default template for the 'Avisa-me' feature." },
+        "msgEmRota": { "type": "string", "description": "The default template for 'out for delivery' notifications." }
+      },
+      "required": ["nomeFantasia", "razaoSocial", "cnpj", "codigoPrefixo", "linkBaseRastreio"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password"
+    ]
+  },
+  "firestore": {
+    "/stores/{storeId}": {
+      "schema": {
+        "$ref": "#/entities/Store"
+      },
+      "description": "Stores information about each individual store."
+    },
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Stores public information about a user."
+    },
+    "/stores/{storeId}/clients/{clientId}": {
+      "schema": {
+        "$ref": "#/entities/Client"
+      },
+      "description": "Stores customer information for a specific store."
+    },
+    "/stores/{storeId}/origins/{originId}": {
+        "schema": {
+            "$ref": "#/entities/Origin"
+        },
+        "description": "Stores shipment origin points for a specific store."
+    },
+    "/stores/{storeId}/destinos/{destinoId}": {
+        "schema": {
+            "$ref": "#/entities/Destino"
+        },
+        "description": "Stores shipment destination points for a specific store."
+    },
+    "/stores/{storeId}/clients/{clientId}/addresses/{addressId}": {
+      "schema": {
+        "$ref": "#/entities/Address"
+      },
+      "description": "Stores addresses for a specific client within a specific store."
+    },
+    "/stores/{storeId}/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/Order"
+      },
+      "description": "Stores all orders for a specific store."
+    },
+     "/stores/{storeId}/drivers/{driverId}": {
+      "schema": {
+        "$ref": "#/entities/Driver"
+      },
+      "description": "Stores driver information for a specific store."
+    },
+    "/stores/{storeId}/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Stores company vehicles for a specific store."
+    },
+    "/stores/{storeId}/financialCategories/{categoryId}": {
+      "schema": { "$ref": "#/entities/FinancialCategory" },
+      "description": "Stores categories for financial entries for a specific store."
+    },
+    "/stores/{storeId}/financialEntries/{entryId}": {
+      "schema": { "$ref": "#/entities/FinancialEntry" },
+      "description": "Stores all financial transactions for a specific store."
+    },
+    "/stores/{storeId}/companySettings/{settingsId}": {
+        "schema": { "$ref": "#/entities/Company" },
+        "description": "Stores company-wide application settings for a specific store. Expects a single document with a known ID like 'default'."
+    }
+  }
+}
