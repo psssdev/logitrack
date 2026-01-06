@@ -23,6 +23,7 @@ import { Loader2, Search } from 'lucide-react';
 import type { Company } from '@/lib/types';
 import { companySchema } from '@/lib/schemas';
 import { useStore } from '@/contexts/store-context';
+import { CopyButton } from './copy-button';
 
 type CompanyFormValues = z.infer<typeof companySchema>;
 
@@ -49,6 +50,8 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
       msgEmRota: company?.msgEmRota || 'Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}',
     },
   });
+
+  const chavePixValue = form.watch('chavePix');
 
   const handleCnpjSearch = async () => {
     const cnpj = form.getValues('cnpj').replace(/\D/g, '');
@@ -202,10 +205,15 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                 name="chavePix"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Chave Pix</FormLabel>
-                    <FormControl><Input placeholder="CNPJ, email, telefone..." {...field} /></FormControl>
-                     <FormDescription>Esta chave será incluída nas mensagens de cobrança.</FormDescription>
-                    <FormMessage />
+                        <FormLabel>Chave Pix</FormLabel>
+                        <div className="flex gap-2">
+                            <FormControl>
+                                <Input placeholder="CNPJ, email, telefone..." {...field} />
+                            </FormControl>
+                            <CopyButton value={chavePixValue || ''} />
+                        </div>
+                        <FormDescription>Esta chave será incluída nas mensagens de cobrança.</FormDescription>
+                        <FormMessage />
                     </FormItem>
                 )}
             />
@@ -247,7 +255,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                     <FormLabel>Mensagem de Cobrança</FormLabel>
                     <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                     <FormDescription>
-                        Variáveis disponíveis: {'`{cliente}`'}, {'`{valor}`'}, {'`{quantidade}`'}, {'`{chavePix}`'}, {'`{nomeEmpresa}`'}.
+                        Variáveis disponíveis: `{'`{cliente}`'}`, `{'`{valor}`'}`, `{'`{quantidade}`'}`, `{'`{chavePix}`'}`, `{'`{nomeEmpresa}`'}`.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
@@ -261,7 +269,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                 <FormLabel>Mensagem de Encomenda Recebida</FormLabel>
                 <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                 <FormDescription>
-                    Variáveis disponíveis: {'`{cliente}`'}, {'`{volumes}`'}, {'`{codigo}`'}, {'`{valor}`'}, {'`{link}`'}.
+                    Variáveis disponíveis: `{'`{cliente}`'}`, `{'`{volumes}`'}`, `{'`{codigo}`'}`, `{'`{valor}`'}`, `{'`{link}`'}`.
                 </FormDescription>
                 <FormMessage />
                 </FormItem>
@@ -275,7 +283,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                     <FormLabel>Mensagem de 'Em Rota'</FormLabel>
                     <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                     <FormDescription>
-                       Variáveis disponíveis: {'`{cliente}`'}, {'`{codigo}`'}, {'`{link}`'}.
+                       Variáveis disponíveis: `{'`{cliente}`'}`, `{'`{codigo}`'}`, `{'`{link}`'}`.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
@@ -289,7 +297,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                     <FormLabel>Mensagem do Avisa-me</FormLabel>
                     <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                     <FormDescription>
-                        Variáveis disponíveis: {'`{nome}`'}, {'`{cidade}`'}, {'`{codigo}`'}.
+                        Variáveis disponíveis: `{'`{nome}`'}`, `{'`{cidade}`'}`, `{'`{codigo}`'}`.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
