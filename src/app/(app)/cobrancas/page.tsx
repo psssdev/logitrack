@@ -337,7 +337,7 @@ export default function CobrancasPage() {
                   { type: 'text', text: storeName },
                   { type: 'text', text: formatCurrency(client.totalPendente) },
                   { type: 'text', text: currentDate },
-                  { type: 'text', text: 'cobranças por atraso, não responda a essa mensagem' },
+                  { type: 'text', text: 'cobrança, não responda' },
                 ],
               },
               {
