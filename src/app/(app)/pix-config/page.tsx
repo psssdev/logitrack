@@ -12,10 +12,31 @@ import { Button } from '@/components/ui/button';
 import { QrCode, ArrowUpRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { copyToClipboardSafe } from '@/lib/clipboard';
+import { useStore } from '@/contexts/store-context';
 
 export default function PixConfigPage() {
   const { toast } = useToast();
-  const publicPixUrl = `${window.location.origin}/pix`;
+  const { selectedStore } = useStore();
+
+  if (!selectedStore) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center">
+          <h1 className="flex-1 text-2xl font-semibold md:text-3xl">
+            Partilhar Chave Pix
+          </h1>
+        </div>
+        <Card>
+            <CardHeader>
+                <CardTitle>Nenhuma loja selecionada</CardTitle>
+                <CardDescription>Por favor, selecione uma loja para ver o link de partilha do Pix.</CardDescription>
+            </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  const publicPixUrl = `${window.location.origin}/pix/${selectedStore.id}`;
 
   const handleCopyLink = async () => {
     const ok = await copyToClipboardSafe(publicPixUrl);
@@ -49,7 +70,7 @@ export default function PixConfigPage() {
           </CardTitle>
           <CardDescription>
             Use o link abaixo para partilhar facilmente a sua chave Pix e QR
-            Code com os seus clientes. Esta página não requer login.
+            Code com os seus clientes. Esta página não requer login e é específica para a loja <span className="font-bold">{selectedStore.name}</span>.
           </CardDescription>
         </CardHeader>
         <CardContent>
