@@ -1,12 +1,13 @@
-
 'use server';
 
 import { cert, getApps, initializeApp, App } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
 
-let _db: Firestore | null = null;
-let _auth: any = null;
+// Variáveis para guardar as instâncias em cache
+let app: App | null = null;
+let db: Firestore | null = null;
+
+const APP_NAME = 'logitrack-admin';
 
 function loadServiceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -24,8 +25,18 @@ function loadServiceAccount() {
 }
 
 export async function adminDb(): Promise<Firestore> {
-  if (!getApps().length) {
-    const sa: any = loadServiceAccount();
+  // Se a instância do DB já existe, retorna-a
+  if (db) {
+    return db;
+  }
+
+  // Verifica se a NOSSA app específica já foi inicializada
+  const existingApp = getApps().find(a => a.name === APP_NAME);
+
+  if (existingApp) {
+    app = existingApp;
+  } else {
+    const sa = loadServiceAccount();
     if (!sa) {
       throw new Error(
         "FIREBASE_SERVICE_ACCOUNT não definida. Sem isso o ambiente tenta usar metadata/refresh token."
@@ -37,22 +48,11 @@ export async function adminDb(): Promise<Firestore> {
       sa.private_key = sa.private_key.replace(/\\n/g, "\n");
     }
 
-    initializeApp({ credential: cert(sa) });
+    // Inicializa a NOSSA app com um nome único
+    app = initializeApp({ credential: cert(sa) }, APP_NAME);
   }
 
-  if (!_db) {
-    _db = getFirestore();
-  }
-  return _db;
-}
-
-export async function adminAuth() {
-    if (_auth) return _auth;
-
-    if (!getApps().length) {
-        await adminDb(); // Ensure app is initialized
-    }
-    
-    _auth = getAuth();
-    return _auth;
+  // Obtém e guarda em cache a instância do Firestore a partir da nossa app
+  db = getFirestore(app);
+  return db;
 }
