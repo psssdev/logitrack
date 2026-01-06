@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getFirestoreServer } from '@/lib/actions-public';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
 import { CopyButton } from '@/components/copy-button';
 import { Button } from '@/components/ui/button';
@@ -24,13 +24,36 @@ import { useToast } from '@/hooks/use-toast';
 // For this multi-tenant setup, we'll point to the first store's settings as the "default".
 const MAIN_STORE_ID = '1';
 
+// This function needs to be defined within the client component file or imported
+// from a separate file. Since it's server-side logic, we can't have it here directly
+// in a 'use client' file. This seems to be a structural issue.
+// The best approach for a 'use client' component is to fetch data in an effect.
 async function getPublicCompanySettings(): Promise<Company | null> {
   try {
     const db = await getFirestoreServer();
     const settingsRef = doc(db, 'stores', MAIN_STORE_ID, 'companySettings', 'default');
     const docSnap = await getDoc(settingsRef);
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as Company;
+      const data = docSnap.data();
+      // Ensure Timestamps are converted to serializable format (like ISO string or number)
+      // For this case, we can just spread and reconstruct, as we mostly need primitive types.
+      // A more robust solution would iterate over keys and convert Timestamps.
+      const companyData: Company = {
+        id: docSnap.id,
+        nomeFantasia: data.nomeFantasia,
+        razaoSocial: data.razaoSocial,
+        cnpj: data.cnpj,
+        chavePix: data.chavePix,
+        endereco: data.endereco,
+        telefone: data.telefone,
+        codigoPrefixo: data.codigoPrefixo,
+        linkBaseRastreio: data.linkBaseRastreio,
+        msgCobranca: data.msgCobranca,
+        msgRecebido: data.msgRecebido,
+        msgAvisame: data.msgAvisame,
+        msgEmRota: data.msgEmRota,
+      };
+      return companyData;
     }
     return null;
   } catch (error) {
