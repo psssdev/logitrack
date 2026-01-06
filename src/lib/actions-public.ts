@@ -48,6 +48,12 @@ export async function getPublicPixData(storeId: string, keyId: string): Promise<
   try {
     const db = await adminDb();
 
+    console.log("DEBUG storeId/keyId", storeId, keyId);
+    console.log("DEBUG paths", {
+      company: `stores/${storeId}/companySettings/default`,
+      pixKey: `stores/${storeId}/pixKeys/${keyId}`,
+    });
+
     const companySettingsRef = db.collection('stores').doc(storeId).collection('companySettings').doc('default');
     const pixKeyRef = db.collection('stores').doc(storeId).collection('pixKeys').doc(keyId);
 
@@ -56,12 +62,23 @@ export async function getPublicPixData(storeId: string, keyId: string): Promise<
       pixKeyRef.get(),
     ]);
 
+    console.log("DEBUG exists", {
+      companyExists: companySnap.exists,
+      pixKeyExists: pixKeySnap.exists,
+    });
+
+
     const company = companySnap.exists ? ({ id: companySnap.id, ...companySnap.data() } as Company) : null;
     const pixKey = pixKeySnap.exists ? ({ id: pixKeySnap.id, ...pixKeySnap.data() } as PixKey) : null;
 
     return { company, pixKey };
-  } catch (error) {
-    console.error("Error fetching public pix data:", error);
+  } catch (error: any) {
+    console.error("Error fetching public pix data:", {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack,
+    });
     return { company: null, pixKey: null };
   }
 }
