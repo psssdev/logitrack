@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -28,6 +29,12 @@ service cloud.firestore {
         allow create, update: if isOwner(request.resource.data.ownerId);
     }
     
+    // Public PIX key page
+    match /stores/{storeId}/pixKeys/{keyId} {
+      allow get; // Allow public read for a single key
+      allow list, write: if isSignedIn() && isStoreOwner(storeId);
+    }
+
     // Data within a store can be read or written to only by the owner of that store.
     match /stores/{storeId}/{document=**} {
       allow read, write: if isSignedIn() && isStoreOwner(storeId);

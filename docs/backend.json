@@ -411,6 +411,20 @@
         "msgEmRota": { "type": "string", "description": "The default template for 'out for delivery' notifications." }
       },
       "required": ["nomeFantasia", "razaoSocial", "cnpj", "codigoPrefixo", "linkBaseRastreio"]
+    },
+    "PixKey": {
+      "title": "PixKey",
+      "description": "Represents a single PIX key for a store.",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "description": "The ID of the store this PIX key belongs to." },
+        "name": { "type": "string", "description": "A friendly name for the key, e.g., 'Pix Principal'." },
+        "key": { "type": "string", "description": "The actual PIX key value." },
+        "type": { "type": "string", "enum": ["CNPJ", "Email", "Telefone", "Aleatória"], "description": "The type of the PIX key." },
+        "isPrimary": { "type": "boolean", "description": "Indicates if this is the primary PIX key for the store." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["storeId", "name", "key", "type", "isPrimary"]
     }
   },
   "auth": {
@@ -479,11 +493,13 @@
       "schema": { "$ref": "#/entities/FinancialEntry" },
       "description": "Stores all financial transactions for a specific store."
     },
-    "/companies/{companyId}": {
+    "/stores/{storeId}/companySettings/{settingsId}": {
         "schema": { "$ref": "#/entities/Company" },
-        "description": "Stores company-wide application settings. Expects a single document with a known ID."
+        "description": "Stores company-wide application settings for a specific store. Expects a single document with a known ID like 'default'."
+    },
+    "/stores/{storeId}/pixKeys/{pixKeyId}": {
+        "schema": { "$ref": "#/entities/PixKey" },
+        "description": "Stores PIX keys for a specific store."
     }
   }
 }
-
-    

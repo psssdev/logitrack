@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -32,7 +33,7 @@ const navItems = [
   { href: '/origens', icon: MapPin, label: 'Origens' },
   { href: '/destinos', icon: MapPin, label: 'Destinos' },
   { href: '/avisame', icon: Megaphone, label: 'Avisa-me' },
-  { href: '/pix-config', icon: QrCode, label: 'Partilhar Pix' },
+  { href: '/pix-config', icon: QrCode, label: 'Gestor Pix' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 

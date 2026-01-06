@@ -262,3 +262,11 @@ export const companySchema = z.object({
   msgAvisame: z.string().optional(),
   msgEmRota: z.string().optional(),
 });
+
+export const pixKeySchema = z.object({
+  storeId: z.string().min(1, "A ID da loja é obrigatória."),
+  name: z.string().min(1, 'O nome da chave é obrigatório.'),
+  key: z.string().min(1, 'A chave Pix é obrigatória.'),
+  type: z.enum(["CNPJ", "Email", "Telefone", "Aleatória"]),
+  isPrimary: z.boolean().default(false),
+});

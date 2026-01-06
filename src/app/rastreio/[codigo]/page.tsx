@@ -1,7 +1,7 @@
 
 'use client'
 
-import { getFirestoreServer } from '@/lib/actions-public';
+import { getOrderByTrackingCode } from '@/lib/actions-public';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -18,31 +18,7 @@ import Link from 'next/link';
 import { Package, Search, AlertCircle, Home } from 'lucide-react';
 import type { Order } from '@/lib/types';
 import { useEffect, useState, use } from 'react';
-import { collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-
-async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | null> {
-    const firestore = getFirestoreServer();
-    const ordersCollection = collection(firestore, 'orders');
-     const q = query(
-        ordersCollection,
-        where("codigoRastreio", "==", codigoRastreio.toUpperCase()),
-        limit(1)
-    );
-    
-    try {
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            const orderDoc = querySnapshot.docs[0];
-            return { id: orderDoc.id, ...orderDoc.data() } as Order;
-        }
-    } catch (error) {
-        console.error("Error fetching order by tracking code: " + codigoRastreio, error);
-    }
-  
-    return null;
-}
-
 
 export default function RastreioPage({
   params,

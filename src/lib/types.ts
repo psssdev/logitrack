@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { storeSchema, orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, vehicleSchema, baseFinancialEntrySchema, locationSchema, newLocationSchema, companySchema } from './schemas';
+import { storeSchema, orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, vehicleSchema, baseFinancialEntrySchema, locationSchema, newLocationSchema, companySchema, pixKeySchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
 export type Store = z.infer<typeof storeSchema>;
@@ -116,4 +116,9 @@ export type Company = Omit<z.infer<typeof companySchema>, 'createdAt' | 'updated
     chavePix?: string;
     createdAt?: Timestamp;
     updatedAt?: Timestamp;
+}
+
+export type PixKey = z.infer<typeof pixKeySchema> & {
+    id: string;
+    createdAt: Date | Timestamp;
 }
