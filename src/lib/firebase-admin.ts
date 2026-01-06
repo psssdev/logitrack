@@ -3,29 +3,28 @@
 import { getApps, initializeApp, cert, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import serviceAccountKey from '../../service-account-key.json';
 import type { ServiceAccount } from 'firebase-admin/app';
+
 
 let _app: App | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 
-function loadServiceAccountFromEnv(): ServiceAccount {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-  if (!projectId || !clientEmail || !privateKey) {
-    // This will run on server start-up, so it's safe to throw here.
-    throw new Error(
-      'Firebase Admin SDK env vars are missing. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in your environment.'
-    );
-  }
-
-  // The private key from env vars can have escaped newlines.
-  privateKey = privateKey.replace(/\\n/g, '\n');
-
-  return { projectId, clientEmail, privateKey };
+function getServiceAccount(): ServiceAccount {
+    const { project_id, private_key, client_email } = serviceAccountKey;
+    if (!project_id || !private_key || !client_email) {
+        throw new Error(
+        'The service-account-key.json file is missing required fields (project_id, private_key, client_email).'
+        );
+    }
+    return {
+        projectId: project_id,
+        privateKey: private_key,
+        clientEmail: client_email,
+    };
 }
+
 
 export function getAdminApp(): App {
   if (_app) return _app;
@@ -36,7 +35,7 @@ export function getAdminApp(): App {
     return _app;
   }
 
-  const serviceAccount = loadServiceAccountFromEnv();
+  const serviceAccount = getServiceAccount();
 
   _app = initializeApp({
     credential: cert(serviceAccount),
