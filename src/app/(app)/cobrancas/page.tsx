@@ -26,7 +26,7 @@ import {
   useMemoFirebase,
   useUser,
 } from '@/firebase';
-import type { Order, Company } from '@/lib/types';
+import type { Order, Company, PixKey } from '@/lib/types';
 import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
 import {
   format,
@@ -38,6 +38,7 @@ import {
   AlertCircle,
   Download,
   ArrowRight,
+  Send,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { RecordPaymentDialog } from '@/components/record-payment-dialog';
@@ -106,8 +107,15 @@ export default function CobrancasPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState<'all' | string>('all');
   const [payingClient, setPayingClient] = useState<ClientDebt | null>(null);
+  const [isSendingBatch, setIsSendingBatch] = useState(false);
 
+  // Query para buscar chaves PIX
+  const pixKeysQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'pixKeys'));
+  }, [firestore, selectedStore]);
 
+  const { data: pixKeys } = useCollection<PixKey>(pixKeysQuery);
 
   const pendingOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !selectedStore) return null;
@@ -277,6 +285,115 @@ export default function CobrancasPage() {
     openWhatsApp(client.telefone, message);
   };
 
+  const handleBatchCharge = async () => {
+    // Verificar se há clientes devedores
+    const clientsWithPhone = clientDebts.filter(client => client.telefone);
+
+    if (clientsWithPhone.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Nenhum cliente com telefone',
+        description: 'Não há clientes devedores com telefone cadastrado para enviar cobrança.',
+      });
+      return;
+    }
+
+    // Buscar chave PIX primária ou a primeira disponível
+    const primaryPixKey = pixKeys?.find(key => key.isPrimary) || pixKeys?.[0];
+
+    if (!primaryPixKey || !selectedStore) {
+      toast({
+        variant: 'destructive',
+        title: 'Chave PIX não encontrada',
+        description: 'Configure uma chave PIX antes de enviar cobranças em massa.',
+      });
+      return;
+    }
+
+    setIsSendingBatch(true);
+
+    const currentDate = format(new Date(), 'dd/MM/yyyy');
+    const storeName = company?.nomeFantasia || 'Loja';
+    const pixButtonPath = `public/pix/${selectedStore.id}/${primaryPixKey.id}`;
+
+    try {
+      // Envia requisições individuais para cada cliente com seu valor específico
+      const results = await Promise.allSettled(
+        clientsWithPhone.map(async (client) => {
+          const phone = client.telefone!.replace(/\D/g, '');
+          const fullPhone = phone.startsWith('55') ? `+${phone}` : `+55${phone}`;
+
+          const payload = {
+            to: [fullPhone],
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            type: 'template',
+            template_name: 'payment_reminder_1',
+            language_code: 'pt_BR',
+            components: [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: storeName },
+                  { type: 'text', text: formatCurrency(client.totalPendente) },
+                  { type: 'text', text: currentDate },
+                  { type: 'text', text: 'cobranças por atraso, não responda a essa mensagem' },
+                ],
+              },
+              {
+                type: 'button',
+                sub_type: 'url',
+                index: '0',
+                parameters: [
+                  { type: 'text', text: pixButtonPath },
+                ],
+              },
+            ],
+          };
+
+          const response = await fetch('https://athosapiwhtsapp-5f2532a665d5.herokuapp.com/send-message-batch', {
+            method: 'POST',
+            headers: {
+              'accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Falha ao enviar para ${client.nomeCliente}`);
+          }
+
+          return { client: client.nomeCliente, success: true };
+        })
+      );
+
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      const failCount = results.filter(r => r.status === 'rejected').length;
+
+      if (failCount === 0) {
+        toast({
+          title: 'Cobranças enviadas!',
+          description: `${successCount} cobranças foram enviadas com sucesso via WhatsApp.`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Algumas cobranças falharam',
+          description: `${successCount} enviadas com sucesso, ${failCount} falharam.`,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao enviar cobranças',
+        description: error.message || 'Ocorreu um erro ao enviar as cobranças.',
+      });
+    } finally {
+      setIsSendingBatch(false);
+    }
+  };
+
   const handlePaymentSuccess = async () => {
     await triggerRevalidation('/cobrancas');
     await triggerRevalidation('/encomendas');
@@ -403,6 +520,13 @@ export default function CobrancasPage() {
                 <Button variant="outline" onClick={exportToCSV}>
                   <Download className="mr-2 h-4 w-4" />
                   Exportar CSV
+                </Button>
+                <Button
+                  onClick={handleBatchCharge}
+                  disabled={isSendingBatch || clientDebts.length === 0}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {isSendingBatch ? 'Enviando...' : 'Cobrar Todos'}
                 </Button>
               </div>
             </div>
