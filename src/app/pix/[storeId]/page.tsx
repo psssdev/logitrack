@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { getFirestoreServer } from '@/lib/actions-public';
 import { doc, getDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
