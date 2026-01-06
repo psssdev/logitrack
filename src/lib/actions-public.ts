@@ -10,7 +10,7 @@ export { adminDb };
 
 
 export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | null> {
-    const firestore = adminDb();
+    const firestore = await adminDb();
     
     // This is tricky because orders are in subcollections. We need to query across all stores.
     const ordersCollectionGroup = firestore.collectionGroup('orders');
@@ -46,7 +46,7 @@ export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Or
 export async function getPublicPixData(storeId: string, keyId: string): Promise<{ company: Company | null; pixKey: PixKey | null; }> {
   console.log("HAS_FIREBASE_SA", !!process.env.FIREBASE_SERVICE_ACCOUNT);
   try {
-    const db = adminDb();
+    const db = await adminDb();
 
     const companySettingsRef = db.collection('stores').doc(storeId).collection('companySettings').doc('default');
     const pixKeyRef = db.collection('stores').doc(storeId).collection('pixKeys').doc(keyId);
