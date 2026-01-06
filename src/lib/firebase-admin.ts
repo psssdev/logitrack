@@ -1,3 +1,4 @@
+
 'use server';
 
 import { cert, getApps, initializeApp, App } from "firebase-admin/app";
@@ -22,7 +23,7 @@ function loadServiceAccount() {
   }
 }
 
-export function adminDb(): Firestore {
+export async function adminDb(): Promise<Firestore> {
   if (!getApps().length) {
     const sa: any = loadServiceAccount();
     if (!sa) {
@@ -45,11 +46,11 @@ export function adminDb(): Firestore {
   return _db;
 }
 
-export function adminAuth() {
+export async function adminAuth() {
     if (_auth) return _auth;
 
     if (!getApps().length) {
-        adminDb(); // Ensure app is initialized
+        await adminDb(); // Ensure app is initialized
     }
     
     _auth = getAuth();
