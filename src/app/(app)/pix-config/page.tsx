@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -57,7 +56,7 @@ export default function PixConfigPage() {
 
   const handleCopyLink = async (keyId: string) => {
     if (!selectedStore) return;
-    const publicPixUrl = `${window.location.origin}/publico/pix/${selectedStore.id}/${keyId}`;
+    const publicPixUrl = `${window.location.origin}/public/pix/${selectedStore.id}/${keyId}`;
     const ok = await copyToClipboardSafe(publicPixUrl);
     toast({
       title: ok ? 'Link Copiado!' : 'Erro ao Copiar',
@@ -170,7 +169,7 @@ export default function PixConfigPage() {
                                                     <Copy className="mr-2 h-4 w-4" /> Copiar Link Público
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem asChild>
-                                                    <Link href={`/publico/pix/${selectedStore?.id}/${key.id}`} target="_blank">
+                                                    <Link href={`/public/pix/${selectedStore?.id}/${key.id}`} target="_blank">
                                                         <ExternalLink className="mr-2 h-4 w-4" /> Abrir Link Público
                                                     </Link>
                                                 </DropdownMenuItem>
