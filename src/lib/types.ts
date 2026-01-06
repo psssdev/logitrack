@@ -1,24 +1,29 @@
 
-
 import { z } from 'zod';
-import { orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, originSchema, newOriginSchema, avisameCampaignSchema, avisameDeliverySchema } from './schemas';
+import { storeSchema, orderSchema, driverSchema, newDriverSchema, orderStatusSchema, paymentMethodSchema, newOrderSchema, clientSchema, newClientSchema, addressSchema, newAddressFormSchema, vehicleSchema, baseFinancialEntrySchema, locationSchema, newLocationSchema, companySchema, pixKeySchema } from './schemas';
 import { Timestamp } from 'firebase/firestore';
 
+export type Store = z.infer<typeof storeSchema>;
+
+export type Payment = {
+    amount: number;
+    method: PaymentMethod;
+    date: Date | Timestamp;
+    notes?: string;
+}
+
 // Base Order type from schema
-export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' | 'pagamentos' | 'destino'> & {
+export type Order = Omit<z.infer<typeof orderSchema>, 'createdAt' | 'timeline' | 'dataPagamento' | 'payments' | 'messages'> & {
     id: string;
-    destino: { id: string; full: string; };
     createdAt: Date | Timestamp;
+    dataPagamento?: Date | Timestamp;
     timeline: {
         status: OrderStatus;
         at: Date | Timestamp;
         userId: string;
     }[];
-    pagamentos: {
-        valor: number;
-        forma: PaymentMethod;
-        data: Date | Timestamp;
-    }[];
+    payments?: Payment[];
+    messages?: string[];
 };
 
 // NewOrder type for form creation
@@ -28,15 +33,18 @@ export type NewOrder = z.infer<typeof newOrderSchema>;
 export type Driver = z.infer<typeof driverSchema>;
 export type NewDriver = z.infer<typeof newDriverSchema>;
 
-
 // Enum types
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
 // Base Client type with potential Firestore Timestamp
-export type Client = Omit<z.infer<typeof clientSchema>, 'createdAt'> & {
+export type Client = Omit<z.infer<typeof clientSchema>, 'createdAt' | 'addresses'> & {
     id: string;
     createdAt: Date | Timestamp;
+    defaultDestinoId?: string;
+    defaultOriginId?: string;
+    addresses?: Address[];
+    city?: string;
 };
 
 // NewClient type for form creation
@@ -45,61 +53,72 @@ export type NewClientWithAddress = z.infer<typeof newClientSchema>;
 
 
 // Address types
-export type Address = Omit<z.infer<typeof addressSchema>, 'createdAt'> & {
-  id: string;
-  clientId: string;
-  latitude: number;
-  longitude: number;
-  createdAt: Date | Timestamp;
+export type Address = Omit<z.infer<typeof addressSchema>, 'lat'| 'lng'> & {
+    lat?: number;
+    lng?: number;
 };
+
 export type NewAddress = z.infer<typeof newAddressFormSchema>;
 
+
+// NewLocation type for form creation
+export type NewLocation = z.infer<typeof newLocationSchema>;
+
+
 // Base Origin type with potential Firestore Timestamp
-export type Origin = Omit<z.infer<typeof originSchema>, 'createdAt'> & {
+export type Origin = Omit<z.infer<typeof locationSchema>, 'createdAt' | 'address'> & {
     id: string;
+    address: string;
     createdAt: Date | Timestamp;
 };
-export type NewOrigin = z.infer<typeof newOriginSchema>;
 
-// Company type, derived from the JSON schema
-export type Company = {
+// Base Destino type with potential Firestore Timestamp
+export type Destino = Omit<z.infer<typeof locationSchema>, 'createdAt' | 'address' | 'lat' | 'lng'> & {
     id: string;
-    nomeFantasia: string;
-    cnpj?: string;
-    logoUrl?: string;
-    cep?: string;
-    logradouro?: string;
-    numero?: string;
-    bairro?: string;
-    cidade?: string;
-    estado?: string;
-    msgRecebido?: string;
-    msgEmRota?: string;
-    msgEntregue?: string;
-    codigoPrefixo: string;
-    linkBaseRastreio: string;
-    createdAt?: Date | Timestamp;
-    updatedAt?: Date | Timestamp;
+    address: string;
+    createdAt: Date | Timestamp;
+};
+
+
+export type UserProfile = {
+    displayName: string;
+    email: string;
+    role: string;
 }
 
-// Avisame types
-export type AvisameCampaign = Omit<z.infer<typeof avisameCampaignSchema>, 'createdAt' | 'scheduledAt'> & {
-    id: string;
-    status: 'scheduled' | 'running' | 'done' | 'failed';
-    stats: {
-        queued: number;
-        sent: number;
-        failed: number;
-      };
-    createdAt: Date | Timestamp;
-    scheduledAt: Date | Timestamp; // Still useful for knowing when it was triggered
+// Vehicle type with seat layout
+export type SeatLayout = {
+    lowerDeck?: { [key: string]: (string | null)[] };
+    upperDeck?: { [key: string]: (string | null)[] };
 };
 
-export type NewAvisameCampaign = z.infer<typeof avisameCampaignSchema>;
-export type AvisameDelivery = z.infer<typeof avisameDeliverySchema>;
+export type Vehicle = Omit<z.infer<typeof vehicleSchema>, 'seatLayout'> & {
+    id: string;
+    seatLayout?: SeatLayout;
+};
 
-    
+export type FinancialCategory = {
+    id: string;
+    storeId: string;
+    name: string;
+    type: 'Entrada' | 'Saída';
+}
 
-    
+export type FinancialEntry = Omit<z.infer<typeof baseFinancialEntrySchema>, 'date' | 'travelDate'> & {
+    id: string;
+    date: Date | Timestamp;
+    travelDate?: Date | Timestamp;
+};
 
-    
+
+export type Company = Omit<z.infer<typeof companySchema>, 'createdAt' | 'updatedAt'> & {
+    id: string;
+    chavePix?: string;
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}
+
+export type PixKey = z.infer<typeof pixKeySchema> & {
+    id: string;
+    createdAt: Date | Timestamp;
+}

@@ -1,13 +1,12 @@
-
 'use client';
 
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -17,61 +16,93 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
-import { newDriverSchema } from '@/lib/schemas';
-import type { Driver, NewDriver } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
-import { Switch } from './ui/switch';
+import { editDriverSchema } from '@/lib/schemas';
+import type { Driver } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { Loader2, UploadCloud, X } from 'lucide-react';
+import Link from 'next/link';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { uploadFile } from '@/lib/storage';
 
-const COMPANY_ID = '1';
+type EditDriverFormValues = z.infer<typeof editDriverSchema>;
 
 export function EditDriverForm({ driver }: { driver: Driver }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const [photoPreview, setPhotoPreview] = React.useState<string | null>(
+    driver.photoUrl
+  );
+  const [photoFile, setPhotoFile] = React.useState<File | null>(null);
 
-  const form = useForm<NewDriver>({
-    resolver: zodResolver(newDriverSchema),
+  const form = useForm<EditDriverFormValues>({
+    resolver: zodResolver(editDriverSchema),
     defaultValues: {
-      nome: driver.nome || '',
-      telefone: driver.telefone || '',
-      placa: driver.placa || '',
-      ativo: driver.ativo ?? true,
+      nome: driver.nome,
+      telefone: driver.telefone,
+      photoUrl: driver.photoUrl,
     },
   });
 
-  async function onSubmit(data: NewDriver) {
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  async function onSubmit(data: EditDriverFormValues) {
     if (!firestore) {
       toast({
         variant: 'destructive',
-        title: 'Erro de conexão',
-        description: 'Não foi possível conectar ao banco de dados.',
+        title: 'Erro de Conexão',
+        description: 'Não foi possível ligar à base de dados. Por favor, tente novamente.',
       });
       return;
     }
 
     try {
-      const driverRef = doc(firestore, 'companies', COMPANY_ID, 'drivers', driver.id);
-      await updateDoc(driverRef, data);
+      let uploadedPhotoUrl = data.photoUrl;
+
+      if (photoFile) {
+        toast({ description: 'A atualizar a foto...' });
+        uploadedPhotoUrl = await uploadFile(
+          photoFile,
+          `driver_photos`
+        );
+      }
+      
+      const driverRef = doc(
+        firestore,
+        'drivers',
+        driver.id
+      );
+
+      await updateDoc(driverRef, {
+        ...data,
+        photoUrl: uploadedPhotoUrl,
+      });
 
       await triggerRevalidation('/motoristas');
       await triggerRevalidation(`/motoristas/${driver.id}`);
-      await triggerRevalidation('/encomendas/nova');
-      await triggerRevalidation('/avisame');
-      await triggerRevalidation('/relatorios');
 
       toast({
         title: 'Sucesso!',
-        description: 'Dados do motorista atualizados.',
+        description: 'Os dados do motorista foram atualizados.',
       });
-      router.push('/motoristas');
+      router.push(`/motoristas`);
     } catch (error: any) {
-      console.error("Error updating driver:", error);
+      console.error('Erro ao atualizar motorista:', error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao atualizar motorista.',
-        description: error.message || 'Ocorreu um erro desconhecido.',
+        title: 'Erro ao Atualizar Motorista',
+        description: 'Não foi possível guardar as alterações. Verifique os dados e tente novamente.',
       });
     }
   }
@@ -79,7 +110,60 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <FormField
+          control={form.control}
+          name="photoUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Foto do Motorista</FormLabel>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage
+                    src={photoPreview || undefined}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="text-muted-foreground">
+                    <UploadCloud size={32} />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col gap-2">
+                  <Button asChild variant="outline">
+                    <label
+                      htmlFor="photo-upload"
+                      className="cursor-pointer"
+                    >
+                      <UploadCloud className="mr-2" />
+                      Alterar Foto
+                    </label>
+                  </Button>
+                  <Input
+                    id="photo-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                  />
+                  {photoPreview && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setPhotoPreview(null);
+                        setPhotoFile(null);
+                        form.setValue('photoUrl', null);
+                      }}
+                    >
+                      <X className="mr-2" />
+                      Remover
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
             name="nome"
@@ -108,44 +192,15 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="placa"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Placa do Veículo (Opcional)</FormLabel>
-                <FormControl>
-                  <Input placeholder="ABC-1234" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="ativo"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <FormLabel className="text-base">Motorista Ativo</FormLabel>
-                  <FormDescription>
-                    Desative para que ele não apareça nas listas de seleção.
-                  </FormDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="flex justify-end pt-4">
-          <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+        <div className="flex justify-end gap-2 pt-4">
+          <Button type="button" variant="ghost" asChild>
+            <Link href={`/motoristas`}>Cancelar</Link>
+          </Button>
+          <Button
+            type="submit"
+            size="lg"
+            disabled={form.formState.isSubmitting}
+          >
             {form.formState.isSubmitting ? (
               <Loader2 className="animate-spin" />
             ) : (

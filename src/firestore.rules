@@ -1,0 +1,82 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isStoreOwner(storeId) {
+        return get(/databases/$(database)/documents/stores/$(storeId)).data.ownerId == request.auth.uid;
+    }
+
+    // User profiles can be read by anyone, but only written by the owner.
+    match /users/{userId} {
+      allow read;
+      allow write: if isOwner(userId);
+    }
+    
+    // Store documents can be read by anyone, but only created/updated by the owner.
+    match /stores/{storeId} {
+        allow read;
+        allow create, update: if isOwner(request.resource.data.ownerId);
+    }
+    
+    // Public PIX key page
+    match /stores/{storeId}/pixKeys/{keyId} {
+      allow get; // Allow public read for a single key
+      allow list, write: if isSignedIn() && isStoreOwner(storeId);
+    }
+
+    // Data within a store can be read or written to only by the owner of that store.
+    match /stores/{storeId}/{document=**} {
+      allow read, write: if isSignedIn() && isStoreOwner(storeId);
+    }
+
+    // LEGACY: Allow special user to access old collections
+    function isSpecialUser() {
+      return request.auth.token.email == 'jiverson.t@gmail.com';
+    }
+
+    match /clients/{clientId} {
+      allow read, write: if isSpecialUser();
+    }
+    match /clients/{clientId}/{document=**} {
+       allow read, write: if isSpecialUser();
+    }
+    match /orders/{orderId} {
+       allow read, write: if isSpecialUser();
+    }
+    match /drivers/{driverId} {
+       allow read, write: if isSpecialUser();
+    }
+    match /vehicles/{vehicleId} {
+       allow read, write: if isSpecialUser();
+    }
+    match /financialEntries/{entryId} {
+       allow read, write: if isSpecialUser();
+    }
+    match /financialCategories/{categoryId} {
+        allow read, write: if isSpecialUser();
+    }
+    match /origins/{originId} {
+        allow read, write: if isSpecialUser();
+    }
+    match /destinos/{destinoId} {
+        allow read, write: if isSpecialUser();
+    }
+    
+    // Company settings can be read by anyone, but written only by the special user
+    match /companies/{companyId} {
+        allow read;
+        allow write: if isSpecialUser();
+    }
+  }
+}

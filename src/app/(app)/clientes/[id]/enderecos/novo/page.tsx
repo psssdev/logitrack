@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function NewAddressPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const { id } = React.use(params);
   return <NewAddressContent clientId={id} />
@@ -28,12 +28,12 @@ export default function NewAddressPage({
 
 function NewAddressContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'companies', '1', 'clients', clientId);
-  }, [firestore, clientId, isUserLoading]);
+    if (!firestore || !user) return null;
+    return doc(firestore, 'clients', clientId);
+  }, [firestore, user, clientId]);
 
   const { data: client, isLoading } = useDoc<Client>(clientRef);
 

@@ -11,43 +11,56 @@ import {
 } from '@/components/ui/card';
 import { NewOrderForm } from '@/components/new-order-form';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, orderBy, query } from 'firebase/firestore';
+import { collection, orderBy, query, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Client, Origin, Driver } from '@/lib/types';
+import type { Client, Origin, Destino, Company } from '@/lib/types';
+import { useDoc } from '@/firebase';
+import { useStore } from '@/contexts/store-context';
 
 export default function NewOrderPage() {
   const firestore = useFirestore();
   const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
+
+  const canQuery = firestore && selectedStore && !isUserLoading;
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!canQuery) return null;
     return query(
-      collection(firestore, 'companies', '1', 'clients'),
+      collection(firestore, 'stores', selectedStore.id, 'clients'),
       orderBy('nome', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [canQuery, firestore, selectedStore]);
 
   const originsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!canQuery) return null;
     return query(
-      collection(firestore, 'companies', '1', 'origins'),
+      collection(firestore, 'stores', selectedStore.id, 'origins'),
       orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [canQuery, firestore, selectedStore]);
 
-  const driversQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+  const destinosQuery = useMemoFirebase(() => {
+    if (!canQuery) return null;
     return query(
-      collection(firestore, 'companies', '1', 'drivers'),
-      orderBy('nome', 'asc')
+      collection(firestore, 'stores', selectedStore.id, 'destinos'), 
+      orderBy('name', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [canQuery, firestore, selectedStore]);
+
+  const companyRef = useMemoFirebase(() => {
+    // Company is global, not per-store
+    if (!firestore) return null;
+    return doc(firestore, 'companies', '1');
+  }, [firestore]);
 
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: origins, isLoading: isLoadingOrigins } = useCollection<Origin>(originsQuery);
-  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
+  const { data: destinos, isLoading: isLoadingDestinos } = useCollection<Destino>(destinosQuery);
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
-  const isLoading = isLoadingClients || isLoadingOrigins || isUserLoading || isLoadingDrivers;
+
+  const isLoading = isLoadingClients || isLoadingOrigins || isUserLoading || isLoadingDestinos || isLoadingCompany || !selectedStore;
 
   return (
     <div className="mx-auto grid w-full max-w-4xl flex-1 auto-rows-max gap-4">
@@ -71,7 +84,7 @@ export default function NewOrderPage() {
         </CardHeader>
         <CardContent>
           {isLoading && <Skeleton className="h-48 w-full" />}
-          {clients && origins && drivers && <NewOrderForm clients={clients} origins={origins} />}
+          {clients && origins && destinos && company && !isLoading && <NewOrderForm clients={clients} origins={origins} destinos={destinos} company={company} />}
         </CardContent>
       </Card>
     </div>

@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
-import { ChevronLeft, PlusCircle, Edit } from 'lucide-react';
+import { ChevronLeft, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -17,11 +17,10 @@ import type { Client, Address } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
 
-
 export default function ClientDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
     const { id } = React.use(params);
     return <ClientDetailContent clientId={id} />
@@ -29,16 +28,16 @@ export default function ClientDetailPage({
 
 function ClientDetailContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const clientRef = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'companies', '1', 'clients', clientId);
+    return doc(firestore, 'clients', clientId);
   }, [firestore, isUserLoading, clientId]);
   
   const addressesQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;
-    return collection(firestore, 'companies', '1', 'clients', clientId, 'addresses');
+    return collection(firestore, 'clients', clientId, 'addresses');
   }, [firestore, isUserLoading, clientId]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
@@ -92,12 +91,6 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
           Detalhes do Cliente
         </h1>
-         <Button size="sm" asChild>
-          <Link href={`/clientes/${clientId}/editar`}>
-            <Edit className="h-4 w-4 mr-2" />
-            Editar Cliente
-          </Link>
-        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -173,5 +166,3 @@ function ClientDetailSkeleton() {
     </div>
   );
 }
-
-    

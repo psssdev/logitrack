@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -25,12 +24,13 @@ import { Separator } from '@/components/ui/separator';
 import { OrderStatusBadge } from '@/components/status-badge';
 import { OrderTimeline } from '@/components/order-timeline';
 import { RealTimeTrackingCard } from '@/components/real-time-tracking-card';
+import { UpdateStatusDropdown } from '@/components/update-status-dropdown';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
+import type { Order, Payment } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
-import { Badge } from '@/components/ui/badge';
+import { useStore } from '@/contexts/store-context';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -41,36 +41,31 @@ const paymentMethodLabels: Record<string, string> = {
   haver: 'A Haver',
 };
 
-const formatDate = (date: Date | Timestamp | undefined) => {
+const formatDate = (date: Date | Timestamp | undefined, includeTime = false) => {
   if (!date) return 'Data indisponível';
   const d = date instanceof Timestamp ? date.toDate() : date;
-  return d.toLocaleDateString('pt-BR', {
+  const options: Intl.DateTimeFormatOptions = {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
-  });
+  };
+  if (includeTime) {
+    options.hour = '2-digit';
+    options.minute = '2-digit';
+  }
+  return d.toLocaleDateString('pt-BR', options);
 };
 
-const formatDateTime = (date: Date | Timestamp | undefined) => {
-    if (!date) return 'Data indisponível';
-    const d = date instanceof Timestamp ? date.toDate() : date;
-    return d.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+const formatCurrency = (value: number | undefined) => {
+    if (typeof value !== 'number') return 'R$ 0,00';
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+    }).format(value);
 };
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = React.use(params);
   return <OrderDetailContent orderId={id} />;
 }
@@ -79,14 +74,28 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 function OrderDetailContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
   const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'companies', '1', 'orders', orderId);
-  }, [firestore, isUserLoading, orderId]);
+    if (!firestore || isUserLoading || !selectedStore) return null;
+    // Check both legacy and new path
+    const legacyRef = doc(firestore, 'orders', orderId);
+    const storeRef = doc(firestore, 'stores', selectedStore.id, 'orders', orderId);
+    // In a real scenario, you might check which one exists, but for now we assume new orders are in stores.
+    // This logic might need refinement based on migration status.
+    return storeRef; // Prioritize store-specific path
+  }, [firestore, isUserLoading, orderId, selectedStore]);
+
 
   const { data: order, isLoading } = useDoc<Order>(orderRef);
-  const pageIsLoading = isLoading || isUserLoading;
+  const pageIsLoading = isLoading || isUserLoading || !selectedStore;
+  
+  const totalPaid = React.useMemo(() => {
+    if (!order?.payments) return 0;
+    return order.payments.reduce((acc, p) => acc + p.amount, 0);
+  }, [order]);
+
+  const balanceDue = (order?.valorEntrega || 0) - totalPaid;
 
   if (pageIsLoading) {
     return <OrderDetailsSkeleton />;
@@ -107,14 +116,12 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             <Card>
                 <CardHeader>
                     <CardTitle>Erro 404</CardTitle>
-                    <CardDescription>A encomenda que você está procurando não foi encontrada.</CardDescription>
+                    <CardDescription>A encomenda que você está procurando não foi encontrada nesta loja.</CardDescription>
                 </CardHeader>
             </Card>
         </div>
      )
   }
-  
-  const isPaid = (order.valorPago || 0) >= order.valorEntrega;
 
   return (
     <div className="mx-auto grid max-w-6xl flex-1 auto-rows-max gap-4">
@@ -136,6 +143,9 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
             Criada em {formatDate(order.createdAt)}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+           <UpdateStatusDropdown order={order} />
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[1fr_250px] lg:grid-cols-3 lg:gap-8">
@@ -156,7 +166,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                     </div>
                     <div className="flex items-center justify-between">
                       <dt className="text-muted-foreground">Destino</dt>
-                      <dd>{order.destino.full}</dd>
+                      <dd>{order.destino}</dd>
                     </div>
                     {order.numeroNota && (
                       <div className="flex items-center justify-between">
@@ -225,46 +235,59 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                     </div>
                   </dl>
                 </div>
-                <Separator />
-                <div className="grid gap-3">
-                  <div className="font-semibold">Informações de Pagamento</div>
-                   <dl className="grid gap-3">
-                     <div className="flex items-center justify-between">
-                        <dt className="text-muted-foreground">Status</dt>
-                        <dd>
-                            <Badge variant={isPaid ? "default" : "secondary"} className={`w-fit text-xs ${isPaid ? 'bg-green-500/90' : ''}`}>
-                            {isPaid ? 'Pago Integralmente' : `Pendente: ${formatCurrency(order.valorEntrega - (order.valorPago || 0))}`}
-                            </Badge>
-                        </dd>
-                     </div>
-                   </dl>
-                    {order.pagamentos && order.pagamentos.length > 0 && (
-                        <div className="pt-2">
-                         <h4 className="text-sm font-medium text-muted-foreground mb-2">Histórico de Pagamentos</h4>
+              </div>
+            </CardContent>
+          </Card>
+          
+           <Card>
+            <CardHeader>
+                <CardTitle>Histórico de Pagamentos</CardTitle>
+                 <CardDescription>Resumo financeiro e pagamentos realizados.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-4">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Total da Encomenda</p>
+                            <p className="font-semibold">{formatCurrency(order.valorEntrega)}</p>
+                        </div>
+                         <div>
+                            <p className="text-sm text-muted-foreground">Total Pago</p>
+                            <p className="font-semibold text-green-600">{formatCurrency(totalPaid)}</p>
+                        </div>
+                         <div>
+                            <p className="text-sm text-muted-foreground">Saldo Devedor</p>
+                            <p className={`font-semibold ${balanceDue > 0 ? 'text-destructive' : 'text-foreground'}`}>{formatCurrency(balanceDue)}</p>
+                        </div>
+                    </div>
+
+                    {order.payments && order.payments.length > 0 && (
+                        <>
+                        <Separator />
                          <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Data</TableHead>
-                                    <TableHead>Forma</TableHead>
+                                    <TableHead>Método</TableHead>
                                     <TableHead className="text-right">Valor</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {order.pagamentos.map((p, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell>{formatDateTime(p.data)}</TableCell>
-                                        <TableCell>{paymentMethodLabels[p.forma]}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(p.valor)}</TableCell>
+                                {order.payments.map((payment, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>{formatDate(payment.date)}</TableCell>
+                                        <TableCell>{paymentMethodLabels[payment.method] || payment.method}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(payment.amount)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                          </Table>
-                        </div>
+                        </>
                     )}
                 </div>
-              </div>
             </CardContent>
-          </Card>
+           </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Linha do Tempo</CardTitle>

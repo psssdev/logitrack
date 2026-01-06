@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -13,15 +12,16 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { EditClientForm } from '@/components/edit-client-form';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import type { Client } from '@/lib/types';
-import { doc } from 'firebase/firestore';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import type { Client, Destino } from '@/lib/types';
+import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
 
 export default function EditClientPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const { id } = React.use(params);
   return <EditClientContent clientId={id} />;
@@ -29,15 +29,30 @@ export default function EditClientPage({
 
 function EditClientContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
+
+  const canQuery = firestore && selectedStore && !isUserLoading;
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'companies', '1', 'clients', clientId);
-  }, [firestore, clientId]);
+    if (!canQuery) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'clients', clientId);
+  }, [canQuery, firestore, selectedStore, clientId]);
 
-  const { data: client, isLoading } = useDoc<Client>(clientRef);
+  const destinosQuery = useMemoFirebase(() => {
+    if (!canQuery) return null;
+    return query(
+        collection(firestore, 'stores', selectedStore.id, 'destinos'),
+        orderBy('name', 'asc')
+    );
+  }, [canQuery, firestore, selectedStore]);
 
-  if (isLoading) {
+  const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
+  const { data: destinos, isLoading: isLoadingDestinos } = useCollection<Destino>(destinosQuery);
+
+  const pageIsLoading = isLoadingClient || isLoadingDestinos || isUserLoading || !selectedStore;
+
+  if (pageIsLoading) {
     return (
       <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
         <div className="flex items-center gap-4">
@@ -100,18 +115,13 @@ function EditClientContent({ clientId }: { clientId: string }) {
         <CardHeader>
           <CardTitle>Dados do Cliente</CardTitle>
           <CardDescription>
-            Atualize as informações do cliente{' '}
-            <span className="font-semibold text-foreground">
-              {client.nome}
-            </span>
-            .
+            Altere as informações do cliente abaixo.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <EditClientForm client={client} />
+          {client && destinos && <EditClientForm client={client} destinos={destinos} />}
         </CardContent>
       </Card>
     </div>
   );
 }
-

@@ -1,8 +1,7 @@
 
 'use client'
 
-import React from 'react';
-import { getFirestoreServer } from '@/lib/actions-public';
+import { getOrderByTrackingCode } from '@/lib/actions-public';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -18,51 +17,29 @@ import { Logo } from '@/components/logo';
 import Link from 'next/link';
 import { Package, Search, AlertCircle, Home } from 'lucide-react';
 import type { Order } from '@/lib/types';
-import { useEffect, useState } from 'react';
-import { collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { useEffect, useState, use } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const COMPANY_ID = '1';
-
-async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | null> {
-    const firestore = getFirestoreServer();
-    const ordersCollection = collection(firestore, `companies/${COMPANY_ID}/orders`);
-    const q = query(
-      ordersCollection,
-      where("codigoRastreio", "==", codigoRastreio.toUpperCase()),
-      limit(1)
-    );
-  
-    try {
-      const querySnapshot = await getDocs(q);
-      if (querySnapshot.empty) {
-        return null;
-      }
-      const orderDoc = querySnapshot.docs[0];
-      return { id: orderDoc.id, ...orderDoc.data() } as Order;
-    } catch (error) {
-      console.error("Error fetching order by tracking code: ", error);
-      return null;
-    }
-}
-
 
 export default function RastreioPage({
   params,
 }: {
-  params: Promise<{ codigo: string }>;
+  params: { codigo: string };
 }) {
+  const { codigo } = use(params);
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  
-  const resolvedParams = React.use(params);
 
   useEffect(() => {
     async function fetchOrder() {
         setLoading(true);
         setError(false);
-        const fetchedOrder = await getOrderByTrackingCode(resolvedParams.codigo);
+        if(!codigo) {
+            setError(true);
+            setLoading(false);
+            return;
+        }
+        const fetchedOrder = await getOrderByTrackingCode(codigo);
         if(fetchedOrder) {
             setOrder(fetchedOrder);
         } else {
@@ -71,7 +48,7 @@ export default function RastreioPage({
         setLoading(false);
     }
     fetchOrder();
-  }, [resolvedParams.codigo]);
+  }, [codigo]);
 
   if(loading) {
     return <RastreioSkeleton />
@@ -89,7 +66,7 @@ export default function RastreioPage({
             <CardDescription>
               O código de rastreio{' '}
               <strong className="font-mono text-foreground">
-                {resolvedParams.codigo.toUpperCase()}
+                {codigo ? codigo.toUpperCase() : ''}
               </strong>{' '}
               não foi encontrado em nosso sistema.
             </CardDescription>
@@ -157,7 +134,7 @@ export default function RastreioPage({
                 <Separator className="my-1 sm:hidden" />
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                   <dt className="text-muted-foreground">Para</dt>
-                  <dd className="font-medium">{order.destino.full}</dd>
+                  <dd className="font-medium">{order.destino}</dd>
                 </div>
               </dl>
             </div>
@@ -170,15 +147,15 @@ export default function RastreioPage({
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      <div className="text-center">
-        <Button variant="outline" asChild>
-          <Link href="/rastreio">
-            <Search className="mr-2 h-4 w-4" />
-            Rastrear outra encomenda
-          </Link>
-        </Button>
+        <div className="text-center">
+          <Button variant="outline" asChild>
+            <Link href="/rastreio">
+              <Search className="mr-2 h-4 w-4" />
+              Rastrear outra encomenda
+            </Link>
+          </Button>
+        </div>
       </div>
       <footer className="mt-12 text-center text-sm text-muted-foreground">
         &copy; {new Date().getFullYear()} LogiTrack. Todos os direitos

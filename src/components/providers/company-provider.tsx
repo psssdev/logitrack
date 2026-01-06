@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Company } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 
@@ -16,11 +16,12 @@ const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user || isUserLoading) return null;
     return doc(firestore, 'companies', COMPANY_ID);
-  }, [firestore]);
+  }, [firestore, user, isUserLoading]);
 
   const { data: company, isLoading } = useDoc<Company>(companyRef);
 

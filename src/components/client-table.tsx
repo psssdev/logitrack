@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, ArrowRight, Edit, Trash2 } from 'lucide-react';
+import { MoreHorizontal, ArrowRight } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -95,11 +95,9 @@ export default function ClientTable({ clients }: { clients: Client[] }) {
                             <Link href={`/clientes/${client.id}`}>Ver Detalhes</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={`/clientes/${client.id}/editar`}>Editar Cliente</Link>
+                            <Link href={`/clientes/${client.id}/editar`}>Editar</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            Excluir
-                          </DropdownMenuItem>
+                          
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

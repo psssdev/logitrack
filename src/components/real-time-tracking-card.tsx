@@ -38,7 +38,7 @@ export function RealTimeTrackingCard({ order }: { order: Order }) {
         const result = await getRealTimeOrderStatus({
           orderId: order.codigoRastreio,
           currentLocation: 'Meio do caminho',
-          destination: order.destino.full,
+          destination: order.destino,
         });
         setData(result);
       } catch (e) {

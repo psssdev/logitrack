@@ -1,3 +1,4 @@
+'use client';
 
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
@@ -13,7 +14,7 @@ import { NewDriverForm } from '@/components/new-driver-form';
 
 export default function NewDriverPage() {
   return (
-    <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
+    <div className="mx-auto grid w-full max-w-xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
           <Link href="/motoristas">
@@ -29,8 +30,7 @@ export default function NewDriverPage() {
         <CardHeader>
           <CardTitle>Dados do Motorista</CardTitle>
           <CardDescription>
-            Preencha os campos abaixo para cadastrar um novo motorista na sua
-            equipe.
+            Preencha os campos abaixo para cadastrar um novo motorista.
           </CardDescription>
         </CardHeader>
         <CardContent>

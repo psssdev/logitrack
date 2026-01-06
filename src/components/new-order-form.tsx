@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { newOrderSchema } from '@/lib/schemas';
-import type { NewOrder, Client, Address, Origin, Driver } from '@/lib/types';
+import type { NewOrder, Client, Address, Origin, Driver, Destino, Company } from '@/lib/types';
 import { triggerRevalidation } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -47,6 +47,7 @@ import {
   Trash2,
   PlusCircle,
   Send,
+  CalendarIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -62,7 +63,7 @@ import {
 } from './ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { addDoc, collection, doc, query, serverTimestamp, orderBy } from 'firebase/firestore';
+import { addDoc, collection, doc, query, serverTimestamp, Timestamp } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -72,8 +73,10 @@ import {
   TableHeader,
   TableRow,
 } from './ui/table';
-
-// ===================== helpers e consts =====================
+import { useStore } from '@/contexts/store-context';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const paymentMethodLabels = {
   pix: 'PIX',
@@ -82,348 +85,358 @@ const paymentMethodLabels = {
   boleto: 'Boleto',
   link: 'Link de Pagamento',
   haver: 'A Haver',
-} as const;
-
-const COMPANY_ID = '1';
+};
 
 const formatCurrency = (value: number | undefined) => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return 'R$ 0,00';
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-};
+    if (typeof value !== 'number') return 'R$ 0,00';
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
 
-const waUrl = (phoneE164: string, message: string) => {
-  const cleaned = phoneE164.replace(/\D/g, '');
-  const fullPhone = cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
-  return `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
-};
+const openWhatsApp = (phone: string, message: string) => {
+    const cleanedPhone = phone.replace(/\D/g, '');
+    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
+    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+}
 
-const mapsUrl = (lat: number, lng: number) => `https://maps.google.com/?q=${lat},${lng}`;
-
-const renderTpl = (tpl: string, vars: Record<string, string>) =>
-  tpl.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? vars[k] : ''));
-
-// Opcional: defina um tipo do documento gravado
-type OrderDoc = NewOrder & {
-  valorEntrega: number;
-  valorPago: number;
-  pagamentos: any[];
-  totalVolumes: number;
-  nomeCliente: string;
-  telefone: string;
-  codigoRastreio: string;
-  status: 'PENDENTE' | 'EM_ROTA' | 'ENTREGUE' | string;
-  createdAt: any;
-  createdBy: string;
-  timeline: { status: string; at: any; userId: string }[];
-  messages: any[];
-  destino: { id: string; full: string } | null;
-};
-
-// ===================== componente =====================
+const itemDescriptionOptions = ['Pacote', 'Fardo', 'Caixa'];
+const predefinedValues = [50, 80, 100, 150];
 
 export function NewOrderForm({
   clients,
   origins,
+  destinos,
+  company,
 }: {
   clients: Client[];
   origins: Origin[];
+  destinos: Destino[];
+  company: Company;
 }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-
+  const { selectedStore } = useStore();
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState(false);
-  const [submitAction, setSubmitAction] = React.useState<'save' | 'save-and-send'>('save');
-
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [submitAction, setSubmitAction] = React.useState<'save' | 'save-and-send'>('save');
 
   const form = useForm<NewOrder>({
     resolver: zodResolver(newOrderSchema),
     defaultValues: {
+      storeId: selectedStore?.id || '',
+      createdAt: new Date(),
       origem: origins.length > 0 ? origins[0].address : '',
-      destino: '', // guardaremos o ID do endereço
-      items: [{ description: '', quantity: 1, value: 0 }],
-      formaPagamento: 'pix',
+      destino: '',
+      items: [{ description: 'Pacote', quantity: 1, value: 50 }],
+      formaPagamento: 'haver',
       observacao: '',
       numeroNota: '',
-      motoristaId: undefined, // normalizaremos 'none' -> undefined
-      clientId: undefined,
+      motoristaId: '',
     },
-    mode: 'onChange',
   });
 
-  const { fields, append, remove } = useFieldArray({ control: form.control, name: 'items' });
+  React.useEffect(() => {
+    if (selectedStore?.id) {
+        form.setValue('storeId', selectedStore.id);
+    }
+  }, [selectedStore, form]);
+
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'items',
+  });
 
   const selectedClientId = form.watch('clientId');
   const items = form.watch('items');
+  const totalValue = items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0);
 
-  // Directly calculate totalValue and totalVolumes based on watched 'items'
-  const watchedItems = form.watch('items');
-  const totalValue = (watchedItems || []).reduce((acc, item) => acc + ((item.quantity || 0) * (item.value || 0)), 0);
-  const totalVolumes = (watchedItems || []).reduce((acc, item) => acc + (item.quantity || 0), 0);
-
-
-  // ---- drivers
-  const driversQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(collection(firestore, 'companies', COMPANY_ID, 'drivers'), orderBy('nome'));
-  }, [firestore, isUserLoading]);
-
-  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
-
-  // ---- addresses do cliente selecionado
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedClientId || isUserLoading) return null;
-    return query(collection(firestore, 'companies', COMPANY_ID, 'clients', selectedClientId, 'addresses'));
-  }, [firestore, selectedClientId, isUserLoading]);
+    if (!firestore || !selectedClientId || isUserLoading || !user) return null;
+    return query(
+      collection(
+        firestore,
+        'stores',
+        selectedClientId,
+        'addresses'
+      )
+    );
+  }, [firestore, selectedClientId, isUserLoading, user]);
 
-  const { data: addresses, isLoading: loadingAddresses } = useCollection<Address>(addressesQuery);
+  const { data: addresses, isLoading: loadingAddresses } =
+    useCollection<Address>(addressesQuery);
 
-  // define destino default pelo primeiro endereço do cliente (ID)
+  const { data: drivers, isLoading: loadingDrivers } = useCollection<Driver>(useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return query(collection(firestore, 'stores', selectedStore!.id, 'drivers'));
+  }, [firestore, isUserLoading, user, selectedStore]));
+
+  // Auto-select destination based on client's addresses
   React.useEffect(() => {
-    if (!addresses) return;
-    if (addresses.length > 0) {
-      if (!form.getValues('destino')) {
-        form.setValue('destino', addresses[0].id);
+    if (selectedClientId) {
+      const selectedClient = clients.find(c => c.id === selectedClientId);
+      if (selectedClient?.defaultDestinoId) {
+        const defaultDestino = addresses?.find(a => a.id === selectedClient.defaultDestinoId) || destinos.find(d => d.id === selectedClient.defaultDestinoId);
+        if (defaultDestino) {
+          form.setValue('destino', defaultDestino.address || (defaultDestino as Address).fullAddress);
+          return;
+        }
       }
-    } else {
-      form.setValue('destino', '');
+      if (addresses && addresses.length > 0) {
+        const mainAddress = addresses.find(a => a.principal) || addresses[0];
+        if (mainAddress) {
+          form.setValue('destino', mainAddress.fullAddress);
+        }
+      } else {
+        form.setValue('destino', '');
+      }
     }
-  }, [addresses, form]);
+  }, [addresses, form, selectedClientId, clients, destinos]);
 
-  // define origem default pela primeira origem disponível
+
+  const handleOpenScanner = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setHasCameraPermission(true);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Erro ao aceder à câmera:', error);
+      setHasCameraPermission(false);
+      toast({
+        variant: 'destructive',
+        title: 'Acesso à Câmera Negado',
+        description:
+          'Por favor, habilite a permissão de câmera nas configurações do seu navegador para usar esta funcionalidade.',
+      });
+    }
+  };
+
   React.useEffect(() => {
     if (origins.length > 0 && !form.getValues('origem')) {
       form.setValue('origem', origins[0].address);
     }
   }, [origins, form]);
 
-  // ---- camera: abrir/fechar
-  const handleOpenScanner = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setHasCameraPermission(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      setHasCameraPermission(false);
-      toast({
-        variant: 'destructive',
-        title: 'Acesso à Câmera Negado',
-        description: 'Por favor, habilite a permissão de câmera no seu navegador.',
-      });
-    }
-  };
-
-  const stopScanner = React.useCallback(() => {
-    const stream = (videoRef.current?.srcObject as MediaStream | null) || null;
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop());
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, []);
-
-  React.useEffect(() => {
-    return () => stopScanner();
-  }, [stopScanner]);
-
-  // ---- submit
   async function onSubmit(data: NewOrder) {
-    if (!firestore || !user) {
+    if (!firestore || !user || !selectedStore) {
       toast({
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Usuário não autenticado ou falha na conexão.',
+        title: 'Erro de Conexão',
+        description: 'Não foi possível conectar à base de dados. Por favor, tente novamente.',
       });
       return;
     }
 
-    // validações extras
-    const client = clients.find((c) => c.id === data.clientId);
-    if (!client) {
-      toast({ variant: 'destructive', title: 'Selecione um cliente válido' });
-      return;
-    }
-
-    if (!data.destino) {
-      toast({ variant: 'destructive', title: 'Selecione um endereço de destino' });
-      return;
-    }
-
-    if (!items.length || totalValue <= 0) {
-      toast({ variant: 'destructive', title: 'Adicione ao menos um item com quantidade/valor válidos' });
-      return;
-    }
-
     try {
-      const driverId = data.motoristaId === 'none' ? undefined : data.motoristaId;
+      const client = clients.find((c) => c.id === data.clientId);
+      if (!client) {
+        form.setError('clientId', { type: 'manual', message: 'Cliente não encontrado. Por favor, selecione um cliente válido.' });
+        toast({
+          variant: 'destructive',
+          title: 'Cliente Inválido',
+          description: 'O cliente selecionado não foi encontrado.',
+        });
+        return;
+      }
 
-      const address = addresses?.find((a) => a.id === data.destino) || null;
-      const destino = address ? { id: address.id, full: address.fullAddress } : null;
+      const trackingPrefix = company?.codigoPrefixo || 'TR';
+      const trackingCode = `${trackingPrefix}-${Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase()}`;
 
-      const createdAtTimestamp = serverTimestamp();
+      const ordersCollection = collection(
+        firestore,
+        'stores', selectedStore.id, 'orders'
+      );
+      
+      const { createdAt, ...restOfData } = data;
 
-      // código de rastreio (pode trocar por nanoid se preferir)
-      const trackingPrefix = 'TR';
-      const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
-      const trackingCode = `${trackingPrefix}-${randomPart}`;
-
-      const ordersCollection = collection(firestore, 'companies', COMPANY_ID, 'orders');
-
-      const orderData: OrderDoc = {
-        ...data,
-        motoristaId: driverId,
-        destino,
+      const newOrderData = {
+        ...restOfData,
+        storeId: selectedStore.id,
+        motoristaId: data.motoristaId === 'null' ? null : data.motoristaId,
         valorEntrega: totalValue,
-        valorPago: 0,
-        pagamentos: [],
-        totalVolumes,
         nomeCliente: client.nome,
         telefone: client.telefone,
         codigoRastreio: trackingCode,
         status: 'PENDENTE',
-        createdAt: createdAtTimestamp,
+        pago: false,
+        createdAt: createdAt ? Timestamp.fromDate(createdAt) : serverTimestamp(),
         createdBy: user.uid,
-        timeline: [{ status: 'PENDENTE', at: new Date(), userId: user.uid }],
+        timeline: [
+          { status: 'PENDENTE', at: createdAt ? Timestamp.fromDate(createdAt) : new Date(), userId: user.uid },
+        ],
         messages: [],
       };
 
-      if (!driverId) delete (orderData as any).motoristaId;
+      const newDocRef = await addDoc(ordersCollection, newOrderData);
 
-      const newDocRef = await addDoc(ordersCollection, orderData);
-
-      await Promise.all([
-        triggerRevalidation('/encomendas'),
-        triggerRevalidation('/dashboard'),
-        triggerRevalidation('/financeiro'),
-      ]);
+      await triggerRevalidation('/encomendas');
+      await triggerRevalidation('/dashboard');
+      await triggerRevalidation('/financeiro');
 
       if (submitAction === 'save-and-send') {
-        // preparar aba antes para evitar bloqueio de popup
-        const newTab = window.open('', '_blank');
-
-        const trackingLink = `https://seusite.com/rastreio/${trackingCode}`; // ajuste para seu domínio real
+        const trackingLink = `${company.linkBaseRastreio || 'https://seusite.com/rastreio/'}${trackingCode}`;
         const totalValueFormatted = formatCurrency(totalValue);
-        const volumesStr = String(totalVolumes);
+        const totalVolumes = data.items.reduce((acc, item) => acc + (item.quantity || 0), 0).toString();
+        
+        let messageTemplate = company.msgRecebido || "Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}";
+        let message = messageTemplate;
+        message = message.replace('{cliente}', client.nome);
+        message = message.replace('{codigo}', trackingCode);
+        message = message.replace('{link}', trackingLink);
+        message = message.replace('{valor}', totalValueFormatted);
+        message = message.replace('{volumes}', totalVolumes);
 
-        const messageTemplate =
-          'Olá {cliente}! Recebemos sua encomenda de {volumes} volume(s) com o código {codigo}. O valor da entrega é de {valor}. Acompanhe em: {link}';
+        openWhatsApp(client.telefone, message);
 
-        const message = renderTpl(messageTemplate, {
-          cliente: client.nome,
-          volumes: volumesStr,
-          codigo: trackingCode,
-          valor: totalValueFormatted,
-          link: trackingLink,
+        toast({
+            title: 'Encomenda Criada e Notificação Enviada!',
+            description: 'A encomenda foi registada e a notificação está pronta para ser enviada via WhatsApp.',
         });
 
-        const url = waUrl(client.telefone, message);
-        if (newTab) newTab.location.href = url;
-
-        toast({ title: 'Sucesso!', description: 'Encomenda criada e notificação enviada.' });
         router.push(`/encomendas`);
       } else {
-        toast({ title: 'Sucesso!', description: 'Encomenda criada. Agora, revise e envie o comprovante.' });
+        toast({
+            title: 'Encomenda Criada com Sucesso!',
+            description: 'Agora pode rever os detalhes e enviar o comprovativo ao cliente.',
+        });
         router.push(`/encomendas/comprovante/${newDocRef.id}`);
       }
+
+
     } catch (error: any) {
-      console.error('Error creating order:', error);
+      console.error('Erro ao criar encomenda:', error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao criar encomenda.',
-        description: error?.message || 'Ocorreu um erro desconhecido.',
+        title: 'Erro ao Criar Encomenda',
+        description: 'Não foi possível registar a encomenda. Por favor, verifique os dados e tente novamente.',
       });
     }
   }
 
-  // estados para habilitar/desabilitar botões
-  const isSubmitting = form.formState.isSubmitting;
-  const canSubmit = !!form.watch('clientId') && !!form.watch('destino') && items.length > 0;
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
-        {/* CLIENTE */}
-        <FormField
-          control={form.control}
-          name="clientId"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Cliente *</FormLabel>
-              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className={cn('w-full justify-between', !field.value && 'text-muted-foreground')}
-                    >
-                      {field.value ? clients.find((c) => c.id === field.value)?.nome : 'Selecione um cliente'}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar cliente..." />
-                    <CommandList>
-                      <CommandEmpty>
-                        <div className="p-4 text-center text-sm">
-                          <p>Nenhum cliente encontrado.</p>
-                          <Button variant="link" asChild className="mt-2">
-                            <Link href="/clientes/novo">Cadastrar novo cliente</Link>
-                          </Button>
-                        </div>
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {clients.map((client) => (
-                          <CommandItem
-                            key={client.id}
-                            value={client.nome}
-                            onSelect={() => {
-                              form.setValue('clientId', client.id, { shouldDirty: true, shouldValidate: true });
-                              form.setValue('destino', ''); // reset ao trocar cliente
-                              setPopoverOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn('mr-2 h-4 w-4', client.id === field.value ? 'opacity-100' : 'opacity-0')}
-                              aria-hidden="true"
-                            />
-                            <div>
-                              <p>{client.nome}</p>
-                              <p className="text-xs text-muted-foreground">{client.telefone}</p>
+        <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+            control={form.control}
+            name="clientId"
+            render={({ field }) => (
+                <FormItem className="flex flex-col">
+                <FormLabel>Cliente *</FormLabel>
+                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                            'w-full justify-between',
+                            !field.value && 'text-muted-foreground'
+                        )}
+                        >
+                        {field.value
+                            ? clients.find((client) => client.id === field.value)
+                                ?.nome
+                            : 'Selecione um cliente'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                        <CommandInput placeholder="Buscar cliente..." />
+                        <CommandList>
+                        <CommandEmpty>
+                            <div className="p-4 text-center text-sm">
+                            <p>Nenhum cliente encontrado.</p>
+                            <Button variant="link" asChild className="mt-2">
+                                <Link href="/clientes/novo">
+                                Cadastrar novo cliente
+                                </Link>
+                            </Button>
                             </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                        </CommandEmpty>
+                        <CommandGroup>
+                            {clients.map((client) => (
+                            <CommandItem
+                                value={client.nome}
+                                key={client.id}
+                                onSelect={() => {
+                                form.setValue('clientId', client.id);
+                                setPopoverOpen(false);
+                                }}
+                            >
+                                <Check
+                                className={cn(
+                                    'mr-2 h-4 w-4',
+                                    client.id === field.value
+                                    ? 'opacity-100'
+                                    : 'opacity-0'
+                                )}
+                                />
+                                <div>
+                                <p>{client.nome}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {client.telefone}
+                                </p>
+                                </div>
+                            </CommandItem>
+                            ))}
+                        </CommandGroup>
+                        </CommandList>
+                    </Command>
+                    </PopoverContent>
+                </Popover>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+                control={form.control}
+                name="createdAt"
+                render={({ field }) => (
+                <FormItem className="flex flex-col">
+                    <FormLabel>Data da Encomenda</FormLabel>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <FormControl>
+                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                            </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
+                        </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        </div>
 
-        {/* ORIGEM / DESTINO */}
+
         <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
             name="origem"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Endereço de Origem *</FormLabel>
+                <FormLabel>Ponto de Origem da Encomenda *</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um endereço de origem" />
+                      <SelectValue placeholder="Selecione um ponto de origem" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -443,8 +456,8 @@ export function NewOrderForm({
             name="destino"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Endereço de Destino *</FormLabel>
-                <Select
+                <FormLabel>Destino da Encomenda (Endereço do Cliente) *</FormLabel>
+                 <Select
                   onValueChange={field.onChange}
                   value={field.value}
                   disabled={!selectedClientId || loadingAddresses}
@@ -456,7 +469,7 @@ export function NewOrderForm({
                           !selectedClientId
                             ? 'Selecione um cliente primeiro'
                             : loadingAddresses
-                            ? 'Carregando endereços...'
+                            ? 'A carregar...'
                             : 'Selecione um endereço'
                         }
                       />
@@ -464,165 +477,176 @@ export function NewOrderForm({
                   </FormControl>
                   <SelectContent>
                     {addresses && addresses.length > 0 ? (
-                      addresses.map((address) => (
-                        <SelectItem key={address.id} value={address.id}>
-                          {address.label} - {address.fullAddress}
+                      addresses.map((loc) => (
+                        <SelectItem
+                          key={loc.id}
+                          value={(loc as Address).fullAddress}
+                        >
+                          {(loc as Address).label} - {(loc as Address).fullAddress}
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="__no_address__" disabled>
-                        {loadingAddresses ? 'Carregando...' : 'Nenhum endereço cadastrado'}
-                      </SelectItem>
+                      destinos.map((loc) => (
+                         <SelectItem
+                          key={loc.id}
+                          value={loc.address}
+                        >
+                          {loc.name} - {loc.address}
+                        </SelectItem>
+                      ))
                     )}
+                     {selectedClientId && !loadingAddresses && (!addresses || addresses.length === 0) && (!destinos || destinos.length === 0) && (
+                         <SelectItem value="no-location" disabled>Nenhum endereço ou destino encontrado</SelectItem>
+                     )}
                   </SelectContent>
                 </Select>
-                {selectedClientId && !loadingAddresses && (!addresses || addresses.length === 0) && (
-                  <Button variant="link" asChild className="p-0 h-auto mt-2 text-sm">
-                    <Link href={`/clientes/${selectedClientId}/enderecos/novo`}>Cadastrar novo endereço</Link>
-                  </Button>
-                )}
+                {selectedClientId &&
+                  !loadingAddresses &&
+                  (!addresses || addresses.length === 0) && (
+                    <Button
+                      variant="link"
+                      asChild
+                      className="p-0 h-auto mt-2 text-sm"
+                    >
+                      <Link
+                        href={`/clientes/${selectedClientId}/enderecos/novo`}
+                      >
+                        Cadastrar novo endereço para este cliente
+                      </Link>
+                    </Button>
+                  )}
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-
-        {/* ITENS */}
+        
         <div className="grid gap-4">
-          <div className="flex justify-between items-center">
-            <FormLabel>Itens da Encomenda</FormLabel>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => append({ description: '', quantity: 1, value: 0 })}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" aria-hidden="true" />
-              Adicionar Item
-            </Button>
-          </div>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-1/2">Descrição</TableHead>
-                  <TableHead>Qtd.</TableHead>
-                  <TableHead>Valor Unit.</TableHead>
-                  <TableHead className="text-right">Subtotal</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Ações</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fields.map((f, index) => {
-                  const item = items[index];
-                  const subtotal = ((item?.quantity || 0) * (item?.value || 0)) || 0;
+            <div className="flex justify-between items-center">
+                <FormLabel>Itens da Encomenda</FormLabel>
+                <Button type="button" size="sm" variant="outline" onClick={() => append({ description: 'Pacote', quantity: 1, value: 50 })}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Adicionar Item
+                </Button>
+            </div>
+             <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-1/2">Descrição</TableHead>
+                            <TableHead>Qtd.</TableHead>
+                            <TableHead>Valor Unit.</TableHead>
+                            <TableHead className="text-right">Subtotal</TableHead>
+                            <TableHead><span className="sr-only">Ações</span></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {fields.map((field, index) => {
+                             const item = items[index];
+                             const subtotal = (item?.quantity || 0) * (item?.value || 0);
 
-                  return (
-                    <TableRow key={f.id}>
-                      <TableCell>
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.description`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input {...field} placeholder="Descrição do item" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.quantity`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  step={1}
-                                  {...field}
-                                  onChange={(e) => {
-                                      const value = parseInt(e.target.value, 10);
-                                      field.onChange(isNaN(value) ? 0 : value);
-                                      form.trigger('items');
-                                  }}
-                                  className="w-20"
-                                  aria-label="Quantidade"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.value`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  {...field}
-                                  onChange={(e) => {
-                                    const value = parseFloat(e.target.value);
-                                    field.onChange(isNaN(value) ? 0 : value);
-                                    form.trigger('items');
-                                  }}
-                                  className="w-24"
-                                  aria-label="Valor unitário"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(subtotal)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(index)}
-                          disabled={fields.length <= 1}
-                          aria-label="Remover item"
-                          title="Remover item"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={3} className="font-semibold text-right">
-                    Total ({totalVolumes} {totalVolumes === 1 ? 'volume' : 'volumes'})
-                  </TableCell>
-                  <TableCell className="text-right font-bold text-lg">
-                    {formatCurrency(totalValue)}
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableFooter>
-            </Table>
-          </div>
+                            return (
+                            <TableRow key={field.id}>
+                                <TableCell>
+                                    <FormField
+                                        control={form.control}
+                                        name={`items.${index}.description`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecione o tipo"/>
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {itemDescriptionOptions.map(option => (
+                                                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <FormField
+                                        control={form.control}
+                                        name={`items.${index}.quantity`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                    <Input type="number" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 1)} className="w-20" />
+                                                </FormControl>
+                                                 <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <FormField
+                                        control={form.control}
+                                        name={`items.${index}.value`}
+                                        render={({ field }) => {
+                                            const isCustom = !predefinedValues.includes(field.value || 0);
+                                            return (
+                                                <FormItem>
+                                                    <div className="flex gap-2">
+                                                        <Select
+                                                            onValueChange={(value) => {
+                                                                if (value !== 'outro') {
+                                                                    field.onChange(Number(value));
+                                                                } else {
+                                                                    field.onChange(0); // Or some other indicator for custom
+                                                                }
+                                                            }}
+                                                            value={isCustom ? 'outro' : String(field.value)}
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className={cn(isCustom ? 'w-2/5' : 'w-full')}>
+                                                                    <SelectValue placeholder="Valor"/>
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                {predefinedValues.map(v => (
+                                                                    <SelectItem key={v} value={String(v)}>{formatCurrency(v)}</SelectItem>
+                                                                ))}
+                                                                <SelectItem value="outro">Outro...</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {isCustom && (
+                                                            <FormControl>
+                                                                <Input type="number" {...field} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="w-3/5" placeholder="Valor" autoFocus/>
+                                                            </FormControl>
+                                                        )}
+                                                    </div>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )
+                                        }}
+                                    />
+                                </TableCell>
+                                <TableCell className="text-right font-medium">{formatCurrency(subtotal)}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        )})}
+                    </TableBody>
+                    <TableFooter>
+                        <TableRow>
+                            <TableCell colSpan={3} className="font-semibold text-right">Total</TableCell>
+                            <TableCell className="text-right font-bold text-lg">{formatCurrency(totalValue)}</TableCell>
+                            <TableCell />
+                        </TableRow>
+                    </TableFooter>
+                </Table>
+             </div>
         </div>
 
-        {/* NF-e & Scanner */}
         <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
@@ -632,20 +656,29 @@ export function NewOrderForm({
                 <FormLabel>Número da Nota</FormLabel>
                 <div className="flex gap-2">
                   <FormControl>
-                    <Input placeholder="Nº da nota fiscal" {...field} value={field.value ?? ''} />
+                    <Input
+                      placeholder="Nº da nota fiscal (opcional)"
+                      {...field}
+                      value={field.value ?? ''}
+                    />
                   </FormControl>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="icon" onClick={handleOpenScanner} aria-label="Abrir câmera">
-                        <Camera className="h-4 w-4" aria-hidden="true" />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleOpenScanner}
+                      >
+                        <Camera className="h-4 w-4" />
                         <span className="sr-only">Ler código de acesso</span>
                       </Button>
                     </DialogTrigger>
-                    <DialogContent onInteractOutside={stopScanner} onEscapeKeyDown={stopScanner}>
+                    <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Ler Código de Acesso</DialogTitle>
+                        <DialogTitle>Ler Código de Acesso da Nota Fiscal</DialogTitle>
                         <DialogDescription>
-                          Aponte a câmera para o código de barras ou QR code da nota fiscal.
+                          Aponte a câmera para o código de barras ou QR code da
+                          nota fiscal. A leitura ainda não está implementada.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="my-4">
@@ -659,14 +692,15 @@ export function NewOrderForm({
                           <Alert variant="destructive" className="mt-4">
                             <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
                             <AlertDescription>
-                              Por favor, permita o acesso à câmera para usar esta funcionalidade.
+                              Por favor, permita o acesso à câmera para usar
+                              esta funcionalidade.
                             </AlertDescription>
                           </Alert>
                         )}
                       </div>
                       <DialogFooter>
                         <DialogClose asChild>
-                          <Button type="button" variant="secondary" onClick={stopScanner}>
+                          <Button type="button" variant="secondary">
                             Fechar
                           </Button>
                         </DialogClose>
@@ -678,26 +712,29 @@ export function NewOrderForm({
               </FormItem>
             )}
           />
-
-          {/* Pagamento */}
-          <FormField
+           <FormField
             control={form.control}
             name="formaPagamento"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Forma de Pagamento *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {Object.entries(paymentMethodLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
+                    {Object.entries(paymentMethodLabels).map(
+                      ([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      )
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -705,8 +742,7 @@ export function NewOrderForm({
             )}
           />
         </div>
-
-        {/* Motorista */}
+        
         <div className="grid gap-4 md:grid-cols-3">
           <FormField
             control={form.control}
@@ -714,18 +750,14 @@ export function NewOrderForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Motorista</FormLabel>
-                <Select
-                  onValueChange={(v) => field.onChange(v === 'none' ? undefined : v)}
-                  value={field.value ?? 'none'}
-                  disabled={isLoadingDrivers}
-                >
+                <Select onValueChange={field.onChange} value={field.value} disabled={loadingDrivers}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Atribuir motorista..." />
+                      <SelectValue placeholder={loadingDrivers ? "A carregar..." : "Atribuir a um motorista..."} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
+                    <SelectItem value="null">Nenhum</SelectItem>
                     {drivers?.map((driver) => (
                       <SelectItem key={driver.id} value={driver.id}>
                         {driver.nome}
@@ -739,7 +771,6 @@ export function NewOrderForm({
           />
         </div>
 
-        {/* Observação */}
         <FormField
           control={form.control}
           name="observacao"
@@ -748,47 +779,34 @@ export function NewOrderForm({
               <FormLabel>Observação</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Ex: Entregar na portaria, pacote frágil, etc."
+                  placeholder="Ex: Entregar na portaria, pacote frágil, etc. (opcional)"
                   className="resize-none"
                   {...field}
+                  value={field.value ?? ''}
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        {/* Ações */}
-        <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 md:justify-end">
-          <div className="text-sm text-muted-foreground md:mr-auto">
-            <span className="font-medium">{items.length}</span> item(s),{' '}
-            <span className="font-medium">{totalVolumes}</span>{' '}
-            {totalVolumes === 1 ? 'volume' : 'volumes'} —{' '}
-            <span className="font-semibold">{formatCurrency(totalValue)}</span>
-          </div>
-          <Button
-            type="submit"
-            size="lg"
-            variant="outline"
-            disabled={isSubmitting || !canSubmit}
-            onClick={() => setSubmitAction('save-and-send')}
-          >
-            {isSubmitting && submitAction === 'save-and-send' ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <>
-                <Send className="mr-2" aria-hidden="true" /> Salvar e Enviar
-              </>
-            )}
-          </Button>
-          <Button
-            type="submit"
-            size="lg"
-            disabled={isSubmitting || !canSubmit}
-            onClick={() => setSubmitAction('save')}
-          >
-            {isSubmitting && submitAction === 'save' ? <Loader2 className="animate-spin" /> : 'Salvar Encomenda'}
-          </Button>
+        <div className="flex justify-end gap-2">
+            <Button
+                type="submit"
+                size="lg"
+                variant="outline"
+                disabled={form.formState.isSubmitting}
+                onClick={() => setSubmitAction('save-and-send')}
+            >
+                {form.formState.isSubmitting && submitAction === 'save-and-send' ? <Loader2 className="animate-spin" /> : <><Send className="mr-2" /> Salvar e Enviar</>}
+            </Button>
+            <Button
+                type="submit"
+                size="lg"
+                disabled={form.formState.isSubmitting}
+                onClick={() => setSubmitAction('save')}
+            >
+                {form.formState.isSubmitting && submitAction === 'save' ? <Loader2 className="animate-spin" /> : 'Salvar Encomenda'}
+            </Button>
         </div>
       </form>
     </Form>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -12,16 +11,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { EditOriginForm } from '@/components/edit-origin-form';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Origin } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EditOriginForm } from '@/components/edit-origin-form';
 
 export default function EditOriginPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const { id } = React.use(params);
   return <EditOriginContent originId={id} />;
@@ -29,15 +28,18 @@ export default function EditOriginPage({
 
 function EditOriginContent({ originId }: { originId: string }) {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
 
   const originRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'companies', '1', 'origins', originId);
-  }, [firestore, originId]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'origins', originId);
+  }, [firestore, isUserLoading, originId]);
 
   const { data: origin, isLoading } = useDoc<Origin>(originRef);
 
-  if (isLoading) {
+  const pageIsLoading = isLoading || isUserLoading;
+
+  if (pageIsLoading) {
     return (
       <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
         <div className="flex items-center gap-4">
@@ -50,7 +52,7 @@ function EditOriginContent({ originId }: { originId: string }) {
             <Skeleton className="h-4 w-3/4 mt-2" />
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-96 w-full" />
           </CardContent>
         </Card>
       </div>
@@ -62,7 +64,7 @@ function EditOriginContent({ originId }: { originId: string }) {
       <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-            <Link href={`/origens`}>
+            <Link href="/origens">
               <ChevronLeft className="h-4 w-4" />
               <span className="sr-only">Voltar</span>
             </Link>
@@ -87,7 +89,7 @@ function EditOriginContent({ originId }: { originId: string }) {
     <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href={`/origens`}>
+          <Link href="/origens">
             <ChevronLeft className="h-4 w-4" />
             <span className="sr-only">Voltar</span>
           </Link>
@@ -100,11 +102,7 @@ function EditOriginContent({ originId }: { originId: string }) {
         <CardHeader>
           <CardTitle>Dados da Origem</CardTitle>
           <CardDescription>
-            Atualize as informações da origem{' '}
-            <span className="font-semibold text-foreground">
-              {origin.name}
-            </span>
-            .
+            Altere as informações do ponto de partida.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -114,4 +112,3 @@ function EditOriginContent({ originId }: { originId: string }) {
     </div>
   );
 }
-

@@ -1,7 +1,6 @@
-
 'use client';
-import { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   Card,
   CardContent,
@@ -9,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -17,632 +15,396 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Order, Driver, Client, Address } from '@/lib/types';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Megaphone, Send, Search, Radar, User } from 'lucide-react';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import type { Client, Order, Address, Company } from '@/lib/types';
+import { collection, query, where, doc, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
+import { Megaphone, MessageCircle, Send, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { avisameCampaignSchema } from '@/lib/schemas';
-import type { NewAvisameCampaign } from '@/lib/types';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Switch } from '@/components/ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
-import { runAvisameCampaign } from '@/lib/avisame-actions';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { WhatsApp } from '@/components/ui/icons';
-import { z } from 'zod';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { triggerRevalidation } from '@/lib/actions';
+import Link from 'next/link';
+import { useDoc } from '@/firebase';
+import { useStore } from '@/contexts/store-context';
 
-const COMPANY_ID = '1';
+const isMobileLike = () => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
+};
 
-// Snippets do plano do usuário
-function getCurrentPosition(): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('Geolocalização indisponível'));
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 8000,
-      maximumAge: 0
-    });
-  });
+const titleCase = (s?: string) =>
+  (s || '')
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+    .trim();
+
+const sanitizePhoneBR = (raw?: string) => {
+  if (!raw) return '';
+  let digits = raw.replace(/\D/g, '');
+  digits = digits.replace(/^0+/, '');
+  if (!digits.startsWith('55')) digits = `55${digits}`;
+  return digits;
+};
+
+const buildMessage = (tpl: string, ctx: { cidade?: string; nome?: string; codigo?: string }) =>
+  (tpl || '')
+    .replaceAll('{cidade}', ctx.cidade || '')
+    .replaceAll('{nome}', ctx.nome || '')
+    .replaceAll('{codigo}', ctx.codigo || '');
+
+const openWhatsAppSmart = (phoneRaw: string, message: string) => {
+  const phone = sanitizePhoneBR(phoneRaw);
+  if (!phone) return;
+
+  const encoded = encodeURIComponent(message || '');
+  const waMeUrl = `https://wa.me/${phone}?text=${encoded}`;
+  const deepUrl = `whatsapp://send?phone=${phone}&text=${encoded}`;
+
+  if (!isMobileLike()) {
+    window.open(waMeUrl, '_blank');
+  } else {
+    const win = window.open(deepUrl);
+    setTimeout(() => {
+      if (!win || win.closed) window.open(waMeUrl, '_blank');
+    }, 600);
+  }
+};
+
+const getClientCity = (order: Order, clients: Client[]): string | null => {
+    const client = clients.find(c => c.id === order.clientId);
+    if (!client) return null;
+
+    // 1. Try to get city from client's addresses if they exist
+    if (client.addresses && client.addresses.length > 0) {
+        const primaryAddress = client.addresses.find(a => (a as any).principal) || client.addresses[0];
+        if (primaryAddress && (primaryAddress as any).cidade) {
+            return titleCase((primaryAddress as any).cidade);
+        }
+    }
+    
+    // 2. Fallback to a structured client-level city field
+    if (client.city) {
+        return titleCase(client.city);
+    }
+
+    // 3. Fallback to parsing from the destination string if no structured address is found
+    const address = order.destino;
+    if (!address) return null;
+
+    const parts = address.split(',').map(p => p.trim());
+    if (parts.length > 1) {
+        // Heuristic: city is often second to last part
+        const cityCandidate = parts[parts.length - 2];
+        if (cityCandidate) {
+            return titleCase(cityCandidate.split(' - ')[0]); // Handle "Cidade - UF"
+        }
+    }
+    // Fallback for single-part addresses or if heuristic fails
+    if(parts.length > 0 && parts[parts.length-1]) {
+        return titleCase(parts[parts.length-1].split(' - ')[0]);
+    }
+
+    return null;
 }
-
-function mapsLink(lat: number, lng: number) {
-  return `https://maps.google.com/?q=${lat},${lng}`;
-}
-
-function openWhatsApp(phone: string, message: string) {
-    const cleanedPhone = phone.replace(/\D/g, '');
-    const fullPhone = cleanedPhone.startsWith('55') ? cleanedPhone : `55${cleanedPhone}`;
-    const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
-}
-
-
-type Vars = Record<string, string>;
-function renderTemplate(tpl: string, vars: Vars) {
-  // Substitui placeholders e remove linhas onde o placeholder não foi preenchido
-  let result = tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] || ''));
-  result = result.split('\n').filter(line => line.trim() !== '').join('\n');
-  return result;
-}
-
 
 export default function AvisamePage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-
-  const clientsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(collection(firestore, 'companies', COMPANY_ID, 'clients'));
-  }, [firestore, isUserLoading]);
-  
-  const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(collection(firestore, 'companies', COMPANY_ID, 'orders'));
-  }, [firestore, isUserLoading]);
-  
-
-  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
-  const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
-
-
-  const pageIsLoading = isUserLoading || isLoadingClients || isLoadingOrders;
-  
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center">
-        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Avisame</h1>
-      </div>
-      
-       <Tabs defaultValue="campaign">
-        <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="campaign"><Megaphone className="mr-2 h-4 w-4" /> Campanha por Cidade</TabsTrigger>
-            <TabsTrigger value="radar"><Radar className="mr-2 h-4 w-4" /> Radar de Oportunidade</TabsTrigger>
-        </TabsList>
-        <TabsContent value="campaign">
-            <CityCampaignTab 
-                orders={orders || []} 
-                clients={clients || []}
-                user={user}
-                isUserLoading={pageIsLoading}
-            />
-        </TabsContent>
-        <TabsContent value="radar">
-            <RadarTab 
-                clients={clients || []}
-                isUserLoading={pageIsLoading}
-            />
-        </TabsContent>
-       </Tabs>
-    </div>
-  );
-}
-
-// Custom Type for Form Data
-type CampaignFormData = NewAvisameCampaign;
-
-// TAB 1: CAMPANHA POR CIDADE
-function CityCampaignTab({ orders, clients, user, isUserLoading }: { orders: Order[], clients: Client[], user: any, isUserLoading: boolean }) {
+  const { selectedStore } = useStore();
   const { toast } = useToast();
-  const firestore = useFirestore();
-  const router = useRouter();
+  const [isUpdating, startTransition] = useTransition();
 
-  const [preview, setPreview] = useState<{ clients: Client[], message: string, includeGeo: boolean } | null>(null);
-  const [isBuildingPreview, setIsBuildingPreview] = useState(false);
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
 
-  const uniqueCities = useMemo(() => {
-    if (!orders) return [];
-    const cities = orders.map((order) => {
-      if (typeof order.destino?.full !== 'string') {
-        return null;
-      }
-      const parts = order.destino.full.split(',');
-      return parts.length > 2 ? parts[parts.length - 2].trim() : null;
+  const canQuery = !!firestore && !!user?.uid && !isUserLoading && !!selectedStore;
+
+  const openOrdersQuery = useMemoFirebase(() => {
+    if (!canQuery) return null;
+    return query(
+        collection(firestore, 'stores', selectedStore.id, 'orders'),
+        where('status', 'in', ['PENDENTE', 'EM_ROTA'])
+    );
+  }, [canQuery, firestore, selectedStore]);
+  
+  const clientsQuery = useMemoFirebase(() => {
+    if (!canQuery) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'clients'));
+  }, [canQuery, firestore, selectedStore]);
+  
+  const companyRef = useMemoFirebase(() => {
+    // Company settings are global, not per-store in this model
+    if (!firestore || !user?.uid) return null;
+    return doc(firestore, 'companies', '1');
+  }, [firestore, user?.uid]);
+
+  const { data: openOrders, isLoading: isLoadingOrders } = useCollection<Order>(openOrdersQuery);
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
+
+  const isLoading = isLoadingOrders || isLoadingClients || isUserLoading || isLoadingCompany || !selectedStore;
+
+  const { cities, filteredOrders } = useMemo(() => {
+    if (!openOrders?.length || !clients?.length) return { cities: [] as string[], filteredOrders: [] as Order[] };
+
+    const cityMap = new Map<string, boolean>();
+    
+    openOrders.forEach(order => {
+        const city = getClientCity(order, clients);
+        if (city) {
+            cityMap.set(city, true);
+        }
     });
-    return [...new Set(cities)].filter((city): city is string => city !== null).sort();
-  }, [orders]);
 
+    const sortedCities = Array.from(cityMap.keys()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-  const form = useForm<CampaignFormData>({
-    resolver: zodResolver(avisameCampaignSchema),
-    defaultValues: {
-      target: 'city',
-      city: '',
-      driverId: undefined,
-      messageTemplate: 'Olá, {cliente}! Estaremos com entregas em {cidade} em breve.\nMotorista: {motorista_nome} ({motorista_telefone})\n{ponto_encontro}\nSe quiser, me chama por aqui e já separo seu pedido 🙂',
-      includeGeo: false,
-    },
-  });
+    const filtered =
+      selectedCity
+        ? openOrders.filter((order) => {
+            const orderCity = getClientCity(order, clients);
+            return orderCity === selectedCity;
+        })
+        : [];
 
-  const target = form.watch('target');
-  
-  const driversQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(collection(firestore, 'companies', COMPANY_ID, 'drivers'), orderBy('nome'));
-  }, [firestore, isUserLoading]);
+    return { cities: sortedCities, filteredOrders: filtered };
+  }, [openOrders, clients, selectedCity]);
 
-  const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
+  const getTemplate = () => company?.msgAvisame || 'Olá {nome}, estamos na sua cidade ({cidade}) para realizar a entrega da sua encomenda {codigo} hoje. Fique atento!';
 
-  const handleBuildPreview = async (data: CampaignFormData) => {
-    setIsBuildingPreview(true);
-    let clientsToNotify: Client[] = [];
-    let targetDescription = '';
-  
-    if (data.target === 'all') {
-      clientsToNotify = clients || [];
-      targetDescription = 'Todos os Clientes';
-    } else {
-      const city = data.city;
-      if (!city) {
-        toast({
-          title: 'Cidade obrigatória',
-          description: `Por favor, selecione uma cidade para a campanha.`,
-          variant: 'destructive',
-        });
-        setIsBuildingPreview(false);
-        return;
-      }
-      targetDescription = city;
-      // Filter orders by the selected city
-      const ordersInCity = orders?.filter(o =>
-        o.destino?.full?.toLowerCase().includes(city.toLowerCase())
-      );
-      // Get unique client IDs from the filtered orders
-      const clientIdsInCity = [...new Set(ordersInCity?.map(o => (o as any).clientId))];
-      // Filter clients based on the IDs found
-      clientsToNotify = clients?.filter(c => clientIdsInCity.includes(c.id)) || [];
-    }
-  
-    if (clientsToNotify.length === 0) {
-      toast({
-        title: 'Nenhum cliente encontrado',
-        description: `Nenhum cliente encontrado para o critério selecionado: ${targetDescription}.`,
-        variant: 'destructive',
-      });
-      setIsBuildingPreview(false);
-      return;
-    }
-  
-    let locationText = '';
-    if (data.includeGeo) {
-      try {
-        const position = await getCurrentPosition();
-        const { latitude, longitude } = position.coords;
-        locationText = `Ponto de encontro: ${mapsLink(latitude, longitude)}`;
-      } catch (error: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro de Localização',
-          description: error.message || 'Não foi possível obter sua localização.',
-        });
-        setIsBuildingPreview(false);
-        return;
-      }
-    }
-  
-    const driver = drivers?.find(d => d.id === data.driverId);
-    const vars: Vars = {
-      cliente: '{cliente}', // keep placeholder for preview
-      cidade: targetDescription,
-      motorista_nome: driver?.nome ?? '',
-      motorista_telefone: driver?.telefone ?? '',
-      ponto_encontro: locationText,
-    };
-    const finalMessage = renderTemplate(data.messageTemplate, vars);
-  
-    setPreview({ clients: clientsToNotify, message: finalMessage, includeGeo: data.includeGeo });
-    setIsBuildingPreview(false);
+  const renderTemplate = (tpl: string, order: Order, cidade: string) => {
+    return buildMessage(tpl, { cidade, nome: order.nomeCliente || '', codigo: order.codigoRastreio });
   };
 
-  const handleConfirmAndSend = async () => {
-      if (!preview || !user) return;
-      const campaignData = form.getValues();
-      
-      try {
-        await runAvisameCampaign({
-          ...campaignData,
-          createdBy: user.uid,
-        });
+  const handleNotifySingle = (order: Order) => {
+    if (!selectedCity) {
+      toast({ variant: 'destructive', title: 'Selecione uma cidade', description: 'Escolha uma cidade para montar a mensagem.' });
+      return;
+    }
+    const phoneOk = sanitizePhoneBR(order?.telefone || '');
+    if (!phoneOk) {
+      toast({ variant: 'destructive', title: 'Telefone inválido', description: `Cliente ${order?.nomeCliente || ''} sem telefone válido.` });
+      return;
+    }
 
-        toast({
-          title: "Campanha em Execução!",
-          description: `Sua campanha foi iniciada em segundo plano.`,
-        });
-        setPreview(null);
-        form.reset();
-        router.push('/avisame/campanhas');
-
-      } catch(e: any) {
-        toast({
-          variant: "destructive",
-          title: "Erro ao executar campanha",
-          description: e.message || "Não foi possível iniciar a campanha."
-        })
-      }
-  }
-
-
-  const pageIsLoading = isUserLoading || isLoadingDrivers;
-
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Nova Campanha de Avisos</CardTitle>
-          <CardDescription>
-            Envie uma notificação em massa para os seus clientes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Alert className="mb-6">
-                <Megaphone className="h-4 w-4" />
-                <AlertTitle>Como Funciona?</AlertTitle>
-                <AlertDescription>
-                   Selecione o público, um motorista (opcional) e escreva sua mensagem. Use {'{cliente}'}, {'{cidade}'}, {'{motorista_nome}'}, {'{motorista_telefone}'} e {'{ponto_encontro}'} para personalizar.
-                </AlertDescription>
-            </Alert>
-          {pageIsLoading ? (
-            <Skeleton className="h-96 w-full" />
-          ) : (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleBuildPreview)} className="space-y-8">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="target"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Público-Alvo</FormLabel>
-                           <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o público" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                <SelectItem value="city">Cidade Específica</SelectItem>
-                                <SelectItem value="all">Todos os Clientes</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    {target === 'city' && (
-                        <FormField
-                            control={form.control}
-                            name="city"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Cidade de Destino</FormLabel>
-                                    <Select 
-                                      onValueChange={(value) => form.setValue('city', value)}
-                                      value={field.value}
-                                    >
-                                      <FormControl>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Selecione uma cidade" />
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent>
-                                        {uniqueCities.map(city => (
-                                          <SelectItem key={city} value={city}>{city}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    )}
-                  </div>
-                   <FormField
-                    control={form.control}
-                    name="driverId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Motorista (Opcional)</FormLabel>
-                        <Select
-                          onValueChange={(v) => field.onChange(v === 'none' ? undefined : v)}
-                          value={field.value}
-                          disabled={isLoadingDrivers}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione um motorista" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">Nenhum</SelectItem>
-                            {drivers?.map((driver) => (
-                              <SelectItem key={driver.id} value={driver.id}>
-                                {driver.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                 <FormField
-                  control={form.control}
-                  name="messageTemplate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mensagem</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Escreva sua mensagem aqui..."
-                          rows={6}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <div className="grid gap-6 md:grid-cols-2">
-                    
-                     <div className="space-y-4 rounded-md border p-4 md:col-span-2">
-                       <FormField
-                        control={form.control}
-                        name="includeGeo"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between">
-                            <div className="space-y-0.5">
-                              <FormLabel>Incluir Ponto de Encontro?</FormLabel>
-                               <p className="text-xs text-muted-foreground">
-                                Anexa a sua localização atual como link na mensagem.
-                              </p>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                     </div>
-                 </div>
-
-                <div className="flex justify-end">
-                    <Button type="submit" disabled={isBuildingPreview || form.formState.isSubmitting}>
-                        {isBuildingPreview ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                        Visualizar e Enviar
-                    </Button>
-                </div>
-              </form>
-            </Form>
-          )}
-        </CardContent>
-      </Card>
-      
-      {preview && (
-        <AlertDialog open={!!preview} onOpenChange={() => setPreview(null)}>
-            <AlertDialogContent className="max-w-2xl">
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Confirmar e Enviar Campanha?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        A campanha será enviada para <span className="font-bold">{form.getValues('target') === 'all' ? 'Todos os Clientes' : form.getValues('city')}</span>.
-                        Serão notificados <span className="font-bold">{preview.clients.length} clientes</span>.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="max-h-80 overflow-y-auto space-y-4 pr-4">
-                  <div>
-                    <h4 className="font-semibold mb-2">Modelo da Mensagem:</h4>
-                    <p className="text-sm bg-muted p-3 rounded-md whitespace-pre-wrap">
-                      {preview.message}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">A variável {'{cliente}'} será substituída pelo nome de cada destinatário no momento do envio.</p>
-                  </div>
-                   <div>
-                    <h4 className="font-semibold mb-2">Primeiros clientes na lista:</h4>
-                     <ul className="text-sm text-muted-foreground list-disc list-inside">
-                        {preview.clients.slice(0,5).map(c => <li key={c.id}>{c.nome}</li>)}
-                        {preview.clients.length > 5 && <li>e mais {preview.clients.length - 5}...</li>}
-                    </ul>
-                  </div>
-                </div>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleConfirmAndSend} disabled={form.formState.isSubmitting}>
-                         {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirmar e Enviar"}
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-    )}
-    </>
-  );
-}
-
-type FoundClient = Client & { distance: number };
-
-function RadarTab({ clients, isUserLoading }: { clients: Client[], isUserLoading: boolean }) {
-    const { toast } = useToast();
-    const firestore = useFirestore();
-    const [isSearching, setIsSearching] = useState(false);
-    const [nearbyClients, setNearbyClients] = useState<FoundClient[]>([]);
-    const [searchRadius, setSearchRadius] = useState<number>(5);
-
-    const haversineDistance = (coords1: {lat: number, lng: number}, coords2: {lat: number, lng: number}) => {
-        const R = 6371; // Radius of the Earth in km
-        const dLat = (coords2.lat - coords1.lat) * Math.PI / 180;
-        const dLon = (coords2.lng - coords1.lng) * Math.PI / 180;
-        const a = 
-            0.5 - Math.cos(dLat)/2 + 
-            Math.cos(coords1.lat * Math.PI / 180) * Math.cos(coords2.lat * Math.PI / 180) * 
-            (1 - Math.cos(dLon)) / 2;
-        return R * 2 * Math.asin(Math.sqrt(a));
-    };
-
-    const handleSearchNearby = async () => {
-        setIsSearching(true);
-        setNearbyClients([]);
-        
-        if (!firestore) {
-            toast({ variant: 'destructive', title: 'Erro de conexão' });
-            setIsSearching(false);
-            return;
+    startTransition(async () => {
+        if (order.status === 'PENDENTE' && firestore && user && selectedStore) {
+            try {
+                const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
+                await updateDoc(orderRef, {
+                    status: 'EM_ROTA',
+                    timeline: arrayUnion({
+                        status: 'EM_ROTA',
+                        at: new Date(),
+                        userId: user.uid,
+                    }),
+                });
+                await triggerRevalidation('/encomendas');
+                await triggerRevalidation(`/encomendas/${order.id}`);
+                await triggerRevalidation('/inicio');
+                toast({
+                    description: `Status da encomenda ${order.codigoRastreio} atualizado para "Em Rota".`,
+                });
+            } catch (error: any) {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Erro ao atualizar status',
+                    description: error.message,
+                });
+            }
         }
+        
+        const tpl = getTemplate();
+        const msg = renderTemplate(tpl, order, selectedCity);
+        openWhatsAppSmart(order.telefone!, msg);
+    });
+  };
+
+  const handleNotifyAll = () => {
+    if (!selectedCity || !firestore || !user || !selectedStore) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Selecione uma cidade e verifique a sua ligação.' });
+        return;
+    }
+
+    const validOrdersToNotify = filteredOrders.filter(o => !!sanitizePhoneBR(o.telefone));
+    
+    if (validOrdersToNotify.length === 0) {
+        toast({ title: 'Nenhum cliente para notificar', description: 'Não foram encontradas encomendas com telefones válidos nesta cidade.' });
+        return;
+    }
+
+    startTransition(async () => {
+        const batch = writeBatch(firestore);
+        const tpl = getTemplate();
+        let ordersUpdatedCount = 0;
+
+        validOrdersToNotify.forEach(order => {
+             // Only update status if it's PENDENTE
+            if (order.status === 'PENDENTE') {
+                const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
+                batch.update(orderRef, {
+                    status: 'EM_ROTA',
+                    timeline: arrayUnion({
+                        status: 'EM_ROTA',
+                        at: new Date(),
+                        userId: user.uid,
+                    }),
+                });
+                ordersUpdatedCount++;
+            }
+            
+            const msg = renderTemplate(tpl, order, selectedCity);
+            openWhatsAppSmart(order.telefone!, msg);
+        });
 
         try {
-            const position = await getCurrentPosition();
-            const myLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-            
-            const foundClientsMap = new Map<string, FoundClient>();
-
-            // Iterate through each client to fetch their addresses
-            for (const client of clients) {
-                const addressesCollection = collection(firestore, 'companies', COMPANY_ID, 'clients', client.id, 'addresses');
-                const addressesSnapshot = await getDocs(addressesCollection);
-                const clientAddresses = addressesSnapshot.docs.map(doc => doc.data() as Address);
-
-                for (const address of clientAddresses) {
-                     if (address.latitude && address.longitude) {
-                        const clientLocation = { lat: address.latitude, lng: address.longitude };
-                        const distance = haversineDistance(myLocation, clientLocation);
-
-                        if (distance <= searchRadius) {
-                            // If client is already found, check if this new address is closer
-                            const existingClient = foundClientsMap.get(client.id);
-                            if (!existingClient || distance < existingClient.distance) {
-                                foundClientsMap.set(client.id, { ...client, distance });
-                            }
-                        }
-                    }
-                }
+            if (ordersUpdatedCount > 0) {
+                await batch.commit();
+                await triggerRevalidation('/encomendas');
+                await triggerRevalidation('/inicio');
             }
-            
-            const foundClients = Array.from(foundClientsMap.values()).sort((a,b) => a.distance - b.distance);
-            setNearbyClients(foundClients);
-            
-            if (foundClients.length === 0) {
-                 toast({ title: 'Nenhum cliente próximo', description: `Nenhum cliente encontrado em um raio de ${searchRadius}km.` });
-            }
-
+            toast({
+                title: 'Notificações Enviadas!',
+                description: `${validOrdersToNotify.length} clientes notificados e ${ordersUpdatedCount} encomendas atualizadas para "Em Rota".`,
+            });
         } catch (error: any) {
             toast({
                 variant: 'destructive',
-                title: 'Erro de Localização',
-                description: error.message || 'Não foi possível obter sua localização.'
+                title: 'Erro ao atualizar status em massa',
+                description: error.message,
             });
-        } finally {
-            setIsSearching(false);
         }
-    }
-    
-    const handleNotifyClient = (client: Client) => {
-        const message = `Olá, ${client.nome}! Estou aqui perto de você hoje. Gostaria de aproveitar para fazer um pedido?`;
-        openWhatsApp(client.telefone, message);
-    }
+    });
+  }
 
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Radar de Oportunidade</CardTitle>
-                <CardDescription>
-                    Encontre clientes próximos à sua localização atual e envie um aviso rápido.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                 <Alert>
-                    <Radar className="h-4 w-4" />
-                    <AlertTitle>Como Funciona?</AlertTitle>
-                    <AlertDescription>
-                        Use sua localização para encontrar clientes em um raio de até 20km. Ideal para motoristas em rota que desejam aproveitar oportunidades de novas entregas.
-                    </AlertDescription>
-                </Alert>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                     <Select onValueChange={(val) => setSearchRadius(Number(val))} defaultValue={searchRadius.toString()}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Raio de busca" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="5">Raio de 5 km</SelectItem>
-                            <SelectItem value="10">Raio de 10 km</SelectItem>
-                            <SelectItem value="20">Raio de 20 km</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button size="lg" onClick={handleSearchNearby} disabled={isSearching || isUserLoading} className="w-full sm:w-auto">
-                        {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                        Buscar Clientes Próximos
-                    </Button>
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center">
+        <h1 className="flex-1 text-2xl font-semibold md:text-3xl">Avisa-me</h1>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Megaphone className="h-6 w-6" />
+            Notificar Clientes
+          </CardTitle>
+          <CardDescription>
+            Envie um aviso de entrega para clientes com encomendas pendentes numa cidade específica.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="city-select">Selecione uma Cidade</Label>
+              {isLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select
+                  onValueChange={(v) => setSelectedCity(v)}
+                  disabled={cities.length === 0}
+                >
+                  <SelectTrigger id="city-select">
+                    <SelectValue placeholder={cities.length > 0 ? 'Escolha uma cidade...' : 'Nenhuma encomenda pendente'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cities.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+
+          {selectedCity && (
+            <Card className="border-dashed">
+              <CardHeader className="flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Encomendas para {selectedCity}</CardTitle>
+                  <CardDescription>
+                    {isLoading ? 'Carregando...' : `${filteredOrders.length} encomenda(s) encontrada(s).`}
+                  </CardDescription>
                 </div>
+                 <Button onClick={handleNotifyAll} disabled={isUpdating}>
+                    <Send className="mr-2 h-4 w-4" />
+                    Avisar Todos na Cidade
+                 </Button>
+              </CardHeader>
 
-                {(isSearching || nearbyClients.length > 0) && (
-                    <div className="space-y-4">
-                         <h3 className="text-lg font-medium text-center">
-                            {isSearching ? 'Buscando...' : `Clientes encontrados (${nearbyClients.length})`}
-                        </h3>
-
-                        {isSearching ? (
-                            <div className="space-y-4">
-                                <Skeleton className="h-16 w-full" />
-                                <Skeleton className="h-16 w-full" />
-                                <Skeleton className="h-16 w-full" />
-                            </div>
-                        ) : (
-                             <ul className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                                {nearbyClients.map(client => (
-                                    <li key={client.id} className="flex items-center justify-between rounded-md border p-4">
-                                        <div className="flex items-center gap-4">
-                                            <Avatar>
-                                                <AvatarFallback><User /></AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex-1">
-                                                <p className="font-semibold">{client.nome}</p>
-                                                <p className="text-sm text-muted-foreground">{client.telefone}</p>
-                                            </div>
-                                        </div>
-                                         <div className="flex items-center gap-4">
-                                             <div className="text-right">
-                                                <div className="font-bold text-lg">{client.distance.toFixed(1)} km</div>
-                                                <div className="text-xs text-muted-foreground">distância</div>
-                                             </div>
-                                            <Button size="sm" variant="outline" onClick={() => handleNotifyClient(client)}>
-                                                <WhatsApp className="mr-2" />
-                                                Notificar
-                                            </Button>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-48 w-full" />
+                ) : filteredOrders.length > 0 ? (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Código</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Telefone</TableHead>
+                          <TableHead className="text-right">Ação</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOrders.map((order) => {
+                          const phoneOk = sanitizePhoneBR(order?.telefone || '');
+                          return (
+                            <TableRow key={order.id}>
+                              <TableCell className="font-medium">
+                                <Link href={`/clientes/${order.clientId}`} className="hover:underline">
+                                    {order?.nomeCliente || '-'}
+                                </Link>
+                              </TableCell>
+                               <TableCell><Badge variant="outline">{order.codigoRastreio}</Badge></TableCell>
+                              <TableCell><Badge variant={order.status === 'PENDENTE' ? 'destructive' : 'secondary'}>{order.status}</Badge></TableCell>
+                              <TableCell className={!phoneOk ? 'text-red-600' : ''}>
+                                {order?.telefone || '—'}
+                                {!phoneOk && <span className="ml-2 text-xs text-red-600">(inválido)</span>}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleNotifySingle(order)}
+                                  disabled={!phoneOk || isUpdating}
+                                  title={!phoneOk ? 'Telefone inválido' : 'Enviar aviso individual'}
+                                >
+                                  {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+                                  Avisar
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="flex h-24 items-center justify-center rounded-md border-2 border-dashed text-center">
+                    <p className="text-muted-foreground">Nenhuma encomenda encontrada para esta cidade.</p>
+                  </div>
                 )}
-            </CardContent>
-        </Card>
-    )
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }

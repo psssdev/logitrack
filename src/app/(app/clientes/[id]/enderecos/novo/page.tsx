@@ -12,15 +12,16 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { NewAddressForm } from '@/components/new-address-form';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Client } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
 
 export default function NewAddressPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const { id } = React.use(params);
   return <NewAddressContent clientId={id} />
@@ -28,15 +29,18 @@ export default function NewAddressPage({
 
 function NewAddressContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'companies', '1', 'clients', clientId);
-  }, [firestore, clientId]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'clients', clientId);
+  }, [firestore, selectedStore, clientId]);
 
   const { data: client, isLoading } = useDoc<Client>(clientRef);
 
-  if (isLoading) {
+  const pageIsLoading = isLoading || !selectedStore;
+
+  if (pageIsLoading) {
       return (
         <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
             <div className="flex items-center gap-4">

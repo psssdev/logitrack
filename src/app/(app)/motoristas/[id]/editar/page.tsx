@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -13,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { EditDriverForm } from '@/components/edit-driver-form';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Driver } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function EditDriverPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const { id } = React.use(params);
   return <EditDriverContent driverId={id} />;
@@ -29,17 +28,20 @@ export default function EditDriverPage({
 
 function EditDriverContent({ driverId }: { driverId: string }) {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
 
   const driverRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'companies', '1', 'drivers', driverId);
-  }, [firestore, driverId]);
+    if (!firestore || isUserLoading) return null;
+    return doc(firestore, 'drivers', driverId);
+  }, [firestore, isUserLoading, driverId]);
 
   const { data: driver, isLoading } = useDoc<Driver>(driverRef);
 
-  if (isLoading) {
+  const pageIsLoading = isLoading || isUserLoading;
+
+  if (pageIsLoading) {
     return (
-      <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
+      <div className="mx-auto grid w-full max-w-xl flex-1 auto-rows-max gap-4">
         <div className="flex items-center gap-4">
           <Skeleton className="h-7 w-7" />
           <Skeleton className="h-6 w-1/2" />
@@ -59,10 +61,10 @@ function EditDriverContent({ driverId }: { driverId: string }) {
 
   if (!driver) {
     return (
-      <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
+      <div className="mx-auto grid w-full max-w-xl flex-1 auto-rows-max gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-            <Link href={`/motoristas`}>
+            <Link href="/motoristas">
               <ChevronLeft className="h-4 w-4" />
               <span className="sr-only">Voltar</span>
             </Link>
@@ -84,7 +86,7 @@ function EditDriverContent({ driverId }: { driverId: string }) {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
+    <div className="mx-auto grid w-full max-w-xl flex-1 auto-rows-max gap-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
           <Link href={`/motoristas`}>
@@ -100,11 +102,7 @@ function EditDriverContent({ driverId }: { driverId: string }) {
         <CardHeader>
           <CardTitle>Dados do Motorista</CardTitle>
           <CardDescription>
-            Atualize as informações do motorista{' '}
-            <span className="font-semibold text-foreground">
-              {driver.nome}
-            </span>
-            .
+            Altere as informações do motorista abaixo.
           </CardDescription>
         </CardHeader>
         <CardContent>

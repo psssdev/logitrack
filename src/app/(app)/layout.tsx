@@ -1,248 +1,193 @@
+
 'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  BarChart3,
-  ChevronLeft,
-  LayoutDashboard,
-  Menu,
-  Package,
-  Settings,
-  Users,
-  Truck,
-  MapPin,
-  DollarSign,
-  Megaphone,
-  ChevronDown,
+  BarChart3, ChevronLeft, Home, Menu, Package, Users, Truck,
+  MapPin, Megaphone, CircleDollarSign, Bus, Ticket, Settings, QrCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { FirebaseClientProvider } from '@/firebase';
 import { AuthGuard } from '@/components/auth-guard';
-import { CompanyBranding } from '@/components/company-branding';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Logo } from '@/components/logo';
+import { useUser } from '@/firebase';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { StoreProvider } from '@/contexts/store-context';
+
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/inicio', icon: Home, label: 'Início' },
   { href: '/encomendas', icon: Package, label: 'Encomendas' },
+  { href: '/vender-passagem', icon: Ticket, label: 'Vender Passagem' },
   { href: '/clientes', icon: Users, label: 'Clientes' },
+  { href: '/cobrancas', icon: CircleDollarSign, label: 'Cobranças' },
+  { href: '/financeiro', icon: CircleDollarSign, label: 'Financeiro' },
+  { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
+  { href: '/veiculos', icon: Bus, label: 'Veículos' },
   { href: '/motoristas', icon: Truck, label: 'Motoristas' },
   { href: '/origens', icon: MapPin, label: 'Origens' },
-  { href: '/financeiro', icon: DollarSign, label: 'Financeiro' },
-  { 
-    href: '/avisame', 
-    icon: Megaphone, 
-    label: 'Avisame',
-    subItems: [
-        { href: '/avisame/campanhas', label: 'Campanhas' },
-    ]
-  },
-  { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
+  { href: '/destinos', icon: MapPin, label: 'Destinos' },
+  { href: '/avisame', icon: Megaphone, label: 'Avisa-me' },
+  { href: '/pix-config', icon: QrCode, label: 'Gestor Pix' },
   { href: '/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
+
+  // Persiste preferência do usuário
+  React.useEffect(() => {
+    const saved = localStorage.getItem('sidebar:open');
+    if (saved !== null) setIsSidebarOpen(saved === '1');
+  }, []);
+  React.useEffect(() => {
+    localStorage.setItem('sidebar:open', isSidebarOpen ? '1' : '0');
+  }, [isSidebarOpen]);
 
   return (
-    <FirebaseClientProvider>
-      <AuthGuard>
-        <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-          <div
-            className={cn(
-              'hidden border-r bg-muted/40 md:block transition-all duration-300',
-              isSidebarOpen ? 'md:w-[220px] lg:w-[280px]' : 'w-0'
-            )}
-          >
-            {isSidebarOpen && (
-              <div className="flex h-full max-h-screen flex-col gap-2">
-                <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                  <CompanyBranding />
+    <AuthGuard>
+      <StoreProvider>
+          <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+            <aside
+              className={cn(
+                'hidden border-r bg-muted/40 md:block transition-all duration-300',
+                isSidebarOpen ? 'md:w-[220px] lg:w-[280px]' : 'w-0'
+              )}
+              aria-label="Navegação lateral"
+            >
+              {isSidebarOpen && (
+                <div className="flex h-full max-h-screen flex-col gap-2">
+                  <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                    <Link href="/inicio" className="flex items-center gap-2 font-semibold">
+                      <Logo className="h-6 w-6" />
+                      <span>LogiTrack</span>
+                    </Link>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+                      <NavLinks onLinkClick={() => {}} />
+                    </nav>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-                    <NavLinks />
-                  </nav>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col">
-            <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="hidden md:flex"
-              >
-                <ChevronLeft
-                  className={cn(
-                    'h-5 w-5 transition-transform',
-                    !isSidebarOpen && 'rotate-180'
-                  )}
-                />
-              </Button>
+              )}
+            </aside>
 
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0 md:hidden"
-                  >
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Toggle navigation menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="flex flex-col">
-                  <SheetHeader>
-                    <SheetTitle className="sr-only">
-                      Menu de Navegação
-                    </SheetTitle>
-                  </SheetHeader>
-                  <nav className="grid gap-2 text-lg font-medium">
-                    <div className="flex items-center gap-2 text-lg font-semibold mb-4">
-                      <CompanyBranding />
-                    </div>
-                    <NavLinks />
-                  </nav>
-                </SheetContent>
-              </Sheet>
+            <div className="flex flex-col">
+              <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSidebarOpen((v) => !v)}
+                  className="hidden md:flex"
+                  aria-label={isSidebarOpen ? 'Recolher menu lateral' : 'Expandir menu lateral'}
+                >
+                  <ChevronLeft
+                    className={cn('h-5 w-5 transition-transform', !isSidebarOpen && 'rotate-180')}
+                  />
+                </Button>
 
-              <div className="w-full flex-1">
-                {/* Can add a global search here */}
-              </div>
-              <ThemeToggle />
-              <UserMenu />
-            </header>
-            <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">
-              {children}
-            </main>
+                <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon" className="shrink-0 md:hidden" aria-label="Abrir menu">
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="flex flex-col">
+                    <SheetHeader>
+                      <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+                    </SheetHeader>
+                    <nav className="grid gap-2 text-lg font-medium">
+                      <div className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                        <Link href="/inicio" className="flex items-center gap-2 font-semibold" onClick={() => setIsMobileSheetOpen(false)}>
+                          <Logo className="h-6 w-6" />
+                          <span>LogiTrack</span>
+                        </Link>
+                      </div>
+                      <ScrollArea className="flex-1">
+                          <NavLinks onLinkClick={() => setIsMobileSheetOpen(false)} />
+                      </ScrollArea>
+                    </nav>
+                  </SheetContent>
+                </Sheet>
+
+                <div className="w-full flex-1" />
+
+                <ThemeToggle />
+                <UserMenu />
+              </header>
+
+              <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">
+                {children}
+              </main>
+            </div>
           </div>
-        </div>
-      </AuthGuard>
-    </FirebaseClientProvider>
+      </StoreProvider>
+    </AuthGuard>
   );
 }
 
-const NavLinks = () => {
-    const pathname = usePathname();
-    const [openCollapsible, setOpenCollapsible] = React.useState<string | null>(
-      navItems.find((item) => item.subItems && pathname.startsWith(item.href))?.href || null
-    );
-  
-    return (
-      <>
-        {navItems.map((item) =>
-          item.subItems ? (
-            <Collapsible
-              key={item.href}
-              open={openCollapsible === item.href}
-              onOpenChange={() => setOpenCollapsible(openCollapsible === item.href ? null : item.href)}
-            >
-              <CollapsibleTrigger
-                className={cn(
-                  'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-                  pathname.startsWith(item.href) && 'text-primary'
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </div>
-                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 data-[state=open]:rotate-180" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pl-7 pt-1 space-y-1">
-                <Link
-                  href={item.href}
-                  className={cn(
-                    'block rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-primary',
-                    pathname === item.href && 'bg-muted text-primary'
-                  )}
-                >
-                  Visão Geral
-                </Link>
-                {item.subItems.map((subItem) => (
-                  <Link
-                    key={subItem.href}
-                    href={subItem.href}
-                    className={cn(
-                      'block rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-primary',
-                      pathname.startsWith(subItem.href) && 'bg-muted text-primary'
-                    )}
-                  >
-                    {subItem.label}
-                  </Link>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          ) : (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-                pathname.startsWith(item.href) && 'bg-muted text-primary'
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          )
-        )}
-      </>
-    );
-  };
+const NavLinks = ({ onLinkClick }: { onLinkClick: () => void }) => {
+  const pathname = usePathname();
+  const isActive = (href: string) =>
+    pathname === href || (href !== '/inicio' && pathname.startsWith(href + '/'));
+
+  return (
+    <>
+      {navItems.map((item) => {
+        const active = isActive(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 transition-all',
+              active ? 'bg-muted text-primary' : 'text-muted-foreground hover:text-primary'
+            )}
+            aria-current={active ? 'page' : undefined}
+            onClick={onLinkClick}
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </Link>
+        );
+      })}
+    </>
+  );
+};
 
 const UserMenu = () => {
+  const { user } = useUser() || {};
+  const initials =
+    (user?.displayName || user?.email || 'US')
+      .split('@')[0]
+      .split(' ')
+      .map((p) => p[0]?.toUpperCase())
+      .slice(0, 2)
+      .join('') || 'US';
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="icon" className="rounded-full">
+        <Button variant="secondary" size="icon" className="rounded-full" aria-label="Abrir menu do usuário">
           <Avatar>
-            <AvatarImage
-              src="https://picsum.photos/seed/user-avatar/40/40"
-              data-ai-hint="person face"
-            />
-            <AvatarFallback>AD</AvatarFallback>
+            <AvatarImage src={user?.photoURL || undefined} alt="Avatar" />
+            <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-          <span className="sr-only">Toggle user menu</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/configuracoes">Configurações</Link>
-        </DropdownMenuItem>
         <DropdownMenuItem>Suporte</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/">Sair</Link>
-        </DropdownMenuItem>
+        <DropdownMenuItem asChild><Link href="/">Sair</Link></DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

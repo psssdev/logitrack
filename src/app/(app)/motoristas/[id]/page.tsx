@@ -1,9 +1,8 @@
-
 'use client';
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Edit } from 'lucide-react';
+import { ChevronLeft, Edit, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -17,14 +16,15 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Driver, Order } from '@/lib/types';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { collection, query, where, doc, Timestamp, orderBy } from 'firebase/firestore';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { OrderStatusBadge } from '@/components/status-badge';
 
-const COMPANY_ID = '1';
 
 export default function MotoristaDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
     const { id } = React.use(params);
     return <MotoristaDetailContent driverId={id} />
@@ -32,20 +32,21 @@ export default function MotoristaDetailPage({
 
 function MotoristaDetailContent({ driverId }: { driverId: string }) {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   const driverRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'companies', COMPANY_ID, 'drivers', driverId);
-  }, [firestore, isUserLoading, driverId]);
+    if (!firestore || !user) return null;
+    return doc(firestore, 'drivers', driverId);
+  }, [firestore, user, driverId]);
 
   const driverOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !driverId) return null;
+    if (!firestore || !user) return null;
     return query(
-      collection(firestore, 'companies', '1', 'orders'),
-      where('motoristaId', '==', driverId)
+      collection(firestore, 'orders'),
+      where('motoristaId', '==', driverId),
+      orderBy('createdAt', 'desc')
     );
-  }, [firestore, isUserLoading, driverId]);
+  }, [firestore, user, driverId]);
 
   const { data: driver, isLoading: isLoadingDriver } = useDoc<Driver>(driverRef);
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(driverOrdersQuery);
@@ -92,11 +93,11 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
           Detalhes do Motorista
         </h1>
-        <Button size="sm" asChild>
-            <Link href={`/motoristas/${driverId}/editar`}>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar
-            </Link>
+         <Button asChild size="sm">
+          <Link href={`/motoristas/${driverId}/editar`}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar Perfil
+          </Link>
         </Button>
       </div>
 
@@ -106,8 +107,8 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
                 <AvatarImage
-                  src={`https://picsum.photos/seed/${driver.id}/120/120`}
-                  data-ai-hint="person face"
+                  src={driver.photoUrl || undefined}
+                  alt={`Foto de ${driver.nome}`}
                 />
                 <AvatarFallback>{driver.nome.charAt(0)}</AvatarFallback>
               </Avatar>
@@ -115,11 +116,6 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
                 <CardTitle className="text-3xl">{driver.nome}</CardTitle>
                 <CardDescription>
                   {driver.telefone}
-                  {driver.placa && (
-                    <Badge variant="secondary" className="ml-2">
-                      {driver.placa}
-                    </Badge>
-                  )}
                 </CardDescription>
               </div>
             </div>
@@ -134,8 +130,42 @@ function MotoristaDetailContent({ driverId }: { driverId: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {orders && orders.length > 0 ? (
-              <p>{orders.length} encomendas encontradas.</p>
+            {isLoadingOrders ? (
+                <Skeleton className="h-48 w-full" />
+            ) : orders && orders.length > 0 ? (
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Código</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Cliente</TableHead>
+                                <TableHead>Data</TableHead>
+                                <TableHead><span className="sr-only">Ações</span></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {orders.map(order => {
+                                const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+                                return (
+                                <TableRow key={order.id}>
+                                    <TableCell><Badge variant="outline">{order.codigoRastreio}</Badge></TableCell>
+                                    <TableCell><OrderStatusBadge status={order.status} /></TableCell>
+                                    <TableCell>{order.nomeCliente}</TableCell>
+                                    <TableCell>{orderDate.toLocaleDateString('pt-BR')}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button asChild variant="ghost" size="icon">
+                                            <Link href={`/encomendas/${order.id}`}>
+                                                <ArrowRight className="h-4 w-4" />
+                                                <span className="sr-only">Ver Encomenda</span>
+                                            </Link>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            )})}
+                        </TableBody>
+                    </Table>
+                </div>
             ) : (
               <div className="text-center p-8 border-2 border-dashed rounded-md">
                 <p className="text-muted-foreground">

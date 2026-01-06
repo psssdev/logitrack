@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Share, WhatsApp } from 'lucide-react';
+import { ChevronLeft, Share, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useStore } from '@/contexts/store-context';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -57,7 +58,7 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export default function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ReceiptPage({ params }: { params: { id: string } }) {
   const { id } = React.use(params);
   return <ReceiptContent orderId={id} />;
 }
@@ -65,26 +66,27 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
 function ReceiptContent({ orderId }: { orderId: string }) {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const router = useRouter();
   const { toast } = useToast();
 
   const orderRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'companies', '1', 'orders', orderId);
-  }, [firestore, isUserLoading, orderId]);
+    if (!firestore || isUserLoading || !user || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'orders', orderId);
+  }, [firestore, isUserLoading, orderId, user, selectedStore]);
   
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || isUserLoading || !user) return null;
     return doc(firestore, 'companies', '1');
-  }, [firestore, isUserLoading]);
-
-  const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
+  }, [firestore, isUserLoading, user]);
+  
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
+  const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
 
   const isLoading = isLoadingOrder || isLoadingCompany || isUserLoading;
   
   const handleSendNotification = async () => {
-    if (!order || !company || !firestore || !user) return;
+    if (!order || !company || !firestore || !user || !orderRef) return;
 
     const trackingLink = `${company.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
     const totalValue = formatCurrency(order.valorEntrega);
@@ -132,7 +134,7 @@ function ReceiptContent({ orderId }: { orderId: string }) {
 
   if (!order) {
     return (
-      <div className="mx-auto grid max-w-2xl flex-1 auto-rows-max gap-4">
+      <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" className="h-7 w-7" asChild>
             <Link href="/encomendas">
@@ -241,7 +243,7 @@ function ReceiptContent({ orderId }: { orderId: string }) {
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-4">
           <Button onClick={handleSendNotification} size="lg">
-             <WhatsApp className="mr-2" />
+             <MessageCircle className="mr-2" />
              Enviar Comprovante via WhatsApp
           </Button>
            <Button variant="outline" asChild>

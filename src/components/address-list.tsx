@@ -16,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import type { Address } from '@/lib/types';
-import Link from 'next/link';
 
 export default function AddressList({ addresses }: { addresses: Address[] }) {
   if (addresses.length === 0) {
@@ -49,24 +48,7 @@ export default function AddressList({ addresses }: { addresses: Address[] }) {
               <TableCell>{address.fullAddress}</TableCell>
               <TableCell>
                 <div className="flex justify-end">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                         <Link href={`/clientes/${address.clientId}/enderecos/${address.id}/editar`}>
-                          Editar
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* Actions removed for now */}
                 </div>
               </TableCell>
             </TableRow>
