@@ -1,7 +1,8 @@
+
 'use server';
 
 import { revalidatePath, unstable_noStore as noStore } from 'next/cache';
-import { getFirestoreServer } from '@/firebase/server-init';
+import { adminDb } from '@/lib/firebase-admin';
 import type { Order, Client, Driver } from './types';
 
 
@@ -9,7 +10,7 @@ export async function getDashboardData() {
   noStore(); 
 
   try {
-    const db = await getFirestoreServer();
+    const db = adminDb();
 
     const ordersPromise = db
       .collection('orders')
@@ -72,7 +73,7 @@ export async function getDashboardData() {
 export async function getDrivers(): Promise<Driver[]> {
     noStore();
     try {
-        const db = await getFirestoreServer();
+        const db = adminDb();
         const driversSnap = await db.collection('drivers').get();
         const drivers: Driver[] = [];
         driversSnap.forEach(doc => {

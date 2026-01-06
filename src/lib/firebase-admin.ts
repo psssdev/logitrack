@@ -1,7 +1,9 @@
+
 // src/lib/firebase-admin.ts
-import { getApps, initializeApp, cert, App, ServiceAccount } from 'firebase-admin/app';
+import { getApps, initializeApp, cert, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import type { ServiceAccount } from 'firebase-admin/app';
 
 let _app: App | null = null;
 let _auth: Auth | null = null;

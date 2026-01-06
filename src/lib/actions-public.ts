@@ -3,21 +3,20 @@
 
 // IMPORTANT: This file is for server actions that should be publicly accessible.
 // Do not import from '@/firebase' here, as it contains client-side code.
-// Use getFirestoreServer for database access.
+// Use adminDb for database access.
 
-import { getFirestoreServer } from '@/firebase/server-init';
-import { getDocs, collection as adminCollection, query as adminQuery, where as adminWhere, limit as adminLimit } from 'firebase-admin/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 import type { Order, Company, PixKey } from '@/lib/types';
 
 
-// Re-export getFirestoreServer so other public server actions can use it.
-export { getFirestoreServer };
+// Re-export adminDb so other public server actions can use it.
+export { adminDb };
 
 export async function getPublicPixData(storeId: string, keyId: string): Promise<{ company: Company | null; pixKey: PixKey | null }> {
   console.log('Fetching public pix data for:', { storeId, keyId });
   if (!storeId || !keyId) return { company: null, pixKey: null };
   try {
-    const db = await getFirestoreServer();
+    const db = adminDb();
     const companySettingsRef = db.collection('stores').doc(storeId).collection('companySettings').doc('default');
     const pixKeyRef = db.collection('stores').doc(storeId).collection('pixKeys').doc(keyId);
 
@@ -39,18 +38,14 @@ export async function getPublicPixData(storeId: string, keyId: string): Promise<
 
 
 export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | null> {
-    const firestore = await getFirestoreServer();
+    const firestore = adminDb();
     
     // This is tricky because orders are in subcollections. We need to query across all stores.
     const ordersCollectionGroup = firestore.collectionGroup('orders');
-     const q = adminQuery(
-        ordersCollectionGroup,
-        adminWhere("codigoRastreio", "==", codigoRastreio.toUpperCase()),
-        adminLimit(1)
-    );
+     const q = ordersCollectionGroup.where("codigoRastreio", "==", codigoRastreio.toUpperCase()).limit(1);
     
     try {
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await q.get();
         if (!querySnapshot.empty) {
             const orderDoc = querySnapshot.docs[0];
             return { id: orderDoc.id, ...orderDoc.data() } as Order;
@@ -60,14 +55,10 @@ export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Or
     }
   
     // Fallback for legacy orders
-     const legacyOrderRef = adminCollection(firestore, 'orders');
-     const legacyQ = adminQuery(
-        legacyOrderRef,
-        adminWhere("codigoRastreio", "==", codigoRastreio.toUpperCase()),
-        adminLimit(1)
-    );
+     const legacyOrderRef = firestore.collection('orders');
+     const legacyQ = legacyOrderRef.where("codigoRastreio", "==", codigoRastreio.toUpperCase()).limit(1);
      try {
-        const querySnapshot = await getDocs(legacyQ);
+        const querySnapshot = await legacyQ.get();
         if (!querySnapshot.empty) {
             const orderDoc = querySnapshot.docs[0];
             return { id: orderDoc.id, ...orderDoc.data() } as Order;
