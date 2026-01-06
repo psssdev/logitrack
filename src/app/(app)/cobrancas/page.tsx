@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { DateRange } from 'react-day-picker';
+import { type DateRange } from 'react-day-picker';
 import {
   Card,
   CardContent,
@@ -30,8 +30,6 @@ import type { Order, Company } from '@/lib/types';
 import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
 import {
   format,
-  startOfMonth,
-  endOfMonth,
   isWithinInterval,
 } from 'date-fns';
 import {
@@ -104,10 +102,7 @@ export default function CobrancasPage() {
   const { toast } = useToast();
 
   // Filter states
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState<'all' | string>('all');
   const [payingClient, setPayingClient] = useState<ClientDebt | null>(null);
