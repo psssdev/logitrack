@@ -395,7 +395,7 @@
     },
      "Company": {
       "title": "Company",
-      "description": "Represents the company settings for the application.",
+      "description": "Represents the company settings for the application, specific to a store.",
       "type": "object",
       "properties": {
         "nomeFantasia": { "type": "string", "description": "The trading name of the company." },
@@ -480,9 +480,9 @@
       "schema": { "$ref": "#/entities/FinancialEntry" },
       "description": "Stores all financial transactions for a specific store."
     },
-    "/companies/{companyId}": {
+    "/stores/{storeId}/companySettings/{settingsId}": {
         "schema": { "$ref": "#/entities/Company" },
-        "description": "Stores company-wide application settings. Expects a single document with a known ID."
+        "description": "Stores company-wide application settings for a specific store. Expects a single document with a known ID like 'default'."
     }
   }
 }

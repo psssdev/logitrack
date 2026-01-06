@@ -17,17 +17,19 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Loader2, Search } from 'lucide-react';
 import type { Company } from '@/lib/types';
 import { companySchema } from '@/lib/schemas';
+import { useStore } from '@/contexts/store-context';
 
 type CompanyFormValues = z.infer<typeof companySchema>;
 
 export function CompanySettingsForm({ company }: { company: Company | null }) {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
   const [isFetchingCnpj, setIsFetchingCnpj] = React.useState(false);
 
   const form = useForm<CompanyFormValues>({
@@ -93,13 +95,14 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
 
 
   async function onSubmit(data: CompanyFormValues) {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
       toast({ variant: 'destructive', title: 'Erro de Conexão' });
       return;
     }
 
     try {
-      const companyRef = doc(firestore, 'companies', '1'); // Hardcoded ID for single company setup
+      // For a multi-tenant system, we save company settings per store
+      const companyRef = doc(firestore, 'stores', selectedStore.id, 'companySettings', 'default');
       
       const dataToSave = {
         ...data,
@@ -244,7 +247,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                     <FormLabel>Mensagem de Cobrança</FormLabel>
                     <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                     <FormDescription>
-                        Variáveis disponíveis: `'{cliente}'`, `'{valor}'`, `'{quantidade}'`, `'{chavePix}'`, `'{nomeEmpresa}'`.
+                        Variáveis disponíveis: {'`{cliente}`'}, {'`{valor}`'}, {'`{quantidade}`'}, {'`{chavePix}`'}, {'`{nomeEmpresa}`'}.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
@@ -258,7 +261,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                 <FormLabel>Mensagem de Encomenda Recebida</FormLabel>
                 <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                 <FormDescription>
-                    Variáveis disponíveis: `'{cliente}'`, `'{volumes}'}'`, `'{codigo}'`, `'{valor}'`, `'{link}'`.
+                    Variáveis disponíveis: {'`{cliente}`'}, {'`{volumes}`'}, {'`{codigo}`'}, {'`{valor}`'}, {'`{link}`'}.
                 </FormDescription>
                 <FormMessage />
                 </FormItem>
@@ -272,7 +275,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                     <FormLabel>Mensagem de 'Em Rota'</FormLabel>
                     <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                     <FormDescription>
-                        Variáveis disponíveis: `'{cliente}'`, `'{codigo}'`, `'{link}'`.
+                       Variáveis disponíveis: {'`{cliente}`'}, {'`{codigo}`'}, {'`{link}`'}.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
@@ -286,7 +289,7 @@ export function CompanySettingsForm({ company }: { company: Company | null }) {
                     <FormLabel>Mensagem do Avisa-me</FormLabel>
                     <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
                     <FormDescription>
-                        Variáveis disponíveis: `'{nome}'`, `'{cidade}'`, `'{codigo}'`.
+                        Variáveis disponíveis: {'`{nome}`'}, {'`{cidade}`'}, {'`{codigo}`'}.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>

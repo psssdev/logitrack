@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Company } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CompanySettingsForm } from '@/components/company-settings-form';
+import { useStore } from '@/contexts/store-context';
 
 const collectionsToBackup = [
     'clients', 
@@ -31,26 +32,26 @@ const collectionsToBackup = [
 export default function ConfiguracoesPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
   const [isBackingUp, startBackupTransition] = useTransition();
   const [isRestoring, startRestoreTransition] = useTransition();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
-    // Assuming a single company document for simplicity, adjust if multi-tenant
-    return doc(firestore, 'companies', '1');
-  }, [firestore, user, isUserLoading]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'companySettings', 'default');
+  }, [firestore, selectedStore]);
 
   const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
 
   const handleCreateBackup = () => {
     startBackupTransition(async () => {
-        if (!firestore) {
+        if (!firestore || !selectedStore) {
             toast({
                 variant: 'destructive',
                 title: 'Erro de Conexão',
-                description: 'Não foi possível conectar ao Firestore.',
+                description: 'Não foi possível conectar ao Firestore ou nenhuma loja selecionada.',
             });
             return;
         }
@@ -65,7 +66,7 @@ export default function ConfiguracoesPage() {
 
         try {
             for (const collectionName of collectionsToBackup) {
-                const collectionRef = collection(firestore, collectionName);
+                const collectionRef = collection(firestore, 'stores', selectedStore.id, collectionName);
                 const snapshot = await getDocs(collectionRef);
                 const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 backupData[collectionName] = docs;
@@ -79,7 +80,7 @@ export default function ConfiguracoesPage() {
             const link = document.createElement('a');
             link.href = url;
             const date = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
-            link.download = `backup-logitrack-${date}.json`;
+            link.download = `backup-${selectedStore.name.replace(/\s/g, '_')}-${date}.json`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -87,7 +88,7 @@ export default function ConfiguracoesPage() {
             
              toast({
                 title: 'Backup Concluído!',
-                description: `${totalDocs} documentos foram exportados com sucesso.`,
+                description: `${totalDocs} documentos foram exportados com sucesso da loja ${selectedStore.name}.`,
             });
 
         } catch(error: any) {
@@ -122,6 +123,8 @@ export default function ConfiguracoesPage() {
     });
   };
 
+  const isLoading = isLoadingCompany || isUserLoading || !selectedStore;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center">
@@ -138,17 +141,17 @@ export default function ConfiguracoesPage() {
                    Gestão de Dados
                 </CardTitle>
                 <CardDescription>
-                    Exporte ou restaure todos os seus dados operacionais. Use com cuidado.
+                    Exporte ou restaure todos os seus dados operacionais da loja selecionada. Use com cuidado.
                 </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
                 <div className="space-y-2">
                     <Button onClick={handleCreateBackup} disabled={isBackingUp} className="w-full">
                         {isBackingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DownloadCloud className="mr-2 h-4 w-4" />}
-                        {isBackingUp ? 'A processar...' : 'Criar Backup Completo'}
+                        {isBackingUp ? 'A processar...' : 'Criar Backup da Loja'}
                     </Button>
                     <p className="text-xs text-muted-foreground mt-2 text-center">
-                        Isto irá descarregar um ficheiro JSON com os dados de todas as coleções.
+                        Isto irá descarregar um ficheiro JSON com os dados da loja atual.
                     </p>
                 </div>
                  <div className="space-y-2">
@@ -158,7 +161,7 @@ export default function ConfiguracoesPage() {
                         {isRestoring ? 'A restaurar...' : 'Restaurar Backup'}
                     </Button>
                      <p className="text-xs text-muted-foreground mt-2 text-center">
-                        Selecione um ficheiro de backup JSON para restaurar os dados.
+                        Selecione um ficheiro de backup JSON para restaurar os dados na loja atual.
                     </p>
                 </div>
             </CardContent>
@@ -170,11 +173,11 @@ export default function ConfiguracoesPage() {
                     Dados da Empresa e Sistema
                 </CardTitle>
                  <CardDescription>
-                    Configure as informações da sua empresa e personalize as mensagens automáticas.
+                    Configure as informações da sua empresa e personalize as mensagens automáticas para esta loja.
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                {isLoadingCompany || isUserLoading ? (
+                {isLoading ? (
                     <Skeleton className="h-96 w-full" />
                 ) : (
                     <CompanySettingsForm company={company} />
