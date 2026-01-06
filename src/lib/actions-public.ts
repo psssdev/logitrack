@@ -12,30 +12,6 @@ import type { Order, Company, PixKey } from '@/lib/types';
 // Re-export adminDb so other public server actions can use it.
 export { adminDb };
 
-export async function getPublicPixData(storeId: string, keyId: string): Promise<{ company: Company | null; pixKey: PixKey | null }> {
-  console.log('Fetching public pix data for:', { storeId, keyId });
-  if (!storeId || !keyId) return { company: null, pixKey: null };
-  try {
-    const db = adminDb();
-    const companySettingsRef = db.collection('stores').doc(storeId).collection('companySettings').doc('default');
-    const pixKeyRef = db.collection('stores').doc(storeId).collection('pixKeys').doc(keyId);
-
-    const [companySnap, pixKeySnap] = await Promise.all([
-        companySettingsRef.get(),
-        pixKeyRef.get()
-    ]);
-    
-    const company = companySnap.exists ? companySnap.data() as Company : null;
-    const pixKey = pixKeySnap.exists ? { id: pixKeySnap.id, ...pixKeySnap.data() } as PixKey : null;
-
-    return { company, pixKey };
-
-  } catch (error) {
-    console.error('Error fetching public pix data:', error);
-    return { company: null, pixKey: null };
-  }
-}
-
 
 export async function getOrderByTrackingCode(codigoRastreio: string): Promise<Order | null> {
     const firestore = adminDb();
