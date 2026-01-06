@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { vehicleSchema } from '@/lib/schemas';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import {
@@ -37,11 +37,12 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { selectedStore } = useStore();
 
   const form = useForm<EditVehicleFormValues>({
     resolver: zodResolver(vehicleSchema.omit({ id: true })),
     defaultValues: {
+      storeId: vehicle.storeId,
       placa: vehicle.placa,
       modelo: vehicle.modelo,
       ano: vehicle.ano,
@@ -55,7 +56,7 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
   const vehicleType = form.watch('tipo');
 
   async function onSubmit(data: EditVehicleFormValues) {
-    if (!firestore || !user) {
+    if (!firestore || !selectedStore) {
       toast({
         variant: 'destructive',
         title: 'Erro de Conexão',
@@ -79,7 +80,7 @@ export function EditVehicleForm({ vehicle }: { vehicle: Vehicle }) {
     }
 
     try {
-      const vehicleRef = doc(firestore, 'vehicles', vehicle.id);
+      const vehicleRef = doc(firestore, 'stores', selectedStore.id, 'vehicles', vehicle.id);
       await updateDoc(vehicleRef, {
         ...processedData,
         placa: data.placa.toUpperCase(),

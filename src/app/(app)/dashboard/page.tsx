@@ -27,42 +27,50 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import type { Order } from '@/lib/types';
-import { useEffect, useState } from 'react';
-import { getDashboardSummary } from '@/lib/actions';
+import { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
 
 
 export default function DashboardPage() {
-    const [summary, setSummary] = useState({ total: 0, pendentes: 0, emRota: 0, entregues: 0 });
-    const [loadingSummary, setLoadingSummary] = useState(true);
     const firestore = useFirestore();
     const { isUserLoading } = useUser();
+    const { selectedStore } = useStore();
 
     const recentOrdersQuery = useMemoFirebase(() => {
-        if (!firestore || isUserLoading) return null;
+        if (!firestore || !selectedStore) return null;
         return query(
-            collection(firestore, 'companies', '1', 'orders'),
+            collection(firestore, 'stores', selectedStore.id, 'orders'),
             orderBy('createdAt', 'desc'),
             limit(5)
         );
-    }, [firestore, isUserLoading]);
-
-    const { data: recentOrders, isLoading: loadingOrders } = useCollection<Order>(recentOrdersQuery);
+    }, [firestore, selectedStore]);
     
-    useEffect(() => {
-        if (isUserLoading) return;
-        async function fetchSummary() {
-            setLoadingSummary(true);
-            const summaryData = await getDashboardSummary();
-            setSummary(summaryData);
-            setLoadingSummary(false);
-        }
-        fetchSummary();
-    }, [isUserLoading]);
+    const allOrdersQuery = useMemoFirebase(() => {
+        if (!firestore || !selectedStore) return null;
+        return query(collection(firestore, 'stores', selectedStore.id, 'orders'));
+    }, [firestore, selectedStore]);
 
-    const isLoading = loadingOrders || isUserLoading;
+    const { data: recentOrders, isLoading: loadingRecent } = useCollection<Order>(recentOrdersQuery);
+    const { data: allOrders, isLoading: loadingAll } = useCollection<Order>(allOrdersQuery);
+    
+    const summary = useMemo(() => {
+        if (!allOrders) {
+            return { total: 0, pendentes: 0, emRota: 0, entregues: 0 };
+        }
+        return allOrders.reduce((acc, order) => {
+            acc.total++;
+            if (order.status === 'PENDENTE') acc.pendentes++;
+            else if (order.status === 'EM_ROTA') acc.emRota++;
+            else if (order.status === 'ENTREGUE') acc.entregues++;
+            return acc;
+        }, { total: 0, pendentes: 0, emRota: 0, entregues: 0 });
+    }, [allOrders]);
+
+
+    const isLoading = loadingRecent || loadingAll || isUserLoading || !selectedStore;
 
   return (
     <>
@@ -83,7 +91,7 @@ export default function DashboardPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loadingSummary || isUserLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.pendentes}</div>}
+            {isLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.pendentes}</div>}
             <p className="text-xs text-muted-foreground">
               Aguardando para sair para entrega
             </p>
@@ -95,7 +103,7 @@ export default function DashboardPage() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loadingSummary || isUserLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.emRota}</div>}
+            {isLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.emRota}</div>}
             <p className="text-xs text-muted-foreground">
               Encomendas em trânsito
             </p>
@@ -107,7 +115,7 @@ export default function DashboardPage() {
             <PackageCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loadingSummary || isUserLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.entregues}</div>}
+            {isLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.entregues}</div>}
             <p className="text-xs text-muted-foreground">
               Total de entregas concluídas
             </p>
@@ -119,7 +127,7 @@ export default function DashboardPage() {
              <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {loadingSummary || isUserLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.total}</div>}
+             {isLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.total}</div>}
             <p className="text-xs text-muted-foreground">
               Total de registros no sistema
             </p>

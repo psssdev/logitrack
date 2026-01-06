@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 type City = {
@@ -64,12 +64,11 @@ const brazilianStates = [
     { value: 'TO', label: 'Tocantins' },
 ];
 
-const COMPANY_ID = '1';
-
 export function NewOriginForm() {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const [cities, setCities] = React.useState<City[]>([]);
   const [isFetchingCities, setIsFetchingCities] = React.useState(false);
@@ -169,7 +168,7 @@ export function NewOriginForm() {
   };
 
   async function onSubmit(data: NewOrigin) {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
         toast({
             variant: 'destructive',
             title: 'Erro de conexão',
@@ -179,7 +178,7 @@ export function NewOriginForm() {
     }
 
     try {
-        const originsCollection = collection(firestore, 'companies', COMPANY_ID, 'origins');
+        const originsCollection = collection(firestore, 'stores', selectedStore.id, 'origins');
         const { logradouro, numero, bairro, cidade, estado, cep, name } = data;
         const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 

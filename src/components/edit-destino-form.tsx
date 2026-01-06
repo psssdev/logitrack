@@ -19,7 +19,7 @@ import { triggerRevalidation } from '@/lib/actions';
 import { newLocationSchema } from '@/lib/schemas';
 import type { Destino } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
 type FormValues = z.infer<typeof newLocationSchema>;
@@ -28,7 +28,7 @@ export function EditDestinoForm({ destino }: { destino: Destino }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { selectedStore } = useStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(newLocationSchema),
@@ -45,13 +45,13 @@ export function EditDestinoForm({ destino }: { destino: Destino }) {
   });
 
   async function onSubmit(data: FormValues) {
-    if (!firestore || !user) {
+    if (!firestore || !selectedStore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
-      const destinoRef = doc(firestore, 'destinos', destino.id);
+      const destinoRef = doc(firestore, 'stores', selectedStore.id, 'destinos', destino.id);
       
       await updateDoc(destinoRef, {
         name: data.name,

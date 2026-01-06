@@ -10,33 +10,34 @@ import type { Vehicle, Client, Origin, Destino } from '@/lib/types';
 import { collection, query, orderBy, Query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
+import { useStore } from '@/contexts/store-context';
 
 export default function VenderPassagemPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
-  // Só consulta quando estiver tudo pronto e autenticado
-  const canQuery = !!firestore && !!user?.uid && !isUserLoading;
+  const canQuery = !!firestore && !!selectedStore && !isUserLoading;
 
   const vehiclesQuery = useMemoFirebase<Query | null>(() => {
     if (!canQuery) return null;
-    return query(collection(firestore!, 'vehicles'), orderBy('modelo', 'asc'));
-  }, [canQuery, firestore]);
+    return query(collection(firestore!, 'stores', selectedStore!.id, 'vehicles'), orderBy('modelo', 'asc'));
+  }, [canQuery, firestore, selectedStore]);
 
   const clientsQuery = useMemoFirebase<Query | null>(() => {
     if (!canQuery) return null;
-    return query(collection(firestore!, 'clients'), orderBy('nome', 'asc'));
-  }, [canQuery, firestore]);
+    return query(collection(firestore!, 'stores', selectedStore!.id, 'clients'), orderBy('nome', 'asc'));
+  }, [canQuery, firestore, selectedStore]);
 
   const originsQuery = useMemoFirebase<Query | null>(() => {
     if (!canQuery) return null;
-    return query(collection(firestore!, 'origins'), orderBy('name', 'asc'));
-  }, [canQuery, firestore]);
+    return query(collection(firestore!, 'stores', selectedStore!.id, 'origins'), orderBy('name', 'asc'));
+  }, [canQuery, firestore, selectedStore]);
 
   const destinosQuery = useMemoFirebase<Query | null>(() => {
     if (!canQuery) return null;
-    return query(collection(firestore!, 'destinos'), orderBy('name', 'asc'));
-  }, [canQuery, firestore]);
+    return query(collection(firestore!, 'stores', selectedStore!.id, 'destinos'), orderBy('name', 'asc'));
+  }, [canQuery, firestore, selectedStore]);
 
   const {
     data: vehiclesRaw,
@@ -75,7 +76,6 @@ export default function VenderPassagemPage() {
     isLoadingOrigins ||
     isLoadingDestinations;
 
-  // Render “erro amigável” com link de índice quando for failed-precondition
   const renderError = useCallback((err?: unknown) => {
     if (!err) return null;
     const msg = String(err);
@@ -102,7 +102,6 @@ export default function VenderPassagemPage() {
 
   const anyError = vehiclesError || clientsError || originsError || destinationsError;
 
-  // Tentar de novo = um “no-op” que força refetch (mudando uma key de estado) — aqui simples: recarrega rota
   const retry = () => {
     if (typeof window !== 'undefined') window.location.reload();
   };
@@ -127,10 +126,8 @@ export default function VenderPassagemPage() {
         </div>
       </div>
 
-      {/* Loading geral */}
       {isLoadingAll && <Skeleton className="h-[500px] w-full" />}
 
-      {/* Erros */}
       {!isLoadingAll && anyError && (
         <div className="space-y-3">
           {renderError(vehiclesError)}
@@ -146,7 +143,6 @@ export default function VenderPassagemPage() {
         </div>
       )}
 
-      {/* Vazios */}
       {!isLoadingAll && !anyError && (vehicles.length === 0 || clients.length === 0 || origins.length === 0 || destinations.length === 0) && (
         <Card>
           <CardContent className="p-6">
@@ -155,16 +151,15 @@ export default function VenderPassagemPage() {
               <strong> Origens</strong> e <strong> Destinos</strong> cadastrados.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button asChild variant="outline" size="sm"><Link href="/veiculos">Cadastrar veículo</Link></Button>
-              <Button asChild variant="outline" size="sm"><Link href="/clientes">Cadastrar cliente</Link></Button>
-              <Button asChild variant="outline" size="sm"><Link href="/origens">Cadastrar origem</Link></Button>
-              <Button asChild variant="outline" size="sm"><Link href="/destinos">Cadastrar destino</Link></Button>
+              <Button asChild variant="outline" size="sm"><Link href="/veiculos/novo">Cadastrar veículo</Link></Button>
+              <Button asChild variant="outline" size="sm"><Link href="/clientes/novo">Cadastrar cliente</Link></Button>
+              <Button asChild variant="outline" size="sm"><Link href="/origens/novo">Cadastrar origem</Link></Button>
+              <Button asChild variant="outline" size="sm"><Link href="/destinos/novo">Cadastrar destino</Link></Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Form pronto */}
       {!isLoadingAll && !anyError && vehicles.length && clients.length && origins.length && destinations.length ? (
         <NewFinancialEntryForm
           vehicles={vehicles}

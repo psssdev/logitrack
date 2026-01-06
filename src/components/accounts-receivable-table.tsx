@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Order } from '@/lib/types';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { triggerRevalidation } from '@/lib/actions';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,8 +25,6 @@ import { MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { Timestamp } from 'firebase/firestore';
 
-const COMPANY_ID = '1';
-
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -37,9 +35,10 @@ const formatCurrency = (value: number) => {
 export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
 
   const handleMarkAsPaid = async (order: Order) => {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
       toast({
         variant: 'destructive',
         title: 'Erro de conexão',
@@ -47,7 +46,7 @@ export function AccountsReceivableTable({ orders }: { orders: Order[] }) {
       });
       return;
     }
-    const orderRef = doc(firestore, 'companies', COMPANY_ID, 'orders', order.id);
+    const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
     const remainingAmount = order.valorEntrega - (order.valorPago || 0);
 
     if (remainingAmount <= 0) {

@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { vehicleSchema } from '@/lib/schemas';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import {
@@ -57,11 +57,12 @@ export function NewVehicleForm() {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { selectedStore } = useStore();
 
   const form = useForm<NewVehicleFormValues>({
     resolver: zodResolver(vehicleSchema.omit({ id: true })),
     defaultValues: {
+      storeId: selectedStore?.id || '',
       placa: '',
       modelo: '',
       ano: new Date().getFullYear(),
@@ -72,10 +73,16 @@ export function NewVehicleForm() {
     },
   });
 
+  React.useEffect(() => {
+    if (selectedStore?.id) {
+        form.setValue('storeId', selectedStore.id);
+    }
+  }, [selectedStore, form]);
+
   const vehicleType = form.watch('tipo');
 
   async function onSubmit(data: NewVehicleFormValues) {
-    if (!firestore || !user) {
+    if (!firestore || !selectedStore) {
       toast({
         variant: 'destructive',
         title: 'Erro de Conexão',
@@ -99,7 +106,7 @@ export function NewVehicleForm() {
     }
 
     try {
-      const vehiclesCollection = collection(firestore, 'vehicles');
+      const vehiclesCollection = collection(firestore, 'stores', selectedStore.id, 'vehicles');
       await addDoc(vehiclesCollection, {
         ...processedData,
         placa: data.placa.toUpperCase(),

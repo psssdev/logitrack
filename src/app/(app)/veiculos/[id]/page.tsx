@@ -33,6 +33,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { isSameDay, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { triggerRevalidation } from '@/lib/actions';
+import { useStore } from '@/contexts/store-context';
 
 const statusConfig = {
     "Ativo": "bg-green-500/80",
@@ -55,7 +56,8 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
 
 function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -64,20 +66,20 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
 
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return doc(firestore, 'vehicles', vehicleId);
-  }, [firestore, isUserLoading, vehicleId, user]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'vehicles', vehicleId);
+  }, [firestore, selectedStore, vehicleId]);
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useDoc<Vehicle>(vehicleRef);
 
   const salesQuery = useMemoFirebase(() => {
-    if (!firestore || !vehicleId) return null;
+    if (!firestore || !selectedStore) return null;
     
     return query(
-        collection(firestore, 'financialEntries'),
+        collection(firestore, 'stores', selectedStore.id, 'financialEntries'),
         where('vehicleId', '==', vehicleId)
     );
-  }, [firestore, vehicleId]);
+  }, [firestore, selectedStore, vehicleId]);
 
   const { data: sales, isLoading: isLoadingSales } = useCollection<FinancialEntry>(salesQuery);
 
@@ -94,7 +96,7 @@ function VehicleDetailContent({ vehicleId }: { vehicleId: string }) {
   }, [sales, selectedDate]);
 
 
-  const isLoading = isLoadingVehicle || isLoadingSales || isUserLoading;
+  const isLoading = isLoadingVehicle || isLoadingSales || isUserLoading || !selectedStore;
 
   const handleDelete = async () => {
     if (!firestore || !vehicle || !vehicleRef) return;

@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { baseFinancialEntrySchema } from '@/lib/schemas';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import {
@@ -43,10 +43,12 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
 
   const form = useForm<NewExpenseFormValues>({
     resolver: zodResolver(baseFinancialEntrySchema),
     defaultValues: {
+      storeId: selectedStore?.id || '',
       description: '',
       type: 'Saída',
       amount: 0,
@@ -58,6 +60,12 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
       notes: '',
     },
   });
+
+  React.useEffect(() => {
+    if (selectedStore?.id) {
+        form.setValue('storeId', selectedStore.id);
+    }
+  }, [selectedStore, form]);
   
   const selectedCategoryId = form.watch('categoryId');
 
@@ -68,13 +76,13 @@ export function NewExpenseForm({ categories, vehicles, drivers }: { categories: 
   }, [categories]);
 
   async function onSubmit(data: NewExpenseFormValues) {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
-      const entriesCollection = collection(firestore, 'financialEntries');
+      const entriesCollection = collection(firestore, 'stores', selectedStore.id, 'financialEntries');
       
       const category = categories.find(c => c.id === data.categoryId);
       const driver = drivers.find(d => d.id === data.driverId);

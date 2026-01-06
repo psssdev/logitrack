@@ -15,23 +15,23 @@ import { collection, orderBy, query } from 'firebase/firestore';
 import type { AvisameCampaign } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CampaignTable } from '@/components/avisame/campaign-table';
-
-const COMPANY_ID = '1';
+import { useStore } from '@/contexts/store-context';
 
 export default function AvisameCampaignsPage() {
   const firestore = useFirestore();
   const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const campaignsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !selectedStore) return null;
     return query(
-      collection(firestore, 'companies', COMPANY_ID, 'avisame_campaigns'),
+      collection(firestore, 'stores', selectedStore.id, 'avisame_campaigns'),
       orderBy('createdAt', 'desc')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, selectedStore]);
 
   const { data: campaigns, isLoading } = useCollection<AvisameCampaign>(campaignsQuery);
-  const pageIsLoading = isLoading || isUserLoading;
+  const pageIsLoading = isLoading || isUserLoading || !selectedStore;
 
   return (
     <div className="flex flex-col gap-6">

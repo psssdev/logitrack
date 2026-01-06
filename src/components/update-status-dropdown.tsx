@@ -13,15 +13,15 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import type { Order, OrderStatus, Company } from '@/lib/types';
 import { Loader2, ChevronDown } from 'lucide-react';
-import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useUser, useStore } from '@/firebase';
 import {
   doc,
   updateDoc,
   arrayUnion,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { triggerRevalidation } from '@/lib/actions';
 import { OrderStatusBadge } from './status-badge';
+import { useCompany } from './providers/company-provider';
 
 const openWhatsApp = (phone: string, message: string) => {
   const cleanedPhone = phone.replace(/\D/g, '');
@@ -48,30 +48,23 @@ export function UpdateStatusDropdown({ order }: { order: Order }) {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-
-  const canQuery = !!firestore && !!user?.uid && !isUserLoading;
-  
-  const companyRef = useMemoFirebase(() => {
-    if (!canQuery) return null;
-    return doc(firestore!, 'companies', '1');
-  }, [canQuery, firestore]);
-
-  const { data: company, isLoading: isLoadingCompany } = useDoc<Company>(companyRef);
+  const { selectedStore } = useStore();
+  const { company, isLoading: isLoadingCompany } = useCompany();
 
   const handleUpdateStatus = (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
 
     startTransition(async () => {
-      if (!firestore || !user) {
+      if (!firestore || !user || !selectedStore) {
         toast({
           variant: 'destructive',
           title: 'Erro',
-          description: 'Usuário não autenticado.',
+          description: 'Usuário não autenticado ou loja não selecionada.',
         });
         return;
       }
 
-      const orderRef = doc(firestore, 'orders', order.id);
+      const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
 
       try {
         await updateDoc(orderRef, {

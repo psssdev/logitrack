@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useStore } from '@/contexts/store-context';
 
 const paymentMethodLabels: Record<string, string> = {
   pix: 'PIX',
@@ -67,21 +68,21 @@ export default function VendaComprovantePage({
 
 function ComprovanteContent({ entryId }: { entryId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
-  const router = useRouter();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
 
   const entryRef = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
-    return doc(firestore, 'financialEntries', entryId);
-  }, [firestore, user, isUserLoading, entryId]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'financialEntries', entryId);
+  }, [firestore, selectedStore, entryId]);
 
   const { data: entry, isLoading } = useDoc<FinancialEntry>(entryRef);
 
   const vehicleRef = useMemoFirebase(() => {
-    if (!firestore || !entry?.vehicleId) return null;
-    return doc(firestore, 'vehicles', entry.vehicleId);
-  }, [firestore, entry?.vehicleId]);
+    if (!firestore || !entry?.vehicleId || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'vehicles', entry.vehicleId);
+  }, [firestore, entry?.vehicleId, selectedStore]);
 
   const { data: vehicle } = useDoc<Vehicle>(vehicleRef);
 
@@ -121,7 +122,7 @@ Agradecemos a sua preferência!
     toast({ title: "Abrindo WhatsApp...", description: "Prepare-se para enviar a mensagem para o cliente."})
   };
 
-  const pageIsLoading = isLoading || isUserLoading;
+  const pageIsLoading = isLoading || isUserLoading || !selectedStore;
 
   if (pageIsLoading) {
     return <ComprovanteSkeleton />;

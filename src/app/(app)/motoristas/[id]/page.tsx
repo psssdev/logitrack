@@ -19,6 +19,7 @@ import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@
 import { collection, query, where, doc, Timestamp, orderBy } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderStatusBadge } from '@/components/status-badge';
+import { useStore } from '@/contexts/store-context';
 
 
 export default function MotoristaDetailPage({
@@ -32,26 +33,27 @@ export default function MotoristaDetailPage({
 
 function MotoristaDetailContent({ driverId }: { driverId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const driverRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'drivers', driverId);
-  }, [firestore, user, driverId]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'drivers', driverId);
+  }, [firestore, selectedStore, driverId]);
 
   const driverOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !selectedStore) return null;
     return query(
-      collection(firestore, 'orders'),
+      collection(firestore, 'stores', selectedStore.id, 'orders'),
       where('motoristaId', '==', driverId),
       orderBy('createdAt', 'desc')
     );
-  }, [firestore, user, driverId]);
+  }, [firestore, selectedStore, driverId]);
 
   const { data: driver, isLoading: isLoadingDriver } = useDoc<Driver>(driverRef);
   const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(driverOrdersQuery);
 
-  const isLoading = isLoadingDriver || isLoadingOrders || isUserLoading;
+  const isLoading = isLoadingDriver || isLoadingOrders || isUserLoading || !selectedStore;
   
   if (isLoading) {
     return <DriverDetailsSkeleton />;

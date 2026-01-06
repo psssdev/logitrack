@@ -39,6 +39,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Timestamp } from 'firebase/firestore';
+import { useStore } from '@/contexts/store-context';
 
 
 const formatCurrency = (value: number) =>
@@ -68,22 +69,23 @@ const COLORS = [
 
 export default function RelatoriosPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
   
   const financialEntriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(collection(firestore, 'financialEntries'));
-  }, [firestore, isUserLoading]);
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'financialEntries'));
+  }, [firestore, selectedStore]);
 
   const vehiclesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(collection(firestore, 'vehicles'));
-  }, [firestore, isUserLoading]);
+    if (!firestore || !selectedStore) return null;
+    return query(collection(firestore, 'stores', selectedStore.id, 'vehicles'));
+  }, [firestore, selectedStore]);
   
   const categoriesQuery = useMemoFirebase(() => {
-      if (!firestore || isUserLoading) return null;
-      return query(collection(firestore, 'financialCategories'));
-  }, [firestore, isUserLoading]);
+      if (!firestore || !selectedStore) return null;
+      return query(collection(firestore, 'stores', selectedStore.id, 'financialCategories'));
+  }, [firestore, selectedStore]);
 
 
   const { data: financialEntries, isLoading: isLoadingEntries } = useCollection<FinancialEntry>(financialEntriesQuery);
@@ -190,7 +192,7 @@ export default function RelatoriosPage() {
     } satisfies ChartConfig;
 
 
-  const isLoading = isLoadingEntries || isLoadingVehicles || isLoadingCategories || isUserLoading;
+  const isLoading = isLoadingEntries || isLoadingVehicles || isLoadingCategories || isUserLoading || !selectedStore;
 
   if(isLoading) {
     return (
@@ -349,5 +351,3 @@ export default function RelatoriosPage() {
     </div>
   );
 }
-
-    

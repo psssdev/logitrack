@@ -16,6 +16,7 @@ import type { Destino } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditDestinoForm } from '@/components/edit-destino-form';
+import { useStore } from '@/contexts/store-context';
 
 export default function EditDestinoPage({
   params,
@@ -28,16 +29,17 @@ export default function EditDestinoPage({
 
 function EditDestinoContent({ destinoId }: { destinoId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const destinoRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'destinos', destinoId);
-  }, [firestore, isUserLoading, destinoId]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'destinos', destinoId);
+  }, [firestore, selectedStore, destinoId]);
 
   const { data: destino, isLoading } = useDoc<Destino>(destinoRef);
 
-  const pageIsLoading = isLoading || isUserLoading;
+  const pageIsLoading = isLoading || isUserLoading || !selectedStore;
 
   if (pageIsLoading) {
     return (

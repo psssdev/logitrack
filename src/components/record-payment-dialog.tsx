@@ -30,8 +30,8 @@ import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import type { Order, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser } from '@/firebase';
-import { doc, updateDoc, Timestamp, arrayUnion, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useUser, useStore } from '@/firebase';
+import { doc, Timestamp, arrayUnion, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -39,7 +39,7 @@ import { ptBR } from 'date-fns/locale';
 interface ClientDebt {
     clientId: string;
     nomeCliente: string;
-    telefone: string;
+    telefone?: string;
     totalPendente: number;
     orderCount: number;
     pendingOrders: Order[];
@@ -69,6 +69,7 @@ export function RecordPaymentDialog({
 }: RecordPaymentDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -89,7 +90,7 @@ export function RecordPaymentDialog({
   if (!clientDebt) return null;
 
   const handleSave = async () => {
-    if (!firestore || !user || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0) {
+    if (!firestore || !user || !selectedStore || !paymentDate || !paymentMethod || !paymentAmount || paymentAmount <= 0) {
       toast({
         variant: 'destructive',
         title: 'Erro de Validação',
@@ -126,7 +127,7 @@ export function RecordPaymentDialog({
                 notes: paymentNotes || `Pagamento parcial de ${clientDebt.nomeCliente}`
             };
 
-            const orderRef = doc(firestore, 'orders', order.id);
+            const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
 
             const newTotalPaid = paidOnOrder + amountToPayOnThisOrder;
             const isOrderFullyPaid = newTotalPaid >= order.valorEntrega;

@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { newDriverSchema } from '@/lib/schemas';
 import type { NewDriver } from '@/lib/types';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Loader2, UploadCloud, X } from 'lucide-react';
 import Link from 'next/link';
@@ -29,17 +29,25 @@ export function NewDriverForm() {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
   const [photoFile, setPhotoFile] = React.useState<File | null>(null);
 
   const form = useForm<NewDriver>({
     resolver: zodResolver(newDriverSchema),
     defaultValues: {
+      storeId: selectedStore?.id || '',
       nome: '',
       telefone: '',
       photoUrl: '',
     },
   });
+
+  React.useEffect(() => {
+    if (selectedStore?.id) {
+        form.setValue('storeId', selectedStore.id);
+    }
+  }, [selectedStore, form]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -54,7 +62,7 @@ export function NewDriverForm() {
   };
 
   async function onSubmit(data: NewDriver) {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
       toast({
         variant: 'destructive',
         title: 'Erro de Conexão',
@@ -73,7 +81,7 @@ export function NewDriverForm() {
         );
       }
 
-      const driversCollection = collection(firestore, 'drivers');
+      const driversCollection = collection(firestore, 'stores', selectedStore.id, 'drivers');
 
       await addDoc(driversCollection, {
         ...data,

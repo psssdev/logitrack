@@ -19,7 +19,7 @@ import { triggerRevalidation } from '@/lib/actions';
 import { newLocationSchema } from '@/lib/schemas';
 import type { Origin } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
 // Helper to parse the full address
@@ -47,7 +47,7 @@ export function EditOriginForm({ origin }: { origin: Origin }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
-  const { companyId } = useUser();
+  const { selectedStore } = useStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(newLocationSchema),
@@ -60,13 +60,13 @@ export function EditOriginForm({ origin }: { origin: Origin }) {
   });
 
   async function onSubmit(data: FormValues) {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
-      const originRef = doc(firestore, 'origins', origin.id);
+      const originRef = doc(firestore, 'stores', selectedStore.id, 'origins', origin.id);
       const { logradouro, numero, bairro, cidade, estado, cep } = data;
       const fullAddress = `${logradouro}, ${numero}, ${bairro}, ${cidade} - ${estado}, ${cep}`;
 

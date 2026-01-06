@@ -16,6 +16,7 @@ import { collection, doc } from 'firebase/firestore';
 import type { Client, Address } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Timestamp } from 'firebase/firestore';
+import { useStore } from '@/contexts/store-context';
 
 export default function ClientDetailPage({
   params,
@@ -28,22 +29,23 @@ export default function ClientDetailPage({
 
 function ClientDetailContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading }- useUser();
+  const { selectedStore } = useStore();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'clients', clientId);
-  }, [firestore, isUserLoading, clientId]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'clients', clientId);
+  }, [firestore, selectedStore, clientId]);
   
   const addressesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return collection(firestore, 'clients', clientId, 'addresses');
-  }, [firestore, isUserLoading, clientId]);
+    if (!firestore || !selectedStore) return null;
+    return collection(firestore, 'stores', selectedStore.id, 'clients', clientId, 'addresses');
+  }, [firestore, selectedStore, clientId]);
 
   const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
   const { data: addresses, isLoading: isLoadingAddresses } = useCollection<Address>(addressesQuery);
   
-  const isLoading = isLoadingClient || isLoadingAddresses || isUserLoading;
+  const isLoading = isLoadingClient || isLoadingAddresses || isUserLoading || !selectedStore;
 
   const formatDate = (date: Date | Timestamp | undefined) => {
     if (!date) return 'Data desconhecida';

@@ -19,10 +19,9 @@ import type { Client } from '@/lib/types';
 
 export default function ClientesPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
   const { selectedStore } = useStore();
 
-  const isSpecialUser = user?.email === 'jiverson.t@gmail.com';
 
   const storeClientsQuery = useMemoFirebase(() => {
     if (!firestore || !selectedStore) return null;
@@ -32,38 +31,11 @@ export default function ClientesPage() {
     );
   }, [firestore, selectedStore]);
 
-  const legacyClientsQuery = useMemoFirebase(() => {
-    // Only the special user can query legacy data
-    if (!firestore || !isSpecialUser) return null;
-    return query(
-      collection(firestore, 'clients'),
-      orderBy('nome', 'asc')
-    );
-  }, [firestore, isSpecialUser]);
-
 
   const { data: storeClients, isLoading: isLoadingStoreClients } = useCollection<Client>(storeClientsQuery);
-  const { data: legacyClients, isLoading: isLoadingLegacyClients } = useCollection<Client>(legacyClientsQuery);
   
-  const combinedClients = useMemo(() => {
-    const allClients = new Map<string, Client>();
-    // Only add legacy clients if the user is the special user
-    if (isSpecialUser && legacyClients) {
-      legacyClients.forEach(client => {
-        if (!client.storeId) { // Ensure we don't double-add migrated data
-            allClients.set(client.id, client);
-        }
-      });
-    }
-    // Always add store-specific clients
-    if (storeClients) {
-      storeClients.forEach(client => allClients.set(client.id, client));
-    }
-    return Array.from(allClients.values()).sort((a,b) => a.nome.localeCompare(b.nome));
-  }, [storeClients, legacyClients, isSpecialUser]);
 
-
-  const pageIsLoading = isLoadingStoreClients || (isSpecialUser && isLoadingLegacyClients) || isUserLoading;
+  const pageIsLoading = isLoadingStoreClients || isUserLoading || !selectedStore;
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,7 +61,7 @@ export default function ClientesPage() {
         </CardHeader>
         <CardContent>
           {pageIsLoading && <Skeleton className="h-48 w-full" />}
-          {combinedClients && !pageIsLoading && <ClientTable clients={combinedClients} />}
+          {storeClients && !pageIsLoading && <ClientTable clients={storeClients} />}
         </CardContent>
       </Card>
     </div>

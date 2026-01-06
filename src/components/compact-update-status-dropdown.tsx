@@ -13,7 +13,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import type { Order, OrderStatus } from '@/lib/types';
 import { Loader2, ChevronDown } from 'lucide-react';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, useStore } from '@/firebase';
 import {
   doc,
   updateDoc,
@@ -23,6 +23,7 @@ import {
 import { triggerRevalidation } from '@/lib/actions';
 import { OrderStatusBadge } from './status-badge';
 import { cn } from '@/lib/utils';
+import { useCompany } from './providers/company-provider';
 
 const openWhatsApp = (phone: string, message: string) => {
   const cleanedPhone = phone.replace(/\D/g, '');
@@ -49,21 +50,23 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { selectedStore } = useStore();
+  const { company, isLoading: isLoadingCompany } = useCompany();
 
   const handleUpdateStatus = (newStatus: OrderStatus) => {
     if (newStatus === order.status) return;
 
     startTransition(async () => {
-      if (!firestore || !user) {
+      if (!firestore || !user || !selectedStore) {
         toast({
           variant: 'destructive',
           title: 'Erro',
-          description: 'Usuário não autenticado ou empresa não encontrada.',
+          description: 'Usuário não autenticado ou loja não selecionada.',
         });
         return;
       }
 
-      const orderRef = doc(firestore, 'orders', order.id);
+      const orderRef = doc(firestore, 'stores', selectedStore.id, 'orders', order.id);
 
       try {
         await updateDoc(orderRef, {
@@ -79,7 +82,7 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
         let notificationTitle = 'Status Atualizado';
 
         if (newStatus === 'EM_ROTA') {
-          messageTemplate = "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
+          messageTemplate = company?.msgEmRota || "Olá {cliente}! Sua encomenda {codigo} saiu para entrega. Acompanhe em: {link}";
           notificationTitle = 'Encomenda em rota!';
         } else if (newStatus === 'ENTREGUE') {
           messageTemplate = "Olá {cliente}! Sua encomenda {codigo} foi entregue com sucesso! Obrigado por confiar em nossos serviços.";
@@ -87,7 +90,7 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
         }
 
         if (messageTemplate) {
-          const trackingLink = `https://seusite.com/rastreio/${order.codigoRastreio}`;
+          const trackingLink = `${company?.linkBaseRastreio || 'https://seusite.com/rastreio/'}${order.codigoRastreio}`;
           let message = messageTemplate
             .replace('{cliente}', order.nomeCliente)
             .replace('{codigo}', order.codigoRastreio)
@@ -118,7 +121,7 @@ export function CompactUpdateStatusDropdown({ order }: { order: Order }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="p-1 h-auto" disabled={isPending || isUserLoading}>
+        <Button variant="ghost" size="sm" className="p-1 h-auto" disabled={isPending || isUserLoading || isLoadingCompany}>
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (

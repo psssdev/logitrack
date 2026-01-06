@@ -17,40 +17,42 @@ import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebas
 import type { FinancialCategory, Vehicle, Driver } from '@/lib/types';
 import { collection, query, orderBy, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
 
 export default function NewExpensePage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const categoriesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !selectedStore) return null;
     return query(
-      collection(firestore, 'financialCategories'),
+      collection(firestore, 'stores', selectedStore.id, 'financialCategories'),
       where('type', '==', 'Saída')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, selectedStore]);
 
   const vehiclesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !selectedStore) return null;
     return query(
-      collection(firestore, 'vehicles'),
+      collection(firestore, 'stores', selectedStore.id, 'vehicles'),
       orderBy('modelo', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, selectedStore]);
 
   const driversQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
+    if (!firestore || !selectedStore) return null;
     return query(
-        collection(firestore, 'drivers'),
+        collection(firestore, 'stores', selectedStore.id, 'drivers'),
         orderBy('nome', 'asc')
     );
-  }, [firestore, isUserLoading]);
+  }, [firestore, selectedStore]);
 
   const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
   const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
-  const isLoading = isLoadingCategories || isLoadingVehicles || isLoadingDrivers || isUserLoading;
+  const isLoading = isLoadingCategories || isLoadingVehicles || isLoadingDrivers || isUserLoading || !selectedStore;
 
   return (
     <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">

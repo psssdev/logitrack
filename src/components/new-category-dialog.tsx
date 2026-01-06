@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { triggerRevalidation } from '@/lib/actions';
@@ -30,13 +30,14 @@ export function NewCategoryDialog({
   setIsOpen,
 }: NewCategoryDialogProps) {
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
   const [categoryName, setCategoryName] = React.useState('');
   const [categoryType, setCategoryType] = React.useState<'Entrada' | 'Saída'>('Entrada');
 
   const handleSave = async () => {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
       toast({ variant: 'destructive', title: 'Erro de conexão.' });
       return;
     }
@@ -47,8 +48,9 @@ export function NewCategoryDialog({
 
     setIsSaving(true);
     try {
-      const categoriesCollection = collection(firestore, 'financialCategories');
+      const categoriesCollection = collection(firestore, 'stores', selectedStore.id, 'financialCategories');
       await addDoc(categoriesCollection, {
+        storeId: selectedStore.id,
         name: categoryName,
         type: categoryType,
         createdAt: serverTimestamp(),

@@ -16,6 +16,7 @@ import type { Origin } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditOriginForm } from '@/components/edit-origin-form';
+import { useStore } from '@/contexts/store-context';
 
 export default function EditOriginPage({
   params,
@@ -28,16 +29,17 @@ export default function EditOriginPage({
 
 function EditOriginContent({ originId }: { originId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const originRef = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'origins', originId);
-  }, [firestore, isUserLoading, originId]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'origins', originId);
+  }, [firestore, selectedStore, originId]);
 
   const { data: origin, isLoading } = useDoc<Origin>(originRef);
 
-  const pageIsLoading = isLoading || isUserLoading;
+  const pageIsLoading = isLoading || isUserLoading || !selectedStore;
 
   if (pageIsLoading) {
     return (

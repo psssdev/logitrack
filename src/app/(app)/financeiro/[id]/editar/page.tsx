@@ -17,6 +17,7 @@ import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@
 import type { FinancialEntry, Vehicle, Client, Driver, FinancialCategory } from '@/lib/types';
 import { collection, doc, query, orderBy, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
 
 export default function EditFinancialEntryPage({
   params,
@@ -30,55 +31,56 @@ export default function EditFinancialEntryPage({
 
 function EditFinancialEntryContent({ entryId }: { entryId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
+  const { selectedStore } = useStore();
 
   const entryRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'financialEntries', entryId);
-  }, [firestore, user, entryId]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'financialEntries', entryId);
+  }, [firestore, selectedStore, entryId]);
 
   const { data: entry, isLoading: isLoadingEntry } = useDoc<FinancialEntry>(entryRef);
   
-  const canQuery = firestore && user && entry;
+  const canQuery = firestore && selectedStore && entry;
 
   const vehiclesQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore, 'vehicles'),
+        collection(firestore, 'stores', selectedStore.id, 'vehicles'),
         orderBy('modelo', 'asc')
     );
-  }, [canQuery, firestore]);
+  }, [canQuery, firestore, selectedStore]);
   
   const clientsQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore, 'clients'),
+        collection(firestore, 'stores', selectedStore.id, 'clients'),
         orderBy('nome', 'asc')
     );
-  }, [canQuery, firestore]);
+  }, [canQuery, firestore, selectedStore]);
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore, 'financialCategories'),
+        collection(firestore, 'stores', selectedStore.id, 'financialCategories'),
         where('type', '==', entry.type)
     );
-  }, [canQuery, firestore, entry?.type]);
+  }, [canQuery, firestore, selectedStore, entry?.type]);
 
   const driversQuery = useMemoFirebase(() => {
     if (!canQuery) return null;
     return query(
-        collection(firestore, 'drivers'),
+        collection(firestore, 'stores', selectedStore.id, 'drivers'),
         orderBy('nome', 'asc')
     );
-  }, [canQuery, firestore]);
+  }, [canQuery, firestore, selectedStore]);
 
   const { data: vehicles, isLoading: isLoadingVehicles } = useCollection<Vehicle>(vehiclesQuery);
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   const { data: categories, isLoading: isLoadingCategories } = useCollection<FinancialCategory>(categoriesQuery);
   const { data: drivers, isLoading: isLoadingDrivers } = useCollection<Driver>(driversQuery);
 
-  const isLoading = isLoadingEntry || isLoadingVehicles || isLoadingClients || isLoadingCategories || isLoadingDrivers || isUserLoading;
+  const isLoading = isLoadingEntry || isLoadingVehicles || isLoadingClients || isLoadingCategories || isLoadingDrivers || isUserLoading || !selectedStore;
 
   if (isLoading) {
     return (

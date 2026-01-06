@@ -17,6 +17,7 @@ import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Address } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useStore } from '@/contexts/store-context';
 
 export default function EditAddressPage({
   params,
@@ -29,15 +30,18 @@ export default function EditAddressPage({
 
 function EditAddressContent({ clientId, addressId }: { clientId: string, addressId: string }) {
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
 
   const addressRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'companies', '1', 'clients', clientId, 'addresses', addressId);
-  }, [firestore, clientId, addressId]);
+    if (!firestore || !selectedStore) return null;
+    return doc(firestore, 'stores', selectedStore.id, 'clients', clientId, 'addresses', addressId);
+  }, [firestore, selectedStore, clientId, addressId]);
 
   const { data: address, isLoading } = useDoc<Address>(addressRef);
 
-  if (isLoading) {
+  const pageIsLoading = isLoading || !selectedStore;
+
+  if (pageIsLoading) {
     return (
       <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
         <div className="flex items-center gap-4">

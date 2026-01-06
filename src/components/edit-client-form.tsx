@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editClientSchema } from '@/lib/schemas';
 import type { Client, Destino } from '@/lib/types';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -29,6 +29,7 @@ export function EditClientForm({ client, destinos }: { client: Client, destinos:
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
 
   const form = useForm<EditClientFormValues>({
     resolver: zodResolver(editClientSchema),
@@ -40,7 +41,7 @@ export function EditClientForm({ client, destinos }: { client: Client, destinos:
   });
 
   async function onSubmit(data: EditClientFormValues) {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
       toast({
         variant: 'destructive',
         title: 'Erro de Conexão',
@@ -52,6 +53,8 @@ export function EditClientForm({ client, destinos }: { client: Client, destinos:
     try {
       const clientRef = doc(
         firestore,
+        'stores',
+        selectedStore.id,
         'clients',
         client.id
       );

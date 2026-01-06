@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editFinancialEntrySchema } from '@/lib/schemas';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { updateDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { CalendarIcon, Loader2, ChevronsUpDown, Check } from 'lucide-react';
 import {
@@ -61,6 +61,7 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
   const [clientPopoverOpen, setClientPopoverOpen] = React.useState(false);
 
   const form = useForm<EditFinancialEntryFormValues>({
@@ -82,13 +83,13 @@ export function EditFinancialEntryForm({ entry, vehicles, clients, categories, d
   }, [categories]);
 
   async function onSubmit(data: EditFinancialEntryFormValues) {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }
 
     try {
-      const entryRef = doc(firestore, 'financialEntries', entry.id);
+      const entryRef = doc(firestore, 'stores', selectedStore.id, 'financialEntries', entry.id);
       
       const client = data.clientId ? clients.find(c => c.id === data.clientId) : null;
       const driver = data.driverId ? drivers.find(d => d.id === data.driverId) : null;

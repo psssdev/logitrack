@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import { triggerRevalidation } from '@/lib/actions';
 import { editDriverSchema } from '@/lib/schemas';
 import type { Driver } from '@/lib/types';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useStore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Loader2, UploadCloud, X } from 'lucide-react';
 import Link from 'next/link';
@@ -31,6 +31,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const { selectedStore } = useStore();
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(
     driver.photoUrl
   );
@@ -58,7 +59,7 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
   };
 
   async function onSubmit(data: EditDriverFormValues) {
-    if (!firestore) {
+    if (!firestore || !selectedStore) {
       toast({
         variant: 'destructive',
         title: 'Erro de Conexão',
@@ -80,6 +81,8 @@ export function EditDriverForm({ driver }: { driver: Driver }) {
       
       const driverRef = doc(
         firestore,
+        'stores',
+        selectedStore.id,
         'drivers',
         driver.id
       );
