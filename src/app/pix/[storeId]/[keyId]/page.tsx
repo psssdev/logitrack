@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -18,6 +17,7 @@ import { PixKeyDisplay } from '@/components/pix-key-display';
 export default async function PublicPixPage({ params }: { params: { storeId: string; keyId: string } }) {
   const storeId = params.storeId;
   const keyId = params.keyId;
+  console.log({ storeId, keyId });
   const { company, pixKey } = await getPublicPixData(storeId, keyId);
 
   if (!pixKey) {
@@ -53,11 +53,6 @@ export default async function PublicPixPage({ params }: { params: { storeId: str
         <CardContent>
             <PixKeyDisplay pixKey={pixKey} companyName={company?.nomeFantasia || undefined} />
         </CardContent>
-        <CardFooter className="flex-col gap-3">
-          <p className="text-xs text-muted-foreground">
-            Verifique o nome do destinatário antes de confirmar o pagamento.
-          </p>
-        </CardFooter>
       </Card>
     </div>
   );
