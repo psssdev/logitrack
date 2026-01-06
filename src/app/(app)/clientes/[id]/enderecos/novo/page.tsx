@@ -12,17 +12,16 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { NewAddressForm } from '@/components/new-address-form';
-import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Client } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-
 import { useStore } from '@/contexts/store-context';
 
 export default function NewAddressPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const { id } = React.use(params);
   return <NewAddressContent clientId={id} />
@@ -30,61 +29,60 @@ export default function NewAddressPage({
 
 function NewAddressContent({ clientId }: { clientId: string }) {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
   const { selectedStore } = useStore();
 
   const clientRef = useMemoFirebase(() => {
-    if (!firestore || !user || !selectedStore) return null;
+    if (!firestore || !selectedStore) return null;
     return doc(firestore, 'stores', selectedStore.id, 'clients', clientId);
-  }, [firestore, user, clientId, selectedStore]);
+  }, [firestore, selectedStore, clientId]);
 
   const { data: client, isLoading } = useDoc<Client>(clientRef);
 
-  const pageIsLoading = isLoading || isUserLoading;
+  const pageIsLoading = isLoading || !selectedStore;
 
   if (pageIsLoading) {
-    return (
-      <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-7 w-7" />
-          <Skeleton className="h-6 w-1/2" />
+      return (
+        <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
+            <div className="flex items-center gap-4">
+                <Skeleton className="h-7 w-7" />
+                <Skeleton className="h-6 w-1/2" />
+            </div>
+             <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-1/2" />
+                    <Skeleton className="h-4 w-3/4 mt-2" />
+                </CardHeader>
+                 <CardContent>
+                    <Skeleton className="h-48 w-full" />
+                </CardContent>
+            </Card>
         </div>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-1/2" />
-            <Skeleton className="h-4 w-3/4 mt-2" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-48 w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    )
+      )
   }
 
   if (!client) {
     return (
-      <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-            <Link href={`/clientes`}>
-              <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Voltar</span>
-            </Link>
-          </Button>
-          <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-            Cliente não encontrado
-          </h1>
+        <div className="mx-auto grid w-full max-w-2xl flex-1 auto-rows-max gap-4">
+             <div className="flex items-center gap-4">
+                <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+                    <Link href={`/clientes`}>
+                        <ChevronLeft className="h-4 w-4" />
+                        <span className="sr-only">Voltar</span>
+                    </Link>
+                </Button>
+                <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
+                    Cliente não encontrado
+                </h1>
+            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Erro 404</CardTitle>
+                    <CardDescription>
+                        O cliente para o qual você está tentando adicionar um endereço não foi encontrado.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Erro 404</CardTitle>
-            <CardDescription>
-              O cliente para o qual você está tentando adicionar um endereço não foi encontrado.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
     )
   }
 

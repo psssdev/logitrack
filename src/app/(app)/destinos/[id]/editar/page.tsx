@@ -16,7 +16,6 @@ import type { Destino } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditDestinoForm } from '@/components/edit-destino-form';
-
 import { useStore } from '@/contexts/store-context';
 
 export default function EditDestinoPage({

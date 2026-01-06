@@ -16,7 +16,6 @@ import type { Origin } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EditOriginForm } from '@/components/edit-origin-form';
-
 import { useStore } from '@/contexts/store-context';
 
 export default function EditOriginPage({

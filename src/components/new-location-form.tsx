@@ -27,8 +27,8 @@ import {
   SelectValue,
 } from './ui/select';
 import { useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useStore } from '@/contexts/store-context';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 type City = {
   id: number;

@@ -20,8 +20,8 @@ import { newLocationSchema } from '@/lib/schemas';
 import type { Origin } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useFirestore, useUser } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
 import { useStore } from '@/contexts/store-context';
+import { doc, updateDoc } from 'firebase/firestore';
 import { z } from 'zod';
 
 // Helper to parse the full address
@@ -63,7 +63,7 @@ export function EditOriginForm({ origin }: { origin: Origin }) {
   });
 
   async function onSubmit(data: FormValues) {
-    if (!firestore) {
+    if (!firestore || !user) {
       toast({ variant: 'destructive', title: 'Erro de conexão' });
       return;
     }

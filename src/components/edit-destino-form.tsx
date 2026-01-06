@@ -20,8 +20,8 @@ import { newLocationSchema } from '@/lib/schemas';
 import type { Destino } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useFirestore, useUser } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
 import { useStore } from '@/contexts/store-context';
+import { doc, updateDoc } from 'firebase/firestore';
 import { z } from 'zod';
 
 type FormValues = z.infer<typeof newLocationSchema>;

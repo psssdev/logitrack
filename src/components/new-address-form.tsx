@@ -20,7 +20,8 @@ import { newAddressFormSchema } from '@/lib/schemas';
 import type { NewAddress } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { useFirestore, useStore } from '@/firebase';
+import { useFirestore } from '@/firebase';
+import { useStore } from '@/contexts/store-context';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 
